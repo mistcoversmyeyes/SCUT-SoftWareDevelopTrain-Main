@@ -32,8 +32,9 @@ function handleChange(key) {
 }
 
 function handleRemove(key) {
+  const wasActive = tabs.activeKey === key
   const nextTab = tabs.closeTab(key)
-  if (nextTab) {
+  if (wasActive && nextTab) {
     router.push(nextTab.path)
   }
 }

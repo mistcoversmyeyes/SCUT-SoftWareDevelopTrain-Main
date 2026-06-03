@@ -1,21 +1,23 @@
 import { defineStore } from 'pinia'
 
-const dashboardTab = {
-  key: 'dashboard',
-  title: '首页',
-  path: '/dashboard',
-  closable: false
+function createDashboardTab() {
+  return {
+    key: 'dashboard',
+    title: '首页',
+    path: '/dashboard',
+    closable: false
+  }
 }
 
 export const useTabsStore = defineStore('tabs', {
   state: () => ({
-    openTabs: [dashboardTab],
-    activeKey: dashboardTab.key
+    openTabs: [createDashboardTab()],
+    activeKey: 'dashboard'
   }),
   actions: {
     openTab(tab) {
       if (!this.openTabs.some((item) => item.key === tab.key)) {
-        this.openTabs.push(tab)
+        this.openTabs.push({ ...tab })
       }
       this.activeKey = tab.key
     },
@@ -35,7 +37,7 @@ export const useTabsStore = defineStore('tabs', {
 
       if (wasActive) {
         const nextIndex = Math.min(index, this.openTabs.length - 1)
-        const nextTab = this.openTabs[nextIndex] || dashboardTab
+        const nextTab = this.openTabs[nextIndex] || createDashboardTab()
         this.activeKey = nextTab.key
         return nextTab
       }
@@ -43,8 +45,8 @@ export const useTabsStore = defineStore('tabs', {
       return this.openTabs.find((item) => item.key === this.activeKey)
     },
     resetTabs() {
-      this.openTabs = [dashboardTab]
-      this.activeKey = dashboardTab.key
+      this.openTabs = [createDashboardTab()]
+      this.activeKey = 'dashboard'
     }
   }
 })
