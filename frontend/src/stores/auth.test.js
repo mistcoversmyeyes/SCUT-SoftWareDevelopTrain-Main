@@ -26,8 +26,33 @@ describe('auth store', () => {
     await auth.login('admin', '123456')
 
     expect(auth.token).toBe('demo-token-admin')
+    expect(auth.verifiedToken).toBe('demo-token-admin')
+    expect(auth.isSessionVerified).toBe(true)
     expect(auth.user.displayName).toBe('系统管理员')
     expect(localStorage.getItem('wms-token')).toBe('demo-token-admin')
+  })
+
+  it('loads current user and verifies current token', async () => {
+    localStorage.setItem('wms-token', 'persisted-token')
+    authApi.fetchMe.mockResolvedValue({
+      username: 'admin',
+      displayName: '系统管理员'
+    })
+
+    const auth = useAuthStore()
+    expect(auth.isSessionVerified).toBe(false)
+
+    await auth.loadCurrentUser()
+
+    expect(auth.user).toEqual({
+      username: 'admin',
+      displayName: '系统管理员'
+    })
+    expect(auth.verifiedToken).toBe('persisted-token')
+    expect(auth.isSessionVerified).toBe(true)
+    expect(localStorage.getItem('wms-user')).toBe(
+      JSON.stringify({ username: 'admin', displayName: '系统管理员' })
+    )
   })
 
   it('clears state on logout', () => {
@@ -35,9 +60,12 @@ describe('auth store', () => {
     localStorage.setItem('wms-user', JSON.stringify({ username: 'admin', displayName: '系统管理员' }))
 
     const auth = useAuthStore()
+    auth.verifiedToken = 'demo-token-admin'
     auth.logout()
 
     expect(auth.token).toBe('')
+    expect(auth.verifiedToken).toBe('')
+    expect(auth.isSessionVerified).toBe(false)
     expect(auth.user).toBeNull()
     expect(localStorage.getItem('wms-token')).toBeNull()
   })

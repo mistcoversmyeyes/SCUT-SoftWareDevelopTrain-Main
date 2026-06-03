@@ -32,14 +32,50 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to) => {
+async function verifyCurrentSession(auth) {
+  if (auth.isSessionVerified) {
+    return true
+  }
+
+  await auth.loadCurrentUser()
+  return true
+}
+
+function loginRedirect(to) {
+  return { name: 'login', query: { redirect: to.fullPath } }
+}
+
+router.beforeEach(async (to) => {
   const auth = useAuthStore()
-  if (to.meta.requiresAuth && !auth.isLoggedIn) {
-    return { name: 'login', query: { redirect: to.fullPath } }
-  }
+  const tabs = useTabsStore()
+
   if (to.name === 'login' && auth.isLoggedIn) {
-    return { name: 'dashboard' }
+    try {
+      await verifyCurrentSession(auth)
+      return { name: 'dashboard' }
+    } catch {
+      auth.logout()
+      tabs.resetTabs()
+      return true
+    }
   }
+
+  if (!to.meta.requiresAuth) {
+    return true
+  }
+
+  if (!auth.isLoggedIn) {
+    return loginRedirect(to)
+  }
+
+  try {
+    await verifyCurrentSession(auth)
+  } catch {
+    auth.logout()
+    tabs.resetTabs()
+    return loginRedirect(to)
+  }
+
   return true
 })
 
