@@ -1,31 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useTabsStore } from '../stores/tabs'
+import { menuItems } from '../menu'
 import LoginView from '../views/LoginView.vue'
 import MainLayout from '../views/MainLayout.vue'
 import PlaceholderPage from '../views/PlaceholderPage.vue'
-
-const pageMap = {
-  dashboard: {
-    title: '首页',
-    description: '查看仓储运行概览、待办事项和基础统计。'
-  },
-  materials: {
-    title: '物料信息',
-    description: '维护汽车零部件物料编码、名称、规格和单位。'
-  },
-  inbound: {
-    title: '入库管理',
-    description: '跟踪采购到货、质检完成和上架入库流程。'
-  },
-  inventory: {
-    title: '库存监控',
-    description: '查看当前库存数量、安全库存和库位状态。'
-  },
-  outbound: {
-    title: '出库管理',
-    description: '处理销售出库、领料出库和发运状态。'
-  }
-}
 
 const routes = [
   { path: '/login', name: 'login', component: LoginView },
@@ -34,14 +13,15 @@ const routes = [
     component: MainLayout,
     meta: { requiresAuth: true },
     redirect: '/dashboard',
-    children: Object.entries(pageMap).map(([key, page]) => ({
-      path: key,
-      name: key,
+    children: menuItems.map((item) => ({
+      path: item.path.slice(1),
+      name: item.key,
       component: PlaceholderPage,
-      meta: { requiresAuth: true, tabKey: key, title: page.title },
+      meta: { requiresAuth: true, tabKey: item.key, title: item.title },
       props: {
-        title: page.title,
-        description: page.description
+        title: item.title,
+        description: item.description,
+        fields: item.fields
       }
     }))
   }
@@ -61,6 +41,19 @@ router.beforeEach((to) => {
     return { name: 'dashboard' }
   }
   return true
+})
+
+router.afterEach((to) => {
+  if (!to.meta.tabKey) {
+    return
+  }
+  const tabs = useTabsStore()
+  tabs.openTab({
+    key: to.meta.tabKey,
+    title: to.meta.title,
+    path: to.path,
+    closable: to.meta.tabKey !== 'dashboard'
+  })
 })
 
 export default router
