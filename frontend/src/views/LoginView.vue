@@ -10,7 +10,7 @@
       <h2>系统登录</h2>
       <p class="hint">演示账号：admin / 123456</p>
 
-      <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent>
+      <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent="submitLogin">
         <el-form-item label="用户名" prop="username">
           <el-input v-model="form.username" size="large" placeholder="请输入用户名" />
         </el-form-item>
@@ -18,7 +18,7 @@
           <el-input v-model="form.password" size="large" type="password" show-password placeholder="请输入密码" />
         </el-form-item>
         <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon :closable="false" />
-        <el-button class="login-button" type="primary" size="large" :loading="loading" @click="submitLogin">
+        <el-button class="login-button" type="primary" size="large" native-type="submit" :loading="loading">
           登录
         </el-button>
       </el-form>
@@ -50,11 +50,14 @@ const rules = {
 
 async function submitLogin() {
   errorMessage.value = ''
-  await formRef.value.validate()
+  const valid = await formRef.value.validate().catch(() => false)
+  if (!valid) return
+
   loading.value = true
   try {
     await auth.login(form.username, form.password)
-    await router.push(route.query.redirect || '/dashboard')
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/dashboard'
+    await router.push(redirect)
   } catch (error) {
     errorMessage.value = error.response?.data?.message || '登录请求失败，请确认后端服务已启动'
   } finally {
@@ -122,5 +125,24 @@ async function submitLogin() {
 .login-button {
   width: 100%;
   margin-top: 18px;
+}
+
+@media (max-width: 900px) {
+  .login-page {
+    grid-template-columns: 1fr;
+  }
+
+  .login-visual {
+    padding: 40px 24px 24px;
+  }
+
+  .login-visual h1 {
+    font-size: 40px;
+  }
+
+  .login-panel {
+    width: min(100% - 48px, 420px);
+    margin: 0 auto 40px;
+  }
 }
 </style>
