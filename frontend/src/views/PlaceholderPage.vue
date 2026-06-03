@@ -1,0 +1,19 @@
+<template>
+  <section class="placeholder-page">
+    <h2>{{ title }}</h2>
+    <p>{{ description }}</p>
+  </section>
+</template>
+
+<script setup>
+defineProps({
+  title: {
+    type: String,
+    required: true
+  },
+  description: {
+    type: String,
+    required: true
+  }
+})
+</script>
