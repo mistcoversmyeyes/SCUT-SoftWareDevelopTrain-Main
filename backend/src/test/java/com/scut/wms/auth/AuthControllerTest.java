@@ -48,6 +48,15 @@ class AuthControllerTest {
     }
 
     @Test
+    void loginRejectsBlankPassword() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"admin\",\"password\":\"\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("密码不能为空"));
+    }
+
+    @Test
     void meReturnsUserForValidBearerToken() throws Exception {
         mockMvc.perform(get("/api/auth/me")
                         .header("Authorization", "Bearer demo-token-admin"))
@@ -59,6 +68,14 @@ class AuthControllerTest {
     @Test
     void meRejectsMissingBearerToken() throws Exception {
         mockMvc.perform(get("/api/auth/me"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("登录状态已失效"));
+    }
+
+    @Test
+    void meRejectsInvalidBearerToken() throws Exception {
+        mockMvc.perform(get("/api/auth/me")
+                        .header("Authorization", "Bearer bad-token"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value("登录状态已失效"));
     }
