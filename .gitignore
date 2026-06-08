@@ -1,2 +1,9 @@
 .superpowers/
-
+.worktrees/
+.worktrees
+node_modules/
+dist/
+target/
+.idea/
+.vscode/
+*.log
