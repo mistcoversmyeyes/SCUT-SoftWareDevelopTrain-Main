@@ -695,13 +695,13 @@ git commit -m "feat(frontend): 实现扫码打印和追溯页面"
 - Move completed plan to `docs/exec-plans/completed/week2-inbound-core.md` after implementation
 - Optionally update `KEY_INFO_REMINDER.md` only if commands or credentials change
 
-- [ ] **Step 1: Run backend tests**
+- [x] **Step 1: Run backend tests**
 
 Run: `cd backend && mvn test`
 
 Expected: all backend tests pass.
 
-- [ ] **Step 2: Run frontend tests and build**
+- [x] **Step 2: Run frontend tests and build**
 
 Run:
 
@@ -734,7 +734,7 @@ Manual flow:
 9. Confirm kanban trace.
 10. Scan same kanban again and confirm stock does not increase.
 
-- [ ] **Step 4: Move plan to completed**
+- [x] **Step 4: Move plan to completed**
 
 ```bash
 git mv docs/exec-plans/active/week2-inbound-core.md docs/exec-plans/completed/week2-inbound-core.md
