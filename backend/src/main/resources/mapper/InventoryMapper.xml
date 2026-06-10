@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scut.wms.inventory.InventoryTransactionMapper">
+
+    <select id="selectScanKanbanForUpdate" resultType="com.scut.wms.inventory.ScanKanbanContext">
+        SELECT kb.id AS kanban_id,
+               kb.kanban_code,
+               kb.status AS kanban_status,
+               kb.board_qty,
+               kb.received_at,
+               o.id AS order_id,
+               o.inbound_no,
+               o.status AS order_status,
+               l.id AS line_id,
+               l.line_no,
+               l.planned_qty,
+               l.received_qty AS line_received_qty,
+               l.material_id,
+               m.material_code,
+               m.material_name,
+               l.target_warehouse_id,
+               l.target_location_id,
+               sl.warehouse_id AS location_warehouse_id,
+               sl.location_name
+        FROM kanban_board kb
+                 JOIN inbound_order o ON o.id = kb.inbound_order_id
+                 JOIN inbound_order_line l ON l.id = kb.inbound_order_line_id
+                 JOIN material m ON m.id = l.material_id
+                 JOIN storage_location sl ON sl.id = l.target_location_id
+        WHERE kb.kanban_code = #{kanbanCode}
+        FOR UPDATE
+    </select>
+
+    <select id="selectBalanceForUpdate" resultType="com.scut.wms.inventory.InventoryBalance">
+        SELECT id,
+               material_id,
+               warehouse_id,
+               storage_location_id,
+               on_hand_qty,
+               updated_at
+        FROM inventory_balance
+        WHERE material_id = #{materialId}
+          AND warehouse_id = #{warehouseId}
+          AND storage_location_id = #{storageLocationId}
+        FOR UPDATE
+    </select>
+</mapper>
