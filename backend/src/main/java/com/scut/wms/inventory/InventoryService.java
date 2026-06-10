@@ -102,6 +102,34 @@ public class InventoryService {
         );
     }
 
+    public List<InventoryBalanceView> listBalances(String materialCode, String warehouseCode, String locationCode) {
+        return inventoryTransactionMapper.selectInventoryBalances(materialCode, warehouseCode, locationCode);
+    }
+
+    public List<InventoryMovementView> listMovements(
+            String materialCode,
+            String warehouseCode,
+            String locationCode,
+            String inboundNo,
+            String kanbanCode
+    ) {
+        return inventoryTransactionMapper.selectInventoryMovements(
+                materialCode,
+                warehouseCode,
+                locationCode,
+                inboundNo,
+                kanbanCode
+        );
+    }
+
+    public KanbanTraceView getKanbanTrace(String kanbanCode) {
+        KanbanTraceView trace = inventoryTransactionMapper.selectKanbanTrace(kanbanCode);
+        if (trace == null) {
+            throw new BusinessException(HttpStatus.NOT_FOUND, "未找到看板");
+        }
+        return trace;
+    }
+
     private InventoryMovement createMovement(ScanKanbanContext context, LocalDateTime now) {
         InventoryMovement movement = new InventoryMovement();
         movement.setMovementNo(generateMovementNo(now));

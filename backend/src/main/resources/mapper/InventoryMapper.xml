@@ -46,4 +46,70 @@
           AND storage_location_id = #{storageLocationId}
         FOR UPDATE
     </select>
+
+    <select id="selectInventoryBalances" resultType="com.scut.wms.inventory.InventoryBalanceView">
+        SELECT m.material_code,
+               m.material_name,
+               w.warehouse_code,
+               w.warehouse_name,
+               sl.location_code,
+               sl.location_name,
+               ib.on_hand_qty,
+               ib.updated_at
+        FROM inventory_balance ib
+                 JOIN material m ON m.id = ib.material_id
+                 JOIN warehouse w ON w.id = ib.warehouse_id
+                 JOIN storage_location sl ON sl.id = ib.storage_location_id
+        WHERE (#{materialCode} IS NULL OR m.material_code = #{materialCode})
+          AND (#{warehouseCode} IS NULL OR w.warehouse_code = #{warehouseCode})
+          AND (#{locationCode} IS NULL OR sl.location_code = #{locationCode})
+        ORDER BY ib.id ASC
+    </select>
+
+    <select id="selectInventoryMovements" resultType="com.scut.wms.inventory.InventoryMovementView">
+        SELECT im.movement_no,
+               m.material_code,
+               m.material_name,
+               w.warehouse_code,
+               w.warehouse_name,
+               sl.location_code,
+               sl.location_name,
+               im.qty,
+               kb.kanban_code,
+               io.inbound_no,
+               im.occurred_at
+        FROM inventory_movement im
+                 JOIN material m ON m.id = im.material_id
+                 JOIN warehouse w ON w.id = im.warehouse_id
+                 JOIN storage_location sl ON sl.id = im.storage_location_id
+                 LEFT JOIN kanban_board kb ON kb.id = im.kanban_board_id
+                 LEFT JOIN inbound_order io ON io.id = kb.inbound_order_id
+        WHERE (#{materialCode} IS NULL OR m.material_code = #{materialCode})
+          AND (#{warehouseCode} IS NULL OR w.warehouse_code = #{warehouseCode})
+          AND (#{locationCode} IS NULL OR sl.location_code = #{locationCode})
+          AND (#{inboundNo} IS NULL OR io.inbound_no = #{inboundNo})
+          AND (#{kanbanCode} IS NULL OR kb.kanban_code = #{kanbanCode})
+        ORDER BY im.occurred_at DESC, im.id DESC
+    </select>
+
+    <select id="selectKanbanTrace" resultType="com.scut.wms.inventory.KanbanTraceView">
+        SELECT kb.kanban_code,
+               kb.status AS kanban_status,
+               io.inbound_no,
+               m.material_code,
+               m.material_name,
+               sl.location_code,
+               sl.location_name,
+               COALESCE(DATE_FORMAT(kb.received_at, '%Y-%m-%dT%H:%i:%s'), '') AS scanned_at,
+               COALESCE(im.movement_no, '') AS movement_no
+        FROM kanban_board kb
+                 JOIN inbound_order io ON io.id = kb.inbound_order_id
+                 JOIN inbound_order_line iol ON iol.id = kb.inbound_order_line_id
+                 JOIN material m ON m.id = iol.material_id
+                 JOIN storage_location sl ON sl.id = iol.target_location_id
+                 LEFT JOIN inventory_movement im ON im.kanban_board_id = kb.id
+        WHERE kb.kanban_code = #{kanbanCode}
+        ORDER BY im.occurred_at DESC, im.id DESC
+        LIMIT 1
+    </select>
 </mapper>

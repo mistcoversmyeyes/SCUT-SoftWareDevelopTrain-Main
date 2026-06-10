@@ -1,6 +1,7 @@
 package com.scut.wms.inventory;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.scut.wms.inbound.InboundOrder;
 import com.scut.wms.inbound.InboundOrderLine;
 import com.scut.wms.inbound.InboundOrderLineMapper;
@@ -59,10 +60,13 @@ class ScanInboundControllerTest {
         inventoryMovementMapper.delete(new QueryWrapper<>());
         inventoryBalanceMapper.delete(new QueryWrapper<>());
 
-        InboundOrder order = inboundOrderMapper.selectById(DEMO_ORDER_ID);
-        order.setStatus("RELEASED");
-        order.setCompletedAt(null);
-        inboundOrderMapper.updateById(order);
+        inboundOrderMapper.update(
+                null,
+                Wrappers.<InboundOrder>lambdaUpdate()
+                        .eq(InboundOrder::getId, DEMO_ORDER_ID)
+                        .set(InboundOrder::getStatus, "RELEASED")
+                        .set(InboundOrder::getCompletedAt, (String) null)
+        );
 
         resetLine(DEMO_LINE_ONE_ID);
         resetLine(DEMO_LINE_TWO_ID);
