@@ -1,14 +1,21 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Start WMS project - backend and frontend
 
+set -euo pipefail
+
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+echo "=== Starting WMS MySQL (Docker :3306) ==="
+"$PROJECT_ROOT/scripts/start-mysql.sh"
+
 echo "=== Starting WMS Backend (Spring Boot :8080) ==="
-cd /home/yuming/scut/SCUT_26_spring/SCUT-SoftWareDevelopTrain-Main/backend
-nohup mvn spring-boot:run -q > /tmp/backend.log 2>&1 &
+cd "$PROJECT_ROOT/backend"
+nohup mvn spring-boot:run -Dspring-boot.run.profiles=local -q > /tmp/backend.log 2>&1 &
 BACKEND_PID=$!
 echo "Backend PID: $BACKEND_PID"
 
 echo "=== Starting WMS Frontend (Vite :5173) ==="
-cd /home/yuming/scut/SCUT_26_spring/SCUT-SoftWareDevelopTrain-Main/frontend
+cd "$PROJECT_ROOT/frontend"
 npm install --silent 2>&1
 nohup npm run dev > /tmp/frontend.log 2>&1 &
 FRONTEND_PID=$!

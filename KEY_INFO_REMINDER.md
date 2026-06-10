@@ -13,8 +13,17 @@ Backend:
 ```bash
 cd backend
 mvn test
-mvn spring-boot:run
+mvn spring-boot:run -Dspring-boot.run.profiles=local
 ```
+
+Database:
+
+```bash
+scripts/start-mysql.sh
+```
+
+The script starts Docker MySQL 8 on `127.0.0.1:3306`, with root password `root`, and creates `scut_wms` plus `scut_wms_test`.
+The default backend profile does not run destructive SQL initialization. Use the `local` profile for local demo schema/data initialization.
 
 Frontend:
 
@@ -46,4 +55,3 @@ These are Week 1 demonstration facts, not production security design.
 - Primary WMS background: `res/WMS仓储管理系统--产品介绍资料.pdf`
 - The PDF frames the product as Web frontend + server + Android handheld app.
 - It lists inbound, barcode, outbound, inventory monitoring, error prevention/FIFO, master data and user management as product areas.
-

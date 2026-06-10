@@ -33,6 +33,7 @@ res/                              <- 课程与产品资料
 
 scripts/                          <- 本地脚本
   start.sh                        <- 同时启动后端与前端
+  start-mysql.sh                  <- 启动 Docker MySQL 8 并创建 scut_wms/scut_wms_test
 
 docs/
 ├── constraints/

@@ -2,6 +2,7 @@ package com.scut.wms.config;
 
 import com.scut.wms.auth.ErrorResponse;
 import com.scut.wms.auth.InvalidCredentialsException;
+import com.scut.wms.common.BusinessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -24,5 +25,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleInvalidCredentials(InvalidCredentialsException exception) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ErrorResponse(exception.getMessage()));
+    }
+
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException exception) {
+        return ResponseEntity.status(exception.getStatus()).body(new ErrorResponse(exception.getMessage()));
     }
 }

@@ -1,0 +1,9 @@
+spring:
+  datasource:
+    url: ${WMS_TEST_DB_URL:jdbc:mysql://127.0.0.1:3306/scut_wms_test?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
+    username: ${WMS_DB_USERNAME:root}
+    password: ${WMS_DB_PASSWORD:root}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  sql:
+    init:
+      mode: always
