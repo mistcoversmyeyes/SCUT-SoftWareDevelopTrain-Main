@@ -7,6 +7,8 @@ import MainLayout from '../views/MainLayout.vue'
 import PlaceholderPage from '../views/PlaceholderPage.vue'
 import InboundOrderListView from '../views/inbound/InboundOrderListView.vue'
 import InboundScanView from '../views/inbound/InboundScanView.vue'
+import InboundPrintView from '../views/inbound/InboundPrintView.vue'
+import KanbanPrintView from '../views/inbound/KanbanPrintView.vue'
 import InventoryBalanceView from '../views/inventory/InventoryBalanceView.vue'
 import InventoryTraceView from '../views/inventory/InventoryTraceView.vue'
 import KanbanTraceView from '../views/kanban/KanbanTraceView.vue'
@@ -26,6 +28,7 @@ const routes = [
         'inventory-trace': InventoryTraceView,
         'kanbans-trace': KanbanTraceView
       }
+
       return {
         path: item.path.slice(1),
         name: item.key,
@@ -43,7 +46,26 @@ const routes = [
               fields: item.fields
             }
       }
-    })
+    }).concat([
+      {
+        path: 'inbound/:id/print',
+        name: 'inbound-print',
+        component: InboundPrintView,
+        meta: {
+          requiresAuth: true,
+          title: '入库单打印'
+        }
+      },
+      {
+        path: 'inbound/:id/kanbans/print',
+        name: 'kanban-print',
+        component: KanbanPrintView,
+        meta: {
+          requiresAuth: true,
+          title: '看板打印'
+        }
+      }
+    ])
   },
   {
     path: '/:pathMatch(.*)*',
