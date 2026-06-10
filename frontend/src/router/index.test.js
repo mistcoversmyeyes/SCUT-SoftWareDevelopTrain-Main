@@ -7,6 +7,8 @@ import * as authApi from '../api/auth'
 import PlaceholderPage from '../views/PlaceholderPage.vue'
 import InboundOrderListView from '../views/inbound/InboundOrderListView.vue'
 import InboundScanView from '../views/inbound/InboundScanView.vue'
+import InboundPrintView from '../views/inbound/InboundPrintView.vue'
+import KanbanPrintView from '../views/inbound/KanbanPrintView.vue'
 import InventoryBalanceView from '../views/inventory/InventoryBalanceView.vue'
 import InventoryTraceView from '../views/inventory/InventoryTraceView.vue'
 import KanbanTraceView from '../views/kanban/KanbanTraceView.vue'
@@ -111,6 +113,16 @@ describe('router auth guard', () => {
         path: '/kanbans/trace',
         name: 'kanbans-trace',
         component: KanbanTraceView
+      },
+      {
+        path: '/inbound/10/print',
+        name: 'inbound-print',
+        component: InboundPrintView
+      },
+      {
+        path: '/inbound/10/kanbans/print',
+        name: 'kanban-print',
+        component: KanbanPrintView
       }
     ]
 
