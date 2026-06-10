@@ -5,6 +5,11 @@ import { menuItems } from '../menu'
 import LoginView from '../views/LoginView.vue'
 import MainLayout from '../views/MainLayout.vue'
 import PlaceholderPage from '../views/PlaceholderPage.vue'
+import InboundOrderListView from '../views/inbound/InboundOrderListView.vue'
+import InboundScanView from '../views/inbound/InboundScanView.vue'
+import InventoryBalanceView from '../views/inventory/InventoryBalanceView.vue'
+import InventoryTraceView from '../views/inventory/InventoryTraceView.vue'
+import KanbanTraceView from '../views/kanban/KanbanTraceView.vue'
 
 const routes = [
   { path: '/login', name: 'login', component: LoginView },
@@ -13,17 +18,37 @@ const routes = [
     component: MainLayout,
     meta: { requiresAuth: true },
     redirect: '/dashboard',
-    children: menuItems.map((item) => ({
-      path: item.path.slice(1),
-      name: item.key,
-      component: PlaceholderPage,
-      meta: { requiresAuth: true, tabKey: item.key, title: item.title },
-      props: {
-        title: item.title,
-        description: item.description,
-        fields: item.fields
+    children: menuItems.map((item) => {
+      const pageByKey = {
+        'inbound-orders': InboundOrderListView,
+        'inbound-scan': InboundScanView,
+        'inventory-balances': InventoryBalanceView,
+        'inventory-trace': InventoryTraceView,
+        'kanbans-trace': KanbanTraceView
       }
-    }))
+      return {
+        path: item.path.slice(1),
+        name: item.key,
+        component: pageByKey[item.key] || PlaceholderPage,
+        meta: {
+          requiresAuth: true,
+          tabKey: item.key,
+          title: item.title
+        },
+        props: pageByKey[item.key]
+          ? false
+          : {
+              title: item.title,
+              description: item.description,
+              fields: item.fields
+            }
+      }
+    })
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'not-found',
+    redirect: '/dashboard'
   }
 ]
 

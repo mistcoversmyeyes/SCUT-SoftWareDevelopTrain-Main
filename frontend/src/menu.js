@@ -18,20 +18,44 @@ export const menuItems = [
     fields: ['物料编码', '物料名称', '规格型号', '计量单位']
   },
   {
-    key: 'inbound',
-    title: '入库管理',
-    path: '/inbound',
+    key: 'inbound-orders',
+    title: '入库订单',
+    path: '/inbound/orders',
     icon: Tickets,
-    description: '跟踪采购到货、质检完成和上架入库流程。',
-    fields: ['入库单号', '供应商', '到货数量', '质检状态']
+    description: '查看和管理采购入库单。',
+    fields: ['入库单号', '供应商', '状态', '到货时间']
   },
   {
-    key: 'inventory',
-    title: '库存监控',
-    path: '/inventory',
+    key: 'inbound-scan',
+    title: '入库扫码',
+    path: '/inbound/scan',
+    icon: Tickets,
+    description: '扫码完成在途看板收货并更新库存。',
+    fields: ['看板码', '扫码结果', '更新数量', '最近操作时间']
+  },
+  {
+    key: 'inventory-balances',
+    title: '库存余额',
+    path: '/inventory/balances',
     icon: DataAnalysis,
-    description: '查看当前库存数量、安全库存和库位状态。',
-    fields: ['当前库存', '安全库存', '库位编号', '预警状态']
+    description: '按物料、仓库和库位查看当前库存。',
+    fields: ['物料', '仓库', '库位', '当前库存']
+  },
+  {
+    key: 'inventory-trace',
+    title: '库存追溯',
+    path: '/inventory/trace',
+    icon: DataAnalysis,
+    description: '查看入库流水与库存变更历史。',
+    fields: ['流水号', '看板码', '入库单号', '时间']
+  },
+  {
+    key: 'kanbans-trace',
+    title: '看板追溯',
+    path: '/kanbans/trace',
+    icon: Van,
+    description: '输入看板码查询其生成与收货全过程。',
+    fields: ['看板码', '入库单号', '状态', '最近更新时间']
   },
   {
     key: 'outbound',
