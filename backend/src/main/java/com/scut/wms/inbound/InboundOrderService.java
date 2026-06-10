@@ -165,6 +165,28 @@ public class InboundOrderService {
         return toResponse(id);
     }
 
+    public InboundPrintResponse print(Long id) {
+        requireOrder(id);
+        InboundPrintHeader header = inboundOrderMapper.selectPrintHeader(id);
+        List<InboundPrintLine> lines = inboundOrderMapper.selectPrintLines(id);
+        return new InboundPrintResponse(
+                header.id(),
+                header.inboundNo(),
+                header.supplierCode(),
+                header.supplierName(),
+                header.sourceDocNo(),
+                header.status(),
+                header.remark(),
+                header.releasedAt(),
+                lines
+        );
+    }
+
+    public List<KanbanPrintResponse> printKanbans(Long id) {
+        requireOrder(id);
+        return inboundOrderMapper.selectKanbanPrints(id);
+    }
+
     private void replaceOrder(InboundOrder order, InboundOrderRequest request, boolean rebuildKanbans) {
         order.setSupplierId(request.supplierId());
         order.setSourceDocNo(request.sourceDocNo());

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scut.wms.inbound.InboundOrderMapper">
+
+    <select id="selectPrintHeader" resultType="com.scut.wms.inbound.InboundPrintHeader">
+        SELECT o.id,
+               o.inbound_no,
+               s.supplier_code,
+               s.supplier_name,
+               o.source_doc_no,
+               o.status,
+               o.remark,
+               o.released_at
+        FROM inbound_order o
+                 JOIN supplier s ON s.id = o.supplier_id
+        WHERE o.id = #{id}
+    </select>
+
+    <select id="selectPrintLines" resultType="com.scut.wms.inbound.InboundPrintLine">
+        SELECT l.line_no,
+               m.material_code,
+               m.material_name,
+               l.planned_qty,
+               l.received_qty,
+               w.warehouse_name,
+               sl.location_name
+        FROM inbound_order_line l
+                 JOIN material m ON m.id = l.material_id
+                 JOIN warehouse w ON w.id = l.target_warehouse_id
+                 JOIN storage_location sl ON sl.id = l.target_location_id
+        WHERE l.inbound_order_id = #{id}
+        ORDER BY l.line_no ASC
+    </select>
+
+    <select id="selectKanbanPrints" resultType="com.scut.wms.inbound.KanbanPrintResponse">
+        SELECT kb.kanban_code,
+               o.inbound_no,
+               s.supplier_code,
+               s.supplier_name,
+               m.material_code,
+               m.material_name,
+               sl.location_name,
+               kb.board_qty AS qty,
+               kb.status,
+               kb.printed_at
+        FROM kanban_board kb
+                 JOIN inbound_order o ON o.id = kb.inbound_order_id
+                 JOIN supplier s ON s.id = o.supplier_id
+                 JOIN inbound_order_line l ON l.id = kb.inbound_order_line_id
+                 JOIN material m ON m.id = l.material_id
+                 JOIN storage_location sl ON sl.id = l.target_location_id
+        WHERE kb.inbound_order_id = #{id}
+        ORDER BY kb.id ASC
+    </select>
+</mapper>

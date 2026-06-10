@@ -50,4 +50,14 @@ public class InboundOrderController {
     public InboundOrderResponse cancel(@PathVariable Long id) {
         return service.cancel(id);
     }
+
+    @GetMapping("/{id}/print")
+    public InboundPrintResponse print(@PathVariable Long id) {
+        return service.print(id);
+    }
+
+    @GetMapping("/{id}/kanbans/print")
+    public List<KanbanPrintResponse> printKanbans(@PathVariable Long id) {
+        return service.printKanbans(id);
+    }
 }

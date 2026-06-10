@@ -330,6 +330,50 @@ class InboundOrderControllerTest {
                 .andExpect(jsonPath("$[0].receivedQty").value(0));
     }
 
+    @Test
+    void printOrderReturnsDisplayHeaderAndLines() throws Exception {
+        mockMvc.perform(get("/api/inbound-orders/{id}/print", 1L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.inboundNo").value("IN-20260610-001"))
+                .andExpect(jsonPath("$.supplierCode").value("8KH"))
+                .andExpect(jsonPath("$.supplierName").value("佛山华翔金属件 8KH"))
+                .andExpect(jsonPath("$.sourceDocNo").value("PO-20260610-001"))
+                .andExpect(jsonPath("$.status").value("RELEASED"))
+                .andExpect(jsonPath("$.remark").value("Week 2 采购入库演示单据"))
+                .andExpect(jsonPath("$.lines[0].lineNo").value(1))
+                .andExpect(jsonPath("$.lines[0].materialCode").value("5HG 807 109 C"))
+                .andExpect(jsonPath("$.lines[0].warehouseName").value("吉耀仓"))
+                .andExpect(jsonPath("$.lines[0].locationName").value("A区 01 库位"))
+                .andExpect(jsonPath("$.lines[1].lineNo").value(2))
+                .andExpect(jsonPath("$.lines[1].materialCode").value("5WD 723 913 C"));
+    }
+
+    @Test
+    void printKanbansReturnsDisplayLabels() throws Exception {
+        mockMvc.perform(get("/api/inbound-orders/{id}/kanbans/print", 1L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].kanbanCode").value("KB:v1:IN-20260610-001:1:1"))
+                .andExpect(jsonPath("$[0].inboundNo").value("IN-20260610-001"))
+                .andExpect(jsonPath("$[0].supplierCode").value("8KH"))
+                .andExpect(jsonPath("$[0].materialCode").value("5HG 807 109 C"))
+                .andExpect(jsonPath("$[0].materialName").value("前保险杠支架"))
+                .andExpect(jsonPath("$[0].locationName").value("A区 01 库位"))
+                .andExpect(jsonPath("$[0].qty").value(120.0))
+                .andExpect(jsonPath("$[0].status").value("PRINTED"))
+                .andExpect(jsonPath("$[1].kanbanCode").value("KB:v1:IN-20260610-001:2:1"))
+                .andExpect(jsonPath("$[1].materialCode").value("5WD 723 913 C"));
+    }
+
+    @Test
+    void printEndpointsReturnNotFoundForMissingOrder() throws Exception {
+        mockMvc.perform(get("/api/inbound-orders/{id}/print", 9999L))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/api/inbound-orders/{id}/kanbans/print", 9999L))
+                .andExpect(status().isNotFound());
+    }
+
     private Long createOrder(String sourceDocNo) throws Exception {
         return performCreate(defaultCreateRequest(sourceDocNo))
                 .andExpect(status().isOk())
