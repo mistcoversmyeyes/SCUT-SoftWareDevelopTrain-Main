@@ -15,3 +15,7 @@
 - 从当前代码推导出的实现现状。
 - 仍待确认的产品语义。
 
+## 当前规格
+
+- `module-inbound-core-design.md`：Week 2 采购入库核心功能设计，覆盖入库单、看板、扫码入库、库存追溯、看板追溯和 MySQL 持久化边界。
+- `module-inbound-data-model-review.md`：采购入库数据模型审查，记录原始 11 表方案、范式审查和最终 9 表持久化模型。
