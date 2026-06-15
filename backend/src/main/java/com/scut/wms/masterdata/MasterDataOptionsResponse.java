@@ -6,6 +6,7 @@ public record MasterDataOptionsResponse(
         List<OptionItem> suppliers,
         List<OptionItem> materials,
         List<OptionItem> warehouses,
-        List<LocationOption> locations
+        List<LocationOption> locations,
+        List<OptionItem> containerTypes
 ) {
 }

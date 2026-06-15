@@ -3,10 +3,13 @@ DROP TABLE IF EXISTS inventory_movement;
 DROP TABLE IF EXISTS kanban_board;
 DROP TABLE IF EXISTS inbound_order_line;
 DROP TABLE IF EXISTS inbound_order;
+DROP TABLE IF EXISTS outbound_order_line;
+DROP TABLE IF EXISTS outbound_order;
 DROP TABLE IF EXISTS storage_location;
 DROP TABLE IF EXISTS warehouse;
 DROP TABLE IF EXISTS material;
 DROP TABLE IF EXISTS supplier;
+DROP TABLE IF EXISTS container_type;
 
 CREATE TABLE supplier (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -26,6 +29,9 @@ CREATE TABLE material (
   specification VARCHAR(128),
   unit VARCHAR(32) NOT NULL,
   supplier_id BIGINT,
+  container_type_id BIGINT,
+  low_stock_qty DECIMAL(18, 3),
+  high_stock_qty DECIMAL(18, 3),
   status VARCHAR(32) NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -93,6 +99,7 @@ CREATE TABLE kanban_board (
   inbound_order_id BIGINT NOT NULL,
   inbound_order_line_id BIGINT NOT NULL,
   board_qty DECIMAL(18, 3) NOT NULL,
+  picked_qty DECIMAL(18, 3) NOT NULL DEFAULT 0,
   status VARCHAR(32) NOT NULL,
   printed_at DATETIME,
   received_at DATETIME,
@@ -136,4 +143,48 @@ CREATE TABLE inventory_balance (
   CONSTRAINT fk_balance_material FOREIGN KEY (material_id) REFERENCES material(id),
   CONSTRAINT fk_balance_warehouse FOREIGN KEY (warehouse_id) REFERENCES warehouse(id),
   CONSTRAINT fk_balance_location FOREIGN KEY (storage_location_id) REFERENCES storage_location(id)
+);
+
+CREATE TABLE container_type (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  container_code VARCHAR(64) NOT NULL UNIQUE,
+  container_name VARCHAR(128) NOT NULL,
+  capacity_qty DECIMAL(18, 3),
+  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE outbound_order (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  outbound_no VARCHAR(64) NOT NULL UNIQUE,
+  supplier_id BIGINT NOT NULL,
+  purpose VARCHAR(64),
+  source_doc_no VARCHAR(64),
+  status VARCHAR(32) NOT NULL,
+  remark VARCHAR(255),
+  released_at DATETIME,
+  completed_at DATETIME,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_outbound_order_supplier FOREIGN KEY (supplier_id) REFERENCES supplier(id),
+  INDEX idx_outbound_order_status (status)
+);
+
+CREATE TABLE outbound_order_line (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  outbound_order_id BIGINT NOT NULL,
+  line_no INT NOT NULL,
+  material_id BIGINT NOT NULL,
+  planned_qty DECIMAL(18, 3) NOT NULL,
+  picked_qty DECIMAL(18, 3) NOT NULL DEFAULT 0,
+  source_warehouse_id BIGINT NOT NULL,
+  source_location_id BIGINT NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT uk_outbound_order_line UNIQUE (outbound_order_id, line_no),
+  CONSTRAINT fk_outbound_line_order FOREIGN KEY (outbound_order_id) REFERENCES outbound_order(id),
+  CONSTRAINT fk_outbound_line_material FOREIGN KEY (material_id) REFERENCES material(id),
+  CONSTRAINT fk_outbound_line_warehouse FOREIGN KEY (source_warehouse_id) REFERENCES warehouse(id),
+  CONSTRAINT fk_outbound_line_location FOREIGN KEY (source_location_id) REFERENCES storage_location(id)
 );

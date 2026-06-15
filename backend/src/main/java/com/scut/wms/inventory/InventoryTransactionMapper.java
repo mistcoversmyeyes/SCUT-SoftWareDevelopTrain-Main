@@ -4,6 +4,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import com.scut.wms.outbound.picking.FifoPickCandidate;
 
 @Mapper
 public interface InventoryTransactionMapper {
@@ -30,4 +31,10 @@ public interface InventoryTransactionMapper {
     );
 
     KanbanTraceView selectKanbanTrace(@Param("kanbanCode") String kanbanCode);
+
+    List<FifoPickCandidate> selectFifoCandidateForUpdate(
+            @Param("materialId") Long materialId,
+            @Param("warehouseId") Long warehouseId,
+            @Param("storageLocationId") Long storageLocationId
+    );
 }

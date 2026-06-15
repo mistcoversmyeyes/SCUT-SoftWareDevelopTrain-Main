@@ -112,4 +112,25 @@
         ORDER BY im.occurred_at DESC, im.id DESC
         LIMIT 1
     </select>
+
+    <select id="selectFifoCandidateForUpdate" resultType="com.scut.wms.outbound.picking.FifoPickCandidate">
+        SELECT kb.id AS kanbanId,
+               kb.kanban_code AS kanbanCode,
+               kb.board_qty AS boardQty,
+               COALESCE(kb.picked_qty, 0) AS pickedQty,
+               kb.received_at AS receivedAt,
+               iol.material_id AS materialId,
+               iol.target_warehouse_id AS warehouseId,
+               iol.target_location_id AS storageLocationId
+        FROM kanban_board kb
+        JOIN inbound_order_line iol ON kb.inbound_order_line_id = iol.id
+        WHERE kb.status = 'RECEIVED'
+          AND iol.material_id = #{materialId}
+          AND iol.target_warehouse_id = #{warehouseId}
+          AND iol.target_location_id = #{storageLocationId}
+          AND (kb.board_qty - COALESCE(kb.picked_qty, 0)) > 0
+        ORDER BY kb.received_at ASC, kb.id ASC
+        FOR UPDATE
+    </select>
+
 </mapper>

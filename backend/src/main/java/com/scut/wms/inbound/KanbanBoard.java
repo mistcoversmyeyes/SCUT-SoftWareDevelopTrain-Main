@@ -15,6 +15,7 @@ public class KanbanBoard {
     private Long inboundOrderId;
     private Long inboundOrderLineId;
     private BigDecimal boardQty;
+    private BigDecimal pickedQty;
     private String status;
     private LocalDateTime printedAt;
     private LocalDateTime receivedAt;
@@ -59,6 +60,14 @@ public class KanbanBoard {
 
     public void setBoardQty(BigDecimal boardQty) {
         this.boardQty = boardQty;
+    }
+
+    public BigDecimal getPickedQty() {
+        return pickedQty;
+    }
+
+    public void setPickedQty(BigDecimal pickedQty) {
+        this.pickedQty = pickedQty;
     }
 
     public String getStatus() {

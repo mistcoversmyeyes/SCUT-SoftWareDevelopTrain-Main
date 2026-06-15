@@ -120,7 +120,7 @@
                 :disabled="!canPrint(row)"
                 @click="handlePrintOrder(row)"
               >
-                打印入库单
+                查看/打印入库单
               </el-button>
               <el-button
                 type="success"
@@ -129,7 +129,7 @@
                 :disabled="!canPrintKanbans(row)"
                 @click="handlePrintKanbans(row)"
               >
-                打印看板
+                查看/打印看板
               </el-button>
               <el-popconfirm
                 :title="`确认取消入库单 ${row.inboundNo}？`"
@@ -168,18 +168,19 @@
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
   cancelInboundOrder,
   createInboundOrder,
   fetchInboundOrders,
-  printInboundOrder,
-  printKanbans,
   releaseInboundOrder,
   updateInboundOrder
 } from '../../api/inbound'
 import { fetchMasterDataOptions } from '../../api/masterData'
 import InboundOrderFormView from './InboundOrderFormView.vue'
+
+const router = useRouter()
 
 const statusOptions = [
   { value: 'DRAFT', label: '草稿' },
@@ -361,104 +362,12 @@ async function handleCancel(row) {
   }
 }
 
-function buildPreviewWindow(title, htmlBody) {
-  const html = `<!doctype html>
-<html>
-  <head>
-    <meta charset="UTF-8" />
-    <title>${title}</title>
-    <style>
-      body { font-family: Arial, sans-serif; padding: 24px; color: #111827; }
-      h1 { font-size: 20px; margin: 0 0 12px; }
-      .meta { margin-bottom: 16px; color: #64748b; }
-      table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-      th, td { border: 1px solid #d1d5db; padding: 8px; font-size: 12px; }
-      th { background: #f1f5f9; text-align: left; }
-      .mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
-    </style>
-  </head>
-  <body>
-    <h1>${title}</h1>
-    <p class="meta">本页为 WP-06 临时预览，后续可替换为 WP-07 打印路由。</p>
-    ${htmlBody}
-  </body>
-</html>`
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const win = window.open(url, '_blank', 'noopener')
-  if (win) {
-    setTimeout(() => URL.revokeObjectURL(url), 2000)
-  }
+function handlePrintOrder(row) {
+  router.push('/inbound/' + row.id)
 }
 
-function buildInboundPrintHtml(order) {
-  const lines = (order.lines || []).map((line) => `
-      <tr>
-        <td>${line.lineNo}</td>
-        <td>${line.materialCode || ''}</td>
-        <td>${line.materialName || ''}</td>
-        <td class="mono">${line.plannedQty ?? ''}</td>
-        <td class="mono">${line.receivedQty ?? ''}</td>
-        <td>${line.warehouseName || ''}</td>
-        <td>${line.locationName || ''}</td>
-      </tr>
-  `).join('')
-  return `
-    <div class="meta">入库单号：${order.inboundNo || '-'}，供应商：${order.supplierCode || ''} ${order.supplierName || ''}</div>
-    <div class="meta">来源单号：${order.sourceDocNo || '-'}，状态：${order.status || '-'}，备注：${order.remark || '-'}</div>
-    <table>
-      <thead>
-        <tr><th>行号</th><th>物料编码</th><th>物料名称</th><th>计划数量</th><th>已收数量</th><th>仓库</th><th>库位</th></tr>
-      </thead>
-      <tbody>${lines}</tbody>
-    </table>`
-}
-
-function buildKanbanPrintHtml(payload) {
-  const list = Array.isArray(payload) ? payload : []
-  const rows = list.map((item) => `
-      <tr>
-        <td class="mono">${item.kanbanCode || ''}</td>
-        <td>${item.inboundNo || ''}</td>
-        <td>${item.supplierCode || ''} ${item.supplierName || ''}</td>
-        <td>${item.materialCode || ''}</td>
-        <td>${item.materialName || ''}</td>
-        <td>${item.locationName || ''}</td>
-        <td class="mono">${item.qty ?? ''}</td>
-        <td>${item.status || ''}</td>
-      </tr>
-  `).join('')
-  return `
-    <div class="meta">看板打印共 ${list.length} 条</div>
-    <table>
-      <thead>
-        <tr>
-          <th>看板码</th><th>入库单号</th><th>供应商</th><th>物料编码</th>
-          <th>物料名称</th><th>库位</th><th>数量</th><th>状态</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>`
-}
-
-async function handlePrintOrder(row) {
-  try {
-    const data = await printInboundOrder(row.id)
-    buildPreviewWindow(`入库单打印 - ${row.inboundNo}`, buildInboundPrintHtml(data))
-    // WP-07 打印页面路由约定：/inbound/orders/:id/print
-    // 如该路由已实现，可在此页面内切换为直接跳转到正式页面。
-  } catch (error) {
-    ElMessage.error(error.response?.data?.message || '入库单打印失败')
-  }
-}
-
-async function handlePrintKanbans(row) {
-  try {
-    const data = await printKanbans(row.id)
-    buildPreviewWindow(`看板打印 - ${row.inboundNo}`, buildKanbanPrintHtml(data))
-  } catch (error) {
-    ElMessage.error(error.response?.data?.message || '看板打印失败')
-  }
+function handlePrintKanbans(row) {
+  router.push('/inbound/' + row.id + '/kanbans')
 }
 
 onMounted(() => {

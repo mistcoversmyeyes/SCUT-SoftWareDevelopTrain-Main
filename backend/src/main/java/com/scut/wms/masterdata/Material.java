@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @TableName("material")
@@ -15,6 +16,9 @@ public class Material {
     private String specification;
     private String unit;
     private Long supplierId;
+    private Long containerTypeId;
+    private BigDecimal lowStockQty;
+    private BigDecimal highStockQty;
     private String status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -65,6 +69,30 @@ public class Material {
 
     public void setSupplierId(Long supplierId) {
         this.supplierId = supplierId;
+    }
+
+    public Long getContainerTypeId() {
+        return containerTypeId;
+    }
+
+    public void setContainerTypeId(Long containerTypeId) {
+        this.containerTypeId = containerTypeId;
+    }
+
+    public BigDecimal getLowStockQty() {
+        return lowStockQty;
+    }
+
+    public void setLowStockQty(BigDecimal lowStockQty) {
+        this.lowStockQty = lowStockQty;
+    }
+
+    public BigDecimal getHighStockQty() {
+        return highStockQty;
+    }
+
+    public void setHighStockQty(BigDecimal highStockQty) {
+        this.highStockQty = highStockQty;
     }
 
     public String getStatus() {

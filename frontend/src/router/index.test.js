@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/auth'
 import { useTabsStore } from '../stores/tabs'
 import * as authApi from '../api/auth'
 import PlaceholderPage from '../views/PlaceholderPage.vue'
+import DashboardView from '../views/DashboardView.vue'
 import InboundOrderListView from '../views/inbound/InboundOrderListView.vue'
 import InboundScanView from '../views/inbound/InboundScanView.vue'
 import InboundPrintView from '../views/inbound/InboundPrintView.vue'
@@ -75,10 +76,10 @@ describe('router auth guard', () => {
     expect(auth.verifiedToken).toBe('valid-token')
     expect(auth.isSessionVerified).toBe(true)
 
-    await router.push('/materials')
+    await router.push('/inbound/orders')
 
     expect(authApi.fetchMe).toHaveBeenCalledTimes(1)
-    expect(router.currentRoute.value.path).toBe('/materials')
+    expect(router.currentRoute.value.path).toBe('/inbound/orders')
   })
 
   it('resolves inbound and inventory routes to concrete view components', async () => {
@@ -142,6 +143,6 @@ describe('router auth guard', () => {
     })
     await router.push('/dashboard')
 
-    expect(router.currentRoute.value.matched.at(-1).components.default).toBe(PlaceholderPage)
+    expect(router.currentRoute.value.matched.at(-1).components.default).toBe(DashboardView)
   })
 })

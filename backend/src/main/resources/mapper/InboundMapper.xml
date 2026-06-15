@@ -54,4 +54,28 @@
         WHERE kb.inbound_order_id = #{id}
         ORDER BY kb.id ASC
     </select>
+
+    <select id="selectKanbanPrintsByFilter" resultType="com.scut.wms.inbound.KanbanPrintResponse">
+        SELECT kb.kanban_code,
+               o.inbound_no,
+               s.supplier_code,
+               s.supplier_name,
+               m.material_code,
+               m.material_name,
+               sl.location_name,
+               kb.board_qty AS qty,
+               kb.status,
+               kb.printed_at
+        FROM kanban_board kb
+                 JOIN inbound_order o ON o.id = kb.inbound_order_id
+                 JOIN supplier s ON s.id = o.supplier_id
+                 JOIN inbound_order_line l ON l.id = kb.inbound_order_line_id
+                 JOIN material m ON m.id = l.material_id
+                 JOIN storage_location sl ON sl.id = l.target_location_id
+        WHERE (#{status} IS NULL OR kb.status = #{status})
+          AND (#{inboundNo} IS NULL OR o.inbound_no LIKE CONCAT('%', #{inboundNo}, '%'))
+          AND (#{materialCode} IS NULL OR m.material_code = #{materialCode})
+        ORDER BY kb.id ASC
+    </select>
+
 </mapper>

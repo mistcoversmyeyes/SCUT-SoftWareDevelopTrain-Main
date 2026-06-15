@@ -5,6 +5,16 @@ export async function fetchInboundOrders(params) {
   return response.data
 }
 
+export async function fetchInboundOrderById(id) {
+  const response = await http.get(`/inbound-orders/${id}`)
+  return response.data
+}
+
+export async function fetchKanbansByOrderId(id) {
+  const response = await http.get(`/inbound-orders/${id}/kanbans`)
+  return response.data
+}
+
 export async function createInboundOrder(payload) {
   const response = await http.post('/inbound-orders', payload)
   return response.data

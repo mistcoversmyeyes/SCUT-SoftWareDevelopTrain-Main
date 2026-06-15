@@ -145,6 +145,10 @@ public class InboundOrderService {
         return toResponse(id);
     }
 
+    public InboundOrderResponse getById(Long id) {
+        return toResponse(requireOrder(id));
+    }
+
     @Transactional
     public InboundOrderResponse cancel(Long id) {
         InboundOrder order = requireOrder(id);
@@ -185,6 +189,10 @@ public class InboundOrderService {
     public List<KanbanPrintResponse> printKanbans(Long id) {
         requireOrder(id);
         return inboundOrderMapper.selectKanbanPrints(id);
+    }
+
+    public List<KanbanPrintResponse> listKanbanPrints(String status, String inboundNo, String materialCode) {
+        return inboundOrderMapper.selectKanbanPrintsByFilter(status, inboundNo, materialCode);
     }
 
     private void replaceOrder(InboundOrder order, InboundOrderRequest request, boolean rebuildKanbans) {

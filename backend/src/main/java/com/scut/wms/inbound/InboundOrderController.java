@@ -56,6 +56,16 @@ public class InboundOrderController {
         return service.print(id);
     }
 
+    @GetMapping("/{id}")
+    public InboundOrderResponse getById(@PathVariable Long id) {
+        return service.getById(id);
+    }
+
+    @GetMapping("/{id}/kanbans")
+    public List<KanbanPrintResponse> getKanbans(@PathVariable Long id) {
+        return service.printKanbans(id);
+    }
+
     @GetMapping("/{id}/kanbans/print")
     public List<KanbanPrintResponse> printKanbans(@PathVariable Long id) {
         return service.printKanbans(id);
