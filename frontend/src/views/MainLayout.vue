@@ -15,7 +15,7 @@
       <el-aside width="220px" class="admin-aside">
         <SideMenu />
       </el-aside>
-      <el-container>
+      <el-container class="content-wrapper">
         <TabBar />
         <el-main class="admin-main">
           <router-view />
@@ -78,5 +78,10 @@ function logout() {
 
 .admin-main {
   padding: 24px;
+}
+
+.content-wrapper {
+  display: flex;
+  flex-direction: column;
 }
 </style>
