@@ -336,6 +336,7 @@ async function handleSave(payload, mode) {
     formVisible.value = false
     await loadOrders()
   } catch (error) {
+    console.error('入库单保存失败', { error, response: error.response, data: error.response?.data, status: error.response?.status })
     ElMessage.error(error.response?.data?.message || '保存失败，请重试')
   }
 }
