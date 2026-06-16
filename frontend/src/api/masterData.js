@@ -45,6 +45,16 @@ export async function updateMaterialStatus(id, status) {
   return response.data
 }
 
+export async function fetchMaterialContainerTypes(materialId) {
+  const response = await http.get(`/materials/${materialId}/container-types`)
+  return response.data
+}
+
+export async function updateMaterialContainerTypes(materialId, containerTypeIds) {
+  const response = await http.put(`/materials/${materialId}/container-types`, { containerTypeIds })
+  return response.data
+}
+
 export async function fetchContainerTypes(params) {
   const response = await http.get('/container-types', { params })
   return response.data

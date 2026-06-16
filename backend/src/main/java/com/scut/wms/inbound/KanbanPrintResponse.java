@@ -14,6 +14,7 @@ public record KanbanPrintResponse(
         String locationName,
         BigDecimal qty,
         String status,
-        LocalDateTime printedAt
+        LocalDateTime printedAt,
+        String containerTypeName
 ) {
 }

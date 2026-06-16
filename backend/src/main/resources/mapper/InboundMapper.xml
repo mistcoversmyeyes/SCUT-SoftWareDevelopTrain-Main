@@ -45,13 +45,15 @@
                sl.location_name,
                kb.board_qty AS qty,
                kb.status,
-               kb.printed_at
+               kb.printed_at,
+               ct.container_name AS container_type_name
         FROM kanban_board kb
                  JOIN inbound_order o ON o.id = kb.inbound_order_id
                  JOIN supplier s ON s.id = o.supplier_id
                  JOIN inbound_order_line l ON l.id = kb.inbound_order_line_id
                  JOIN material m ON m.id = l.material_id
-                 JOIN storage_location sl ON sl.id = l.target_location_id
+                 JOIN storage_location sl ON sl.id = kb.location_id
+                 JOIN container_type ct ON ct.id = kb.container_type_id
         WHERE kb.inbound_order_id = #{id}
         ORDER BY kb.id ASC
     </select>
@@ -67,13 +69,15 @@
                sl.location_name,
                kb.board_qty AS qty,
                kb.status,
-               kb.printed_at
+               kb.printed_at,
+               ct.container_name AS container_type_name
         FROM kanban_board kb
                  JOIN inbound_order o ON o.id = kb.inbound_order_id
                  JOIN supplier s ON s.id = o.supplier_id
                  JOIN inbound_order_line l ON l.id = kb.inbound_order_line_id
                  JOIN material m ON m.id = l.material_id
-                 JOIN storage_location sl ON sl.id = l.target_location_id
+                 JOIN storage_location sl ON sl.id = kb.location_id
+                 JOIN container_type ct ON ct.id = kb.container_type_id
         WHERE (#{status} IS NULL OR kb.status = #{status})
           AND (#{inboundNo} IS NULL OR o.inbound_no LIKE CONCAT('%', #{inboundNo}, '%'))
           AND (#{materialCode} IS NULL OR m.material_code = #{materialCode})

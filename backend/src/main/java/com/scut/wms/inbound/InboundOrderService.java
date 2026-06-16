@@ -3,7 +3,11 @@ package com.scut.wms.inbound;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.scut.wms.common.BusinessException;
+import com.scut.wms.container.ContainerType;
+import com.scut.wms.container.ContainerTypeMapper;
 import com.scut.wms.masterdata.Material;
+import com.scut.wms.masterdata.MaterialContainerType;
+import com.scut.wms.masterdata.MaterialContainerTypeMapper;
 import com.scut.wms.masterdata.MaterialMapper;
 import com.scut.wms.masterdata.StorageLocation;
 import com.scut.wms.masterdata.StorageLocationMapper;
@@ -48,6 +52,8 @@ public class InboundOrderService {
     private final MaterialMapper materialMapper;
     private final WarehouseMapper warehouseMapper;
     private final StorageLocationMapper storageLocationMapper;
+    private final ContainerTypeMapper containerTypeMapper;
+    private final MaterialContainerTypeMapper materialContainerTypeMapper;
 
     public InboundOrderService(
             InboundOrderMapper inboundOrderMapper,
@@ -56,7 +62,9 @@ public class InboundOrderService {
             SupplierMapper supplierMapper,
             MaterialMapper materialMapper,
             WarehouseMapper warehouseMapper,
-            StorageLocationMapper storageLocationMapper
+            StorageLocationMapper storageLocationMapper,
+            ContainerTypeMapper containerTypeMapper,
+            MaterialContainerTypeMapper materialContainerTypeMapper
     ) {
         this.inboundOrderMapper = inboundOrderMapper;
         this.inboundOrderLineMapper = inboundOrderLineMapper;
@@ -65,6 +73,8 @@ public class InboundOrderService {
         this.materialMapper = materialMapper;
         this.warehouseMapper = warehouseMapper;
         this.storageLocationMapper = storageLocationMapper;
+        this.containerTypeMapper = containerTypeMapper;
+        this.materialContainerTypeMapper = materialContainerTypeMapper;
     }
 
     public List<InboundOrderResponse> list(String status, String inboundNo, Long supplierId, String supplierKeyword) {
@@ -226,6 +236,13 @@ public class InboundOrderService {
             if (!Objects.equals(location.getWarehouseId(), warehouse.getId())) {
                 throw new BusinessException("目标库位不属于目标仓库");
             }
+            // D23: ensure material has the selected container type configured
+            var mctCount = materialContainerTypeMapper.selectCount(Wrappers.<MaterialContainerType>lambdaQuery()
+                    .eq(MaterialContainerType::getMaterialId, line.materialId())
+                    .eq(MaterialContainerType::getContainerTypeId, line.containerTypeId()));
+            if (mctCount == 0) {
+                throw new BusinessException("所选容器类型不适用于该物料");
+            }
         }
     }
 
@@ -268,6 +285,7 @@ public class InboundOrderService {
             line.setInboundOrderId(orderId);
             line.setLineNo(lineNo++);
             line.setMaterialId(requestLine.materialId());
+            line.setContainerTypeId(requestLine.containerTypeId());
             line.setSupplierId(requestLine.supplierId());
             line.setPlannedQty(requestLine.plannedQty());
             line.setReceivedQty(BigDecimal.ZERO);
@@ -295,14 +313,33 @@ public class InboundOrderService {
 
     private void insertKanbans(InboundOrder order, List<InboundOrderLine> lines, LocalDateTime printedAt) {
         for (InboundOrderLine line : lines) {
-            KanbanBoard board = new KanbanBoard();
-            board.setKanbanCode("KB:v1:%s:%d:%d".formatted(order.getInboundNo(), line.getLineNo(), 1));
-            board.setInboundOrderId(order.getId());
-            board.setInboundOrderLineId(line.getId());
-            board.setBoardQty(line.getPlannedQty());
-            board.setStatus(PRINTED);
-            board.setPrintedAt(printedAt);
-            kanbanBoardMapper.insert(board);
+            // Get capacity from container type
+            var ct = containerTypeMapper.selectById(line.getContainerTypeId());
+            if (ct == null || ct.getCapacityQty() == null || ct.getCapacityQty().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new BusinessException("该物料未配置有效包装容量，请先在基础数据中配置");
+            }
+            int capacityQty = ct.getCapacityQty().intValue();
+            int plannedQty = line.getPlannedQty().intValue();
+            int fullBoxes = plannedQty / capacityQty;
+            int remainder = plannedQty % capacityQty;
+            int totalKanbans = fullBoxes + (remainder > 0 ? 1 : 0);
+
+            for (int seq = 1; seq <= totalKanbans; seq++) {
+                KanbanBoard board = new KanbanBoard();
+                board.setKanbanCode("KB:v1:%s:%d:%d".formatted(order.getInboundNo(), line.getLineNo(), seq));
+                board.setInboundOrderId(order.getId());
+                board.setInboundOrderLineId(line.getId());
+                board.setLocationId(line.getTargetLocationId());
+                board.setContainerTypeId(line.getContainerTypeId());
+                if (seq <= fullBoxes) {
+                    board.setBoardQty(BigDecimal.valueOf(capacityQty));
+                } else {
+                    board.setBoardQty(BigDecimal.valueOf(remainder));
+                }
+                board.setStatus(PRINTED);
+                board.setPrintedAt(printedAt);
+                kanbanBoardMapper.insert(board);
+            }
         }
     }
 
@@ -370,7 +407,8 @@ public class InboundOrderService {
                                 line.getPlannedQty(),
                                 line.getReceivedQty(),
                                 line.getTargetWarehouseId(),
-                                line.getTargetLocationId());
+                                line.getTargetLocationId(),
+                                line.getContainerTypeId());
                         })
                         .toList()
         );

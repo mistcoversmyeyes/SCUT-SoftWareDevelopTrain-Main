@@ -24,6 +24,8 @@ public class ScanKanbanContext {
     private Long targetLocationId;
     private Long locationWarehouseId;
     private String locationName;
+    private Long plannedLocationId;
+    private Long containerTypeId;
 
     public Long getKanbanId() {
         return kanbanId;
@@ -183,5 +185,21 @@ public class ScanKanbanContext {
 
     public void setLocationName(String locationName) {
         this.locationName = locationName;
+    }
+
+    public Long getPlannedLocationId() {
+        return plannedLocationId;
+    }
+
+    public void setPlannedLocationId(Long plannedLocationId) {
+        this.plannedLocationId = plannedLocationId;
+    }
+
+    public Long getContainerTypeId() {
+        return containerTypeId;
+    }
+
+    public void setContainerTypeId(Long containerTypeId) {
+        this.containerTypeId = containerTypeId;
     }
 }

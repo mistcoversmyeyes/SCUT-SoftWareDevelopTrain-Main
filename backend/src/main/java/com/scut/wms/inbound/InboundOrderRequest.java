@@ -27,6 +27,9 @@ public record InboundOrderRequest(
             @NotNull(message = "物料不能为空")
             Long materialId,
 
+            @NotNull(message = "容器类型不能为空")
+            Long containerTypeId,
+
             @NotNull(message = "计划数量不能为空")
             @DecimalMin(value = "0.000", inclusive = false, message = "计划数量必须大于 0")
             BigDecimal plannedQty,

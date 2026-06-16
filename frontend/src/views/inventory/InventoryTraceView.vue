@@ -79,7 +79,7 @@
         </el-form-item>
       </el-form>
 
-      <el-table :data="paginatedMovements" border stripe v-loading="loading" style="margin-top: 12px;">
+      <el-table :data="paginatedMovements" border stripe v-loading="loading" style="margin-top: 12px;" :row-class-name="rowClassName">
         <el-table-column prop="movementNo" label="流水号" min-width="170" />
         <el-table-column prop="movementType" label="类型" width="100">
           <template #default="{ row }">
@@ -91,7 +91,13 @@
         <el-table-column prop="materialCode" label="物料编码" width="130" />
         <el-table-column prop="materialName" label="物料名称" min-width="200" />
         <el-table-column prop="warehouseCode" label="仓库" width="120" />
-        <el-table-column prop="locationCode" label="库位" width="120" />
+        <el-table-column prop="plannedLocationCode" label="计划库位" width="120">
+          <template #default="{ row }">
+            <span v-if="row.movementType === 'INBOUND_RECEIVE'">{{ row.plannedLocationCode || '—' }}</span>
+            <span v-else>—</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="locationCode" label="实际库位" width="120" />
         <el-table-column label="数量" width="120" align="right">
           <template #default="{ row }">
             <span :style="{ color: row.movementType === 'OUTBOUND_PICK' ? '#e6a23c' : '#67c23a' }">
@@ -196,6 +202,13 @@ function formatDateTime(value) {
   return parsed.toLocaleString('zh-CN')
 }
 
+function rowClassName({ row }) {
+  if (row.movementType === 'INBOUND_RECEIVE' && row.plannedLocationCode && row.locationCode && row.plannedLocationCode !== row.locationCode) {
+    return 'warning-row'
+  }
+  return ''
+}
+
 async function loadMasterData() {
   try {
     const data = await fetchMasterDataOptions()
@@ -230,5 +243,13 @@ h2 {
   display: flex;
   justify-content: center;
   margin-top: 16px;
+}
+
+:deep(.warning-row) {
+  background-color: #fdf6ec;
+}
+
+:deep(.warning-row:hover > td) {
+  background-color: #fdf6ec !important;
 }
 </style>

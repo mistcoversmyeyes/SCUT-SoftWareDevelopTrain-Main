@@ -69,6 +69,9 @@
           <el-button type="primary" :loading="loading" @click="queryBalances">查询</el-button>
           <el-button @click="resetFilters">重置</el-button>
         </el-form-item>
+        <el-form-item>
+          <el-switch v-model="autoRefresh" active-text="自动刷新" inactive-text="手动" @change="toggleAutoRefresh" />
+        </el-form-item>
       </el-form>
 
       <el-table :data="paginatedBalances" border stripe v-loading="loading" style="margin-top: 12px;">
@@ -78,6 +81,11 @@
         <el-table-column prop="warehouseName" label="仓库名称" min-width="190" />
         <el-table-column prop="locationCode" label="库位编码" width="130" />
         <el-table-column prop="locationName" label="库位名称" min-width="170" />
+        <el-table-column label="库存详情" width="200">
+          <template #default="scope">
+            {{ scope.row.usedBoxes ?? 0 }} 箱 ({{ scope.row.totalPieces ?? 0 }} 件) / {{ scope.row.maxCapacity ?? '-' }} 箱
+          </template>
+        </el-table-column>
         <el-table-column prop="onHandQty" label="当前库存" width="120" />
         <el-table-column prop="updatedAt" label="更新时间" min-width="180">
           <template #default="scope">
@@ -101,9 +109,11 @@
 </template>
 
 <script setup>
-import { computed, onBeforeMount, reactive, ref } from 'vue'
+import { computed, onBeforeMount, onBeforeUnmount, reactive, ref } from 'vue'
 import { fetchInventoryBalances } from '../../api/inventory'
 import { fetchMasterDataOptions } from '../../api/masterData'
+
+const AUTO_REFRESH_INTERVAL = 30000
 
 const filters = reactive({
   materialCode: '',
@@ -120,6 +130,8 @@ const locationOptions = ref([])
 
 const currentPage = ref(1)
 const pageSize = ref(15)
+const autoRefresh = ref(false)
+let refreshTimer = null
 
 const paginatedBalances = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
@@ -170,9 +182,22 @@ async function loadMasterData() {
   }
 }
 
+function toggleAutoRefresh(val) {
+  if (val) {
+    refreshTimer = setInterval(queryBalances, AUTO_REFRESH_INTERVAL)
+  } else {
+    clearInterval(refreshTimer)
+    refreshTimer = null
+  }
+}
+
 onBeforeMount(() => {
   loadMasterData()
   queryBalances()
+})
+
+onBeforeUnmount(() => {
+  clearInterval(refreshTimer)
 })
 </script>
 

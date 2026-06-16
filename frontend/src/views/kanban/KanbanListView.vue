@@ -72,6 +72,9 @@
         <el-table-column prop="qty" label="数量" width="100" align="right">
           <template #default="{ row }">{{ formatQty(row.qty) }}</template>
         </el-table-column>
+        <el-table-column prop="containerTypeName" label="容器类型" min-width="120">
+          <template #default="{ row }">{{ row.containerTypeName || '—' }}</template>
+        </el-table-column>
         <el-table-column prop="status" label="状态" width="120">
           <template #default="{ row }">
             <el-tag :type="statusType(row.status)" effect="light">{{ statusLabel(row.status) }}</el-tag>

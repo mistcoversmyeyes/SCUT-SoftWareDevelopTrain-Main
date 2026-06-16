@@ -24,10 +24,33 @@
 
       <div class="line-toolbar">
         <el-button type="primary" size="small" @click="appendLine">新增明细</el-button>
-        <el-button type="success" size="small" @click="openBatchDialog">批量选择物料</el-button>
       </div>
 
       <el-table :data="form.lines" border size="small" class="detail-table">
+        <el-table-column label="物料" width="200">
+          <template #default="{ row, $index }">
+            <el-form-item
+              :rules="lineRules.material"
+              :prop="`lines.${$index}.materialId`"
+            >
+              <el-select
+                v-model="row.materialId"
+                placeholder="选择物料"
+                filterable
+                clearable
+                @change="onMaterialChange($index)"
+              >
+                <el-option
+                  v-for="material in masterData.materials"
+                  :key="material.id"
+                  :label="`${material.code} ${material.name}`"
+                  :value="material.id"
+                />
+              </el-select>
+            </el-form-item>
+          </template>
+        </el-table-column>
+
         <el-table-column label="供应商" width="200">
           <template #default="{ row, $index }">
             <el-form-item
@@ -51,23 +74,24 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="物料" width="200">
+        <el-table-column label="容器类型" width="200">
           <template #default="{ row, $index }">
             <el-form-item
-              :rules="lineRules.material"
-              :prop="`lines.${$index}.materialId`"
+              :rules="lineRules.containerType"
+              :prop="`lines.${$index}.containerTypeId`"
             >
               <el-select
-                v-model="row.materialId"
-                placeholder="选择物料"
-                filterable
+                v-model="row.containerTypeId"
+                placeholder="选择容器类型"
                 clearable
+                :disabled="row._containerOptions && row._containerOptions.length === 1"
+                style="width: 100%"
               >
                 <el-option
-                  v-for="material in masterData.materials"
-                  :key="material.id"
-                  :label="`${material.code} ${material.name}`"
-                  :value="material.id"
+                  v-for="ct in row._containerOptions"
+                  :key="ct.id"
+                  :value="ct.id"
+                  :label="ct.containerName + (ct.isDefault ? ' (默认)' : '') + ' — ' + ct.capacity + '件/箱'"
                 />
               </el-select>
             </el-form-item>
@@ -162,124 +186,12 @@
       </span>
     </template>
   </el-dialog>
-
-  <!-- 批量选择物料弹窗 -->
-  <el-dialog
-    v-model="batchVisible"
-    title="批量选择物料"
-    width="900px"
-    top="6vh"
-    append-to-body
-  >
-    <el-form label-width="80px" class="batch-form">
-      <el-row :gutter="16">
-        <el-col :span="10">
-          <el-form-item label="供应商" required>
-            <el-select
-              v-model="batchSupplierId"
-              placeholder="选择供应商"
-              filterable
-              clearable
-              style="width: 100%"
-            >
-              <el-option
-                v-for="s in masterData.suppliers"
-                :key="s.id"
-                :label="`${s.code} ${s.name}`"
-                :value="s.id"
-              />
-            </el-select>
-          </el-form-item>
-        </el-col>
-      </el-row>
-
-      <el-form :inline="true" :model="batchFilters" class="batch-filter-row">
-        <el-form-item label="搜索">
-          <el-input v-model="batchFilters.keyword" placeholder="编码/名称/规格" clearable style="width:180px" />
-        </el-form-item>
-        <el-form-item label="编码">
-          <el-input v-model="batchFilters.materialCode" placeholder="物料编码" clearable style="width:140px" />
-        </el-form-item>
-        <el-form-item label="名称">
-          <el-input v-model="batchFilters.materialName" placeholder="物料名称" clearable style="width:140px" />
-        </el-form-item>
-        <el-form-item label="规格">
-          <el-input v-model="batchFilters.specification" placeholder="规格型号" clearable style="width:120px" />
-        </el-form-item>
-        <el-form-item label="容器">
-          <el-select v-model="batchFilters.containerTypeId" placeholder="全部" clearable style="width:120px">
-            <el-option
-              v-for="ct in masterData.containerTypes"
-              :key="ct.id"
-              :label="ct.name"
-              :value="ct.id"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button @click="resetBatchFilters">重置</el-button>
-        </el-form-item>
-      </el-form>
-
-      <el-table
-        ref="batchTableRef"
-        :data="batchPaginatedMaterials"
-        border
-        size="small"
-        class="batch-material-table"
-        @selection-change="onBatchSelectionChange"
-        max-height="340"
-      >
-        <el-table-column type="selection" width="45" />
-        <el-table-column prop="materialCode" label="物料编码" width="140" />
-        <el-table-column prop="materialName" label="物料名称" width="180" />
-        <el-table-column prop="specification" label="规格型号" width="120" />
-        <el-table-column prop="unit" label="单位" width="80" />
-        <el-table-column label="容器类型" width="120">
-          <template #default="{ row }">
-            {{ containerTypeName(row.containerTypeId) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="供应商" width="160">
-          <template #default="{ row }">
-            {{ supplierName(row.supplierId) }}
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <div class="batch-pagination">
-        <el-pagination
-          v-model:current-page="batchPage"
-          :page-size="batchPageSize"
-          :total="batchFilteredMaterials.length"
-          layout="total, prev, pager, next"
-          small
-        />
-      </div>
-
-      <div class="batch-selected-info">
-        已选 <strong>{{ batchSelectedMaterials.length }}</strong> 个物料
-        （已存在于明细表的物料将自动去重）
-      </div>
-    </el-form>
-
-    <template #footer>
-      <el-button @click="batchVisible = false">取消</el-button>
-      <el-button
-        type="primary"
-        :disabled="batchSelectedMaterials.length === 0 || !batchSupplierId"
-        @click="confirmBatchAdd"
-      >
-        确认添加 ({{ batchSelectedMaterials.length }})
-      </el-button>
-    </template>
-  </el-dialog>
 </template>
 
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { fetchMaterials } from '../../api/masterData'
+import { fetchMaterialContainerTypes } from '../../api/masterData'
 
 const props = defineProps({
   visible: {
@@ -353,6 +265,9 @@ const lineRules = {
   ],
   location: [
     { required: true, message: '请选择目标库位', trigger: 'change' }
+  ],
+  containerType: [
+    { required: true, message: '请选择容器类型', trigger: 'change' }
   ]
 }
 
@@ -378,7 +293,9 @@ const emptyLine = () => ({
   supplierId: undefined,
   plannedQty: undefined,
   targetWarehouseId: undefined,
-  targetLocationId: undefined
+  targetLocationId: undefined,
+  containerTypeId: undefined,
+  _containerOptions: []
 })
 
 function normalizeInitialOrder(order) {
@@ -428,122 +345,6 @@ function removeLine(index) {
   form.lines.splice(index, 1)
 }
 
-// === 批量选择物料 ===
-const batchVisible = ref(false)
-const batchMaterials = ref([])
-const batchSupplierId = ref(undefined)
-const batchFilters = reactive({
-  keyword: '',
-  materialCode: '',
-  materialName: '',
-  specification: '',
-  containerTypeId: undefined
-})
-const batchSelectedMaterials = ref([])
-const batchTableRef = ref()
-const batchPage = ref(1)
-const batchPageSize = 15
-
-const batchFilteredMaterials = computed(() => {
-  let list = batchMaterials.value
-  if (batchSupplierId.value) {
-    list = list.filter(m => m.supplierId === batchSupplierId.value)
-  }
-  if (batchFilters.keyword) {
-    const kw = batchFilters.keyword.toLowerCase()
-    list = list.filter(m =>
-      (m.materialCode || '').toLowerCase().includes(kw) ||
-      (m.materialName || '').toLowerCase().includes(kw) ||
-      (m.specification || '').toLowerCase().includes(kw)
-    )
-  }
-  if (batchFilters.materialCode) list = list.filter(m => (m.materialCode || '').includes(batchFilters.materialCode))
-  if (batchFilters.materialName) list = list.filter(m => (m.materialName || '').includes(batchFilters.materialName))
-  if (batchFilters.specification) list = list.filter(m => (m.specification || '').includes(batchFilters.specification))
-  if (batchFilters.containerTypeId) list = list.filter(m => m.containerTypeId === batchFilters.containerTypeId)
-  return list
-})
-
-const batchPaginatedMaterials = computed(() => {
-  const start = (batchPage.value - 1) * batchPageSize
-  return batchFilteredMaterials.value.slice(start, start + batchPageSize)
-})
-
-function containerTypeName(id) {
-  return (props.masterData.containerTypes || []).find(c => c.id === id)?.name || '-'
-}
-
-function supplierName(id) {
-  const s = props.masterData.suppliers.find(s => s.id === id)
-  return s ? `${s.code} ${s.name}` : '-'
-}
-
-function openBatchDialog() {
-  if (form.lines.length > 0 && form.lines[0].supplierId && !batchSupplierId.value) {
-    batchSupplierId.value = form.lines[0].supplierId
-  }
-  batchVisible.value = true
-  batchPage.value = 1
-  batchSelectedMaterials.value = []
-  batchTableRef.value?.clearSelection()
-  if (batchMaterials.value.length === 0) {
-    fetchMaterials().then(data => { batchMaterials.value = data || [] })
-  }
-}
-
-function onBatchSelectionChange(rows) {
-  batchSelectedMaterials.value = rows
-}
-
-function resetBatchFilters() {
-  batchFilters.keyword = ''
-  batchFilters.materialCode = ''
-  batchFilters.materialName = ''
-  batchFilters.specification = ''
-  batchFilters.containerTypeId = undefined
-  batchPage.value = 1
-}
-
-watch(
-  () => [batchFilters.keyword, batchFilters.materialCode, batchFilters.materialName, batchFilters.specification, batchFilters.containerTypeId],
-  () => { batchPage.value = 1 }
-)
-
-watch(batchVisible, (v) => {
-  if (!v) {
-    batchSupplierId.value = undefined
-    batchSelectedMaterials.value = []
-    resetBatchFilters()
-  }
-})
-
-function confirmBatchAdd() {
-  const toAdd = batchSelectedMaterials.value.filter(
-    m => !form.lines.some(l => l.materialId === m.id)
-  )
-  if (toAdd.length === 0) {
-    ElMessage.info('所选物料已全部存在于明细表中')
-    batchVisible.value = false
-    return
-  }
-  // 移除占位空行（如果第一行 materialId 为空）
-  if (form.lines.length === 1 && !form.lines[0].materialId) {
-    form.lines = []
-  }
-  toAdd.forEach(m => {
-    form.lines.push({
-      materialId: m.id,
-      supplierId: batchSupplierId.value,
-      plannedQty: undefined,
-      targetWarehouseId: undefined,
-      targetLocationId: undefined
-    })
-  })
-  batchVisible.value = false
-  ElMessage.success(`已添加 ${toAdd.length} 个物料`)
-}
-// === 批量选择物料 END ===
-
 function onWarehouseChange(index) {
   const line = form.lines[index]
   if (!line) {
@@ -559,6 +360,40 @@ function onWarehouseChange(index) {
   }
 }
 
+async function onMaterialChange(index) {
+  const line = form.lines[index]
+  if (!line) {
+    return
+  }
+  if (!line.materialId) {
+    line._containerOptions = []
+    line.containerTypeId = undefined
+    return
+  }
+  try {
+    const types = await fetchMaterialContainerTypes(line.materialId)
+    const list = Array.isArray(types) ? types : []
+    if (list.length === 0) {
+      ElMessage.warning('该物料未配置包装容器，请先在基础数据中配置')
+      line.materialId = undefined
+      line._containerOptions = []
+      line.containerTypeId = undefined
+      return
+    }
+    line._containerOptions = list
+    if (list.length === 1) {
+      line.containerTypeId = list[0].id
+    } else {
+      const defaultType = list.find((t) => t.isDefault)
+      line.containerTypeId = defaultType ? defaultType.id : list[0].id
+    }
+  } catch (error) {
+    ElMessage.error(error.response?.data?.message || '加载容器类型失败')
+    line._containerOptions = []
+    line.containerTypeId = undefined
+  }
+}
+
 function toPayload() {
   const lines = form.lines
     .map((line) => ({
@@ -566,7 +401,8 @@ function toPayload() {
       materialId: line.materialId,
       plannedQty: Number(line.plannedQty),
       targetWarehouseId: line.targetWarehouseId,
-      targetLocationId: line.targetLocationId
+      targetLocationId: line.targetLocationId,
+      containerTypeId: line.containerTypeId
     }))
     .filter((line) => !!line.materialId && !!line.supplierId)
 
@@ -628,36 +464,5 @@ async function submitForm() {
 
 .detail-table :deep(.el-table__cell) {
   padding: 6px 8px;
-}
-
-/* 批量选择物料弹窗 */
-.batch-form {
-  min-height: 200px;
-}
-
-.batch-filter-row {
-  margin-top: 12px;
-  padding: 10px 12px;
-  background: #f5f7fa;
-  border-radius: 6px;
-}
-
-.batch-filter-row :deep(.el-form-item) {
-  margin-bottom: 6px;
-}
-
-.batch-material-table {
-  margin-bottom: 8px;
-}
-
-.batch-pagination {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.batch-selected-info {
-  margin-top: 8px;
-  color: #666;
-  font-size: 13px;
 }
 </style>

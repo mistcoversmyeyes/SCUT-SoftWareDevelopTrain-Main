@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 
 public record ScanInboundRequest(
         @NotBlank(message = "看板码不能为空")
-        String kanbanCode
+        String kanbanCode,
+        Long locationId
 ) {
 }

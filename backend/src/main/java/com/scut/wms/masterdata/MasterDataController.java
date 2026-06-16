@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -52,6 +53,16 @@ public class MasterDataController {
     @PutMapping("/materials/{id}/status")
     public void updateMaterialStatus(@PathVariable Long id, @RequestBody Map<String, String> body) {
         service.updateMaterialStatus(id, body.get("status"));
+    }
+
+    @GetMapping("/materials/{id}/container-types")
+    public List<MaterialContainerTypeResponse> getMaterialContainerTypes(@PathVariable Long id) {
+        return service.getMaterialContainerTypes(id);
+    }
+
+    @PutMapping("/materials/{id}/container-types")
+    public void updateMaterialContainerTypes(@PathVariable Long id, @RequestBody MaterialContainerTypeUpdateRequest request) {
+        service.updateMaterialContainerTypes(id, request);
     }
 
     @PostMapping("/warehouses")

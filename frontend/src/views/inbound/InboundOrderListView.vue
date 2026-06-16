@@ -131,6 +131,15 @@
               >
                 查看/打印看板
               </el-button>
+              <el-button
+                type="warning"
+                size="small"
+                text
+                :disabled="!canPartialCancel(row)"
+                @click="openPartialCancelDialog(row)"
+              >
+                部分取消
+              </el-button>
               <el-popconfirm
                 :title="`确认取消入库单 ${row.inboundNo}？`"
                 confirm-button-text="确认"
@@ -174,6 +183,54 @@
       :master-data="masterData"
       :on-save="handleSave"
     />
+
+    <el-dialog
+      v-model="partialCancelVisible"
+      title="部分取消看板"
+      width="700px"
+    >
+      <div v-if="partialCancelOrder">
+        <p style="margin:0 0 12px; color:#606266;">
+          入库单: {{ partialCancelOrder.inboundNo }} — 选择需要取消的看板
+        </p>
+        <el-table
+          :data="partialCancelKanbans"
+          border
+          stripe
+          size="small"
+          @selection-change="onPartialCancelSelectionChange"
+        >
+          <el-table-column type="selection" width="50" :selectable="(row) => row.status !== 'RECEIVED'" />
+          <el-table-column prop="kanbanCode" label="看板码" min-width="180" />
+          <el-table-column prop="materialCode" label="物料编码" min-width="140" />
+          <el-table-column prop="materialName" label="物料名称" min-width="180" />
+          <el-table-column prop="qty" label="数量" width="100" align="right" />
+          <el-table-column prop="status" label="状态" width="100">
+            <template #default="{ row }">
+              <el-tag
+                :type="row.status === 'RECEIVED' ? 'info' : 'warning'"
+                size="small"
+              >
+                {{ row.status === 'RECEIVED' ? '已入库' : '已打印' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+      <template #footer>
+        <el-space>
+          <el-button @click="partialCancelVisible = false">取消</el-button>
+          <el-button
+            type="danger"
+            :loading="partialCancelling"
+            :disabled="!partialCancelSelectedIds.length"
+            @click="confirmPartialCancel"
+          >
+            确认取消
+          </el-button>
+        </el-space>
+      </template>
+    </el-dialog>
   </section>
 </template>
 
@@ -185,9 +242,11 @@ import {
   cancelInboundOrder,
   createInboundOrder,
   fetchInboundOrders,
+  fetchKanbansByOrderId,
   releaseInboundOrder,
   updateInboundOrder
 } from '../../api/inbound'
+import { cancelKanbansBatch } from '../../api/inventory'
 import { fetchMasterDataOptions } from '../../api/masterData'
 import InboundOrderFormView from './InboundOrderFormView.vue'
 
@@ -230,6 +289,13 @@ const masterData = ref({
 const currentPage = ref(1)
 const pageSize = ref(10)
 
+// Partial cancel
+const partialCancelVisible = ref(false)
+const partialCancelOrder = ref(null)
+const partialCancelKanbans = ref([])
+const partialCancelSelectedIds = ref([])
+const partialCancelling = ref(false)
+
 const paginatedOrders = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
   return orders.value.slice(start, start + pageSize.value)
@@ -256,6 +322,7 @@ const canRelease = (row) => row.status === DRAFT
 const canCancel = (row) => [DRAFT, RELEASED].includes(row.status)
 const canPrint = (row) => [RELEASED, PARTIAL_RECEIVED, COMPLETED].includes(row.status)
 const canPrintKanbans = (row) => [RELEASED, PARTIAL_RECEIVED, COMPLETED].includes(row.status)
+const canPartialCancel = (row) => [RELEASED, PARTIAL_RECEIVED].includes(row.status)
 
 function statusType(status) {
   return statusTagType[status] || 'info'
@@ -365,8 +432,12 @@ async function handleSave(payload, mode) {
 
 async function handleRelease(row) {
   try {
-    await releaseInboundOrder(row.id)
-    ElMessage.success('入库单释放成功')
+    const result = await releaseInboundOrder(row.id)
+    if (result.kanbanCount) {
+      ElMessage.success(`已生成 ${result.kanbanCount} 个看板: ${(result.kanbanCodes || []).join(', ')}`)
+    } else {
+      ElMessage.success('入库单释放成功')
+    }
     await loadOrders()
   } catch (error) {
     ElMessage.error(error.response?.data?.message || '释放失败')
@@ -389,6 +460,47 @@ function handlePrintOrder(row) {
 
 function handlePrintKanbans(row) {
   router.push('/inbound/' + row.id + '/kanbans')
+}
+
+async function openPartialCancelDialog(row) {
+  partialCancelOrder.value = row
+  partialCancelSelectedIds.value = []
+  try {
+    const kanbans = await fetchKanbansByOrderId(row.id)
+    partialCancelKanbans.value = (kanbans || []).filter(
+      (k) => k.status === 'PRINTED' || k.status === 'RECEIVED'
+    ).map((k) => ({
+      ...k,
+      _disabled: k.status === 'RECEIVED'
+    }))
+    partialCancelVisible.value = true
+  } catch (error) {
+    ElMessage.error(error.response?.data?.message || '加载看板列表失败')
+  }
+}
+
+function onPartialCancelSelectionChange(selection) {
+  partialCancelSelectedIds.value = selection
+    .filter((k) => !k._disabled)
+    .map((k) => k.id)
+}
+
+async function confirmPartialCancel() {
+  if (!partialCancelSelectedIds.value.length) {
+    ElMessage.warning('请选择需要取消的看板')
+    return
+  }
+  partialCancelling.value = true
+  try {
+    await cancelKanbansBatch(partialCancelSelectedIds.value)
+    ElMessage.success('看板取消成功')
+    partialCancelVisible.value = false
+    await loadOrders()
+  } catch (error) {
+    ElMessage.error(error.response?.data?.message || '取消失败')
+  } finally {
+    partialCancelling.value = false
+  }
 }
 
 onMounted(() => {

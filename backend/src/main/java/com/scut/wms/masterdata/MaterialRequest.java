@@ -8,7 +8,6 @@ public record MaterialRequest(
         String specification,
         String unit,
         Long supplierId,
-        Long containerTypeId,
         BigDecimal lowStockQty,
         BigDecimal highStockQty
 ) {
