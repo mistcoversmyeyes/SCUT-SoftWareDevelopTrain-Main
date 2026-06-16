@@ -11,8 +11,8 @@
 - [x] H: Mapper XML — 8 queries refactored (5 in InventoryMapper.xml, 2 in InboundMapper.xml)
 - [x] I: KanbanPrintResponse — add containerTypeName
 - [x] J: InventoryMovementView — add plannedLocationCode + plannedLocationName
-- [ ] K: InventoryOverviewService — RECEIVED+LOCKED (NOT FOUND: no InventoryOverviewService in codebase; likely Layer 2 feature)
-- [ ] L: LockMapper selectLockDetails fix (NOT FOUND: no LockMapper/selectLockDetails in codebase; likely Layer 2 feature)
+- [ ] K: InventoryOverviewService — RECEIVED+LOCKED (files exist in parent repo but not in worktree branch; part of Layer 2)
+- [ ] L: LockMapper selectLockDetails fix (files exist in parent repo but not in worktree branch; part of Layer 2)
 
 ## Test Results
 ```
@@ -59,7 +59,7 @@ mvn test (35/35)
 - `backend/src/test/java/com/scut/wms/inventory/TraceQueryControllerTest.java` — resetBoard now sets location_id and container_type_id
 
 ## Concerns
-1. **Subtask K (InventoryOverviewService)**: No `InventoryOverviewService` exists in the codebase. The RECEIVED+LOCKED kanban counting for location capacity is a Layer 2 feature and was skipped.
-2. **Subtask L (LockMapper selectLockDetails)**: No `LockMapper` or `selectLockDetails` query exists in the codebase. This is a Layer 2 feature and was skipped.
+1. **Subtask K (InventoryOverviewService)**: `InventoryOverviewService.java` (and related files) exist in the parent repo but were not present in the worktree branch. These are Layer 2 features that need to be completed separately.
+2. **Subtask L (LockMapper selectLockDetails)**: `LockMapper.xml`, `InventoryLockMapper.java`, and related lock files exist in the parent repo but were not present in the worktree branch. These are Layer 2 features that need to be completed separately.
 3. **Database FK constraints**: The DatabaseMigration attempts to add FK constraints on kanban_board.location_id and container_type_id, but fails because existing records have default values (0) that don't match the referenced tables. This is logged as a warning and does not block functionality. A future data cleanup migration should fix existing records.
 4. **Test data fragility**: Tests now fix existing database records in `@BeforeEach` to ensure location_id/container_type_id have valid values. This is needed because `application-test.yml` sets `spring.sql.init.mode: never`, so data.sql changes don't apply to the test profile.

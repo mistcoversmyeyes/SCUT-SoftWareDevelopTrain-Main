@@ -32,7 +32,11 @@
           </div>
           <div class="info-row">
             <span><strong>库位</strong> {{ kanban.locationName }}</span>
+            <span><strong>容器</strong> {{ kanban.containerTypeName }}</span>
+          </div>
+          <div class="info-row">
             <span><strong>数量</strong> {{ kanban.qty }}</span>
+            <span><strong>装箱</strong> {{ boxLabel(kanban) }}</span>
           </div>
           <div class="info-row">
             <span><strong>打印时间</strong> {{ formatDateTime(kanban.printedAt) }}</span>
@@ -91,6 +95,17 @@ function formatDateTime(value) {
   if (!value) return '-'
   const d = new Date(value)
   return Number.isNaN(d.getTime()) ? value : d.toLocaleString('zh-CN')
+}
+
+function boxLabel(kanban) {
+  // Parse seq from kanban code: KB:v1:IN-xxx:lineNo:seq
+  const parts = kanban.kanbanCode?.split(':') || []
+  const seq = parseInt(parts[parts.length - 1], 10)
+  if (isNaN(seq)) return '-'
+  // Count total kanbans with same prefix (same line)
+  const prefix = parts.slice(0, -1).join(':')
+  const total = kanbans.value.filter(k => k.kanbanCode?.startsWith(prefix)).length
+  return total > 0 ? `第 ${seq}/${total} 箱` : `第 ${seq} 箱`
 }
 
 async function loadData() {
