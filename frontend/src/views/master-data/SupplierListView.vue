@@ -43,8 +43,8 @@
         <el-table-column prop="contactPhone" label="联系电话" width="140" />
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.status === 'ACTIVE' ? 'success' : 'danger'" effect="light">
-              {{ row.status === 'ACTIVE' ? '启用' : '停用' }}
+            <el-tag :type="(row.status === 'ACTIVE' || row.status === 'ENABLED') ? 'success' : 'danger'" effect="light">
+              {{ (row.status === 'ACTIVE' || row.status === 'ENABLED') ? '启用' : '停用' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -56,7 +56,7 @@
             <el-space size="small">
               <el-button type="primary" size="small" text @click="openEditDrawer(row)">编辑</el-button>
               <el-switch
-                :model-value="row.status === 'ACTIVE'"
+                :model-value="row.status === 'ACTIVE' || row.status === 'ENABLED'"
                 :loading="row._statusLoading"
                 size="small"
                 active-text="启用"
@@ -202,7 +202,7 @@ function openEditDrawer(row) {
   form.supplierName = row.supplierName
   form.contactName = row.contactName || ''
   form.contactPhone = row.contactPhone || ''
-  form.status = row.status || 'ACTIVE'
+  form.status = (row.status === 'ENABLED' ? 'ACTIVE' : row.status) || 'ACTIVE'
   drawerVisible.value = true
 }
 

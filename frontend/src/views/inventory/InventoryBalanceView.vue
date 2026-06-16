@@ -71,7 +71,7 @@
         </el-form-item>
       </el-form>
 
-      <el-table :data="balances" border stripe v-loading="loading" style="margin-top: 12px;">
+      <el-table :data="paginatedBalances" border stripe v-loading="loading" style="margin-top: 12px;">
         <el-table-column prop="materialCode" label="物料编码" width="140" />
         <el-table-column prop="materialName" label="物料名称" min-width="220" />
         <el-table-column prop="warehouseCode" label="仓库编码" width="140" />
@@ -85,12 +85,23 @@
           </template>
         </el-table-column>
       </el-table>
+
+      <div v-if="balances.length > pageSize" class="pagination-wrapper">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 15, 20, 50]"
+          :total="balances.length"
+          layout="total, sizes, prev, pager, next, jumper"
+          background
+        />
+      </div>
     </el-card>
   </section>
 </template>
 
 <script setup>
-import { onBeforeMount, reactive, ref } from 'vue'
+import { computed, onBeforeMount, reactive, ref } from 'vue'
 import { fetchInventoryBalances } from '../../api/inventory'
 import { fetchMasterDataOptions } from '../../api/masterData'
 
@@ -107,6 +118,14 @@ const materialOptions = ref([])
 const warehouseOptions = ref([])
 const locationOptions = ref([])
 
+const currentPage = ref(1)
+const pageSize = ref(15)
+
+const paginatedBalances = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return balances.value.slice(start, start + pageSize.value)
+})
+
 function pick(query) {
   return Object.fromEntries(
     Object.entries(query).filter(([, value]) => value)
@@ -118,6 +137,7 @@ async function queryBalances() {
   fetchError.value = ''
   try {
     balances.value = await fetchInventoryBalances(pick(filters))
+    currentPage.value = 1
   } catch (error) {
     fetchError.value = error.response?.data?.message || '库存查询失败'
   } finally {
@@ -167,5 +187,11 @@ onBeforeMount(() => {
 
 h2 {
   margin: 0;
+}
+
+.pagination-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
 }
 </style>

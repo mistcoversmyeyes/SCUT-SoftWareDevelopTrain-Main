@@ -2,7 +2,7 @@
   <el-dialog
     v-model="visibleSync"
     :title="isEditMode ? '编辑出库单' : '新建出库单'"
-    width="800px"
+    width="950px"
     top="4vh"
   >
     <el-form ref="formRef" :model="form" :rules="rules" label-width="98px" class="outbound-form">
@@ -23,7 +23,9 @@
             <el-input v-model="form.sourceDocNo" maxlength="64" />
           </el-form-item>
         </el-col>
+      </el-row>
 
+      <el-row :gutter="12">
         <el-col :span="8">
           <el-form-item label="备注" prop="remark">
             <el-input v-model="form.remark" maxlength="255" />
@@ -38,7 +40,7 @@
       </div>
 
       <el-table :data="form.lines" border size="small" class="detail-table">
-        <el-table-column label="物料" min-width="220">
+        <el-table-column label="物料" width="240">
           <template #default="{ row, $index }">
             <el-form-item
               :rules="lineRules.material"
@@ -61,7 +63,30 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="计划数量" width="180">
+        <el-table-column label="供应商" width="240">
+          <template #default="{ row, $index }">
+            <el-form-item
+              :rules="lineRules.supplier"
+              :prop="`lines.${$index}.supplierId`"
+            >
+              <el-select
+                v-model="row.supplierId"
+                placeholder="选择供应商"
+                filterable
+                clearable
+              >
+                <el-option
+                  v-for="s in masterData.suppliers"
+                  :key="s.id"
+                  :label="`${s.code} ${s.name}`"
+                  :value="s.id"
+                />
+              </el-select>
+            </el-form-item>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="计划数量" width="140">
           <template #default="{ row, $index }">
             <el-form-item
               :rules="lineRules.qty"
@@ -69,17 +94,16 @@
             >
               <el-input-number
                 v-model="row.plannedQty"
-                :min="0.001"
-                :precision="3"
-                :step="0.001"
-                controls-position="right"
+                :min="1"
+                :precision="0"
+                :step="1"
                 style="width: 100%"
               />
             </el-form-item>
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="110">
+        <el-table-column label="操作" width="100">
           <template #default="{ $index }">
             <el-button
               type="danger"
@@ -131,6 +155,10 @@ const props = defineProps({
       warehouses: [],
       locations: []
     })
+  },
+  onSave: {
+    type: Function,
+    default: null
   }
 })
 
@@ -155,6 +183,9 @@ const rules = {
 }
 
 const lineRules = {
+  supplier: [
+    { required: true, message: '请选择供应商', trigger: 'change' }
+  ],
   material: [
     { required: true, message: '请选择物料', trigger: 'change' }
   ],
@@ -193,6 +224,7 @@ watch(visibleSync, (visible) => {
 
 const emptyLine = () => ({
   materialId: undefined,
+  supplierId: undefined,
   plannedQty: undefined
 })
 
@@ -211,6 +243,7 @@ function normalizeInitialOrder(order) {
     remark: order.remark || '',
     lines: (order.lines || []).map((line) => ({
       materialId: line.materialId,
+      supplierId: line.supplier?.id,
       plannedQty: line.plannedQty
     }))
   }
@@ -236,10 +269,11 @@ function removeLine(index) {
 function toPayload() {
   const lines = form.lines
     .map((line) => ({
+      supplierId: line.supplierId,
       materialId: line.materialId,
       plannedQty: Number(line.plannedQty)
     }))
-    .filter((line) => !!line.materialId)
+    .filter((line) => !!line.materialId && !!line.supplierId)
 
   return {
     purpose: form.purpose,
@@ -261,7 +295,9 @@ async function submitForm() {
 
   submitting.value = true
   try {
-    emit('save', payload, props.mode)
+    if (props.onSave) {
+      await props.onSave(payload, props.mode)
+    }
   } finally {
     submitting.value = false
   }
@@ -280,5 +316,21 @@ async function submitForm() {
 .detail-table :deep(.el-input-number),
 .detail-table :deep(.el-select) {
   width: 100%;
+}
+
+.detail-table :deep(.el-form-item) {
+  margin-bottom: 0;
+}
+
+.detail-table :deep(.el-form-item__content) {
+  margin-left: 0 !important;
+}
+
+.detail-table :deep(.el-form-item__error) {
+  display: none;
+}
+
+.detail-table :deep(.el-table__cell) {
+  padding: 6px 8px;
 }
 </style>

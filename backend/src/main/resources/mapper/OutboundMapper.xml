@@ -24,13 +24,9 @@
                m.material_code,
                m.material_name,
                l.planned_qty,
-               l.picked_qty,
-               w.warehouse_name,
-               sl.location_name
+               l.picked_qty
         FROM outbound_order_line l
                  JOIN material m ON m.id = l.material_id
-                 JOIN warehouse w ON w.id = l.source_warehouse_id
-                 JOIN storage_location sl ON sl.id = l.source_location_id
         WHERE l.outbound_order_id = #{id}
         ORDER BY l.line_no ASC
     </select>

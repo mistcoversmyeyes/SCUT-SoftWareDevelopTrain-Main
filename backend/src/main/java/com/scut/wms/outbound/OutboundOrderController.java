@@ -55,6 +55,16 @@ public class OutboundOrderController {
         return service.cancel(id);
     }
 
+    @PostMapping("/{id}/start-picking")
+    public OutboundOrderResponse startPicking(@PathVariable Long id) {
+        return service.startPicking(id);
+    }
+
+    @PostMapping("/{id}/suspend")
+    public OutboundOrderResponse suspendPicking(@PathVariable Long id) {
+        return service.suspendPicking(id);
+    }
+
     @GetMapping("/{id}/print")
     public OutboundPrintResponse print(@PathVariable Long id) {
         return service.print(id);

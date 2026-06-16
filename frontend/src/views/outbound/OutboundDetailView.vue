@@ -16,7 +16,7 @@
       <template v-if="order">
         <el-descriptions :column="2" border>
           <el-descriptions-item label="出库单号">{{ order.outboundNo }}</el-descriptions-item>
-          <el-descriptions-item label="供应商">
+          <el-descriptions-item label="供应商（主）">
             {{ order.supplier?.code }} {{ order.supplier?.name }}
           </el-descriptions-item>
           <el-descriptions-item label="出库用途">{{ purposeLabel(order.purpose) }}</el-descriptions-item>
@@ -33,14 +33,18 @@
           <el-table-column prop="lineNo" label="行号" width="80" />
           <el-table-column prop="materialCode" label="物料编码" min-width="160" />
           <el-table-column prop="materialName" label="物料名称" min-width="220" />
+          <el-table-column label="供应商" min-width="180">
+            <template #default="{ row }">
+              <template v-if="row.supplier">{{ row.supplier.code }} {{ row.supplier.name }}</template>
+              <template v-else>—</template>
+            </template>
+          </el-table-column>
           <el-table-column prop="plannedQty" label="计划数量" width="120" align="right">
             <template #default="{ row }">{{ formatQty(row.plannedQty) }}</template>
           </el-table-column>
           <el-table-column prop="pickedQty" label="已拣数量" width="120" align="right">
             <template #default="{ row }">{{ formatQty(row.pickedQty) }}</template>
           </el-table-column>
-          <el-table-column prop="warehouseName" label="来源仓库" min-width="180" />
-          <el-table-column prop="locationName" label="来源库位" min-width="180" />
         </el-table>
       </template>
 
@@ -98,7 +102,7 @@ function formatQty(value) {
   if (value === null || value === undefined) return '0'
   const num = Number(value)
   if (Number.isNaN(num)) return value
-  return num.toFixed(3)
+  return String(num)
 }
 
 function getOutboundId() {
@@ -147,5 +151,9 @@ h2 { margin: 0; }
 @media print {
   .toolbar-actions { display: none; }
   .el-alert { display: none; }
+  .module-shell { padding: 0; }
+  :deep(.el-card) { border: none !important; box-shadow: none !important; }
+  :deep(.el-card__body) { padding: 0 !important; }
+  :deep(.el-descriptions) { border: 1px solid #000; }
 }
 </style>

@@ -42,7 +42,7 @@ bash scripts/start.sh
 
 ```bash
 cd /home/yuming/scut/SCUT_26_spring/SCUT-SoftWareDevelopTrain-Main
-sudo docker compose up -d mysql
+sudo docker-compose up -d mysql
 ```
 
 ### 2) 启动后端
@@ -79,13 +79,13 @@ sudo docker rm scut-wms-mysql
 或在仓库根目录执行：
 
 ```bash
-sudo docker compose down
+sudo docker-compose down
 ```
 
 如需连数据库数据一起清理：
 
 ```bash
-sudo docker compose down -v
+sudo docker-compose down -v
 ```
 
 ## 五、快速故障排查

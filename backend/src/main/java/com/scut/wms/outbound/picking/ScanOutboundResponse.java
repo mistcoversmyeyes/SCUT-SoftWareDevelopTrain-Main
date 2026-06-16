@@ -10,6 +10,9 @@ public record ScanOutboundResponse(
         String locationName,
         BigDecimal pickedQty,
         String newKanbanStatus,
-        LocalDateTime occurredAt
+        LocalDateTime occurredAt,
+        Long outboundOrderId,
+        Long outboundOrderLineId,
+        String orderStatus
 ) {
 }

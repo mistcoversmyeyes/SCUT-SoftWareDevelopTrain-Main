@@ -9,6 +9,9 @@ import com.scut.wms.inventory.InventoryMovement;
 import com.scut.wms.inventory.InventoryMovementMapper;
 import com.scut.wms.inventory.InventoryTransactionMapper;
 import com.scut.wms.inventory.ScanKanbanContext;
+import com.scut.wms.outbound.OutboundOrderLine;
+import com.scut.wms.outbound.OutboundOrderLineMapper;
+import com.scut.wms.outbound.OutboundOrderService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,17 +33,23 @@ public class OutboundPickingService {
     private final InventoryMovementMapper inventoryMovementMapper;
     private final InventoryBalanceMapper inventoryBalanceMapper;
     private final KanbanBoardMapper kanbanBoardMapper;
+    private final OutboundOrderService outboundOrderService;
+    private final OutboundOrderLineMapper outboundOrderLineMapper;
 
     public OutboundPickingService(
             InventoryTransactionMapper inventoryTransactionMapper,
             InventoryMovementMapper inventoryMovementMapper,
             InventoryBalanceMapper inventoryBalanceMapper,
-            KanbanBoardMapper kanbanBoardMapper
+            KanbanBoardMapper kanbanBoardMapper,
+            OutboundOrderService outboundOrderService,
+            OutboundOrderLineMapper outboundOrderLineMapper
     ) {
         this.inventoryTransactionMapper = inventoryTransactionMapper;
         this.inventoryMovementMapper = inventoryMovementMapper;
         this.inventoryBalanceMapper = inventoryBalanceMapper;
         this.kanbanBoardMapper = kanbanBoardMapper;
+        this.outboundOrderService = outboundOrderService;
+        this.outboundOrderLineMapper = outboundOrderLineMapper;
     }
 
     @Transactional
@@ -69,6 +78,32 @@ public class OutboundPickingService {
         }
         LocalDateTime now = LocalDateTime.now();
 
+        // Determine pick quantity
+        BigDecimal pickQty = request.qty();
+        if (pickQty == null || pickQty.compareTo(BigDecimal.ZERO) <= 0) {
+            BigDecimal boardRemaining = ctx.getBoardQty().subtract(
+                    ctx.getPickedQty() == null ? BigDecimal.ZERO : ctx.getPickedQty());
+            pickQty = boardRemaining;
+            // 带单出库时，全量 = min(看板剩余, 出库单行仍需)
+            if (request.outboundOrderId() != null && request.outboundOrderLineId() != null) {
+                OutboundOrderLine line = outboundOrderLineMapper.selectById(request.outboundOrderLineId());
+                if (line != null && line.getPlannedQty() != null) {
+                    BigDecimal linePicked = line.getPickedQty() == null ? BigDecimal.ZERO : line.getPickedQty();
+                    BigDecimal lineNeeded = line.getPlannedQty().subtract(linePicked);
+                    if (lineNeeded.compareTo(pickQty) < 0) {
+                        pickQty = lineNeeded;
+                    }
+                }
+            }
+        }
+
+        // Validate pick qty does not exceed remaining board qty
+        BigDecimal currentPicked = ctx.getPickedQty() == null ? BigDecimal.ZERO : ctx.getPickedQty();
+        BigDecimal remaining = ctx.getBoardQty().subtract(currentPicked);
+        if (pickQty.compareTo(remaining) > 0) {
+            throw new BusinessException("出库数量超过看板剩余数量");
+        }
+
         // Create movement
         InventoryMovement movement = new InventoryMovement();
         movement.setMovementNo(generateMovementNo(now));
@@ -79,9 +114,11 @@ public class OutboundPickingService {
         movement.setMaterialId(ctx.getMaterialId());
         movement.setWarehouseId(ctx.getTargetWarehouseId());
         movement.setStorageLocationId(ctx.getTargetLocationId());
-        movement.setQty(ctx.getBoardQty());
+        movement.setQty(pickQty);
         movement.setOccurredAt(now);
         movement.setOperatorName("web");
+        movement.setOutboundOrderId(request.outboundOrderId());
+        movement.setOutboundOrderLineId(request.outboundOrderLineId());
         inventoryMovementMapper.insert(movement);
 
         // Upsert balance (subtract)
@@ -90,10 +127,10 @@ public class OutboundPickingService {
                 ctx.getTargetWarehouseId(),
                 ctx.getTargetLocationId()
         );
-        if (balance == null || balance.getOnHandQty().compareTo(ctx.getBoardQty()) < 0) {
+        if (balance == null || balance.getOnHandQty().compareTo(pickQty) < 0) {
             throw new BusinessException("库存不足");
         }
-        balance.setOnHandQty(balance.getOnHandQty().subtract(ctx.getBoardQty()));
+        balance.setOnHandQty(balance.getOnHandQty().subtract(pickQty));
         inventoryBalanceMapper.updateById(balance);
 
         // Update kanban: increment pickedQty, possibly mark SHIPPED
@@ -101,22 +138,40 @@ public class OutboundPickingService {
         if (board == null) {
             throw new BusinessException("看板不存在");
         }
-        BigDecimal currentPicked = board.getPickedQty() == null ? BigDecimal.ZERO : board.getPickedQty();
-        board.setPickedQty(currentPicked.add(ctx.getBoardQty()));
+        BigDecimal currentPickedBoard = board.getPickedQty() == null ? BigDecimal.ZERO : board.getPickedQty();
+        board.setPickedQty(currentPickedBoard.add(pickQty));
         if (board.getPickedQty().compareTo(board.getBoardQty()) >= 0) {
             board.setStatus(SHIPPED);
         }
         kanbanBoardMapper.updateById(board);
+
+        // Handle outbound order association
+        String orderStatus = null;
+        if (request.outboundOrderId() != null && request.outboundOrderLineId() != null) {
+            outboundOrderService.addPickedQty(request.outboundOrderId(), request.outboundOrderLineId(), pickQty);
+            orderStatus = outboundOrderService.getOrderStatus(request.outboundOrderId());
+        }
 
         return new ScanOutboundResponse(
                 ctx.getKanbanCode(),
                 ctx.getMaterialCode(),
                 ctx.getMaterialName(),
                 ctx.getLocationName(),
-                ctx.getBoardQty(),
+                pickQty,
                 board.getStatus(),
-                now
+                now,
+                request.outboundOrderId(),
+                request.outboundOrderLineId(),
+                orderStatus
         );
+    }
+
+    public ScanKanbanContext lookupKanban(String kanbanCode) {
+        return inventoryTransactionMapper.selectKanbanContext(kanbanCode);
+    }
+
+    public List<PickRecommendation> recommendPick(Long materialId, List<Long> warehouseIds, BigDecimal neededQty) {
+        return inventoryTransactionMapper.selectFifoRecommendations(materialId, warehouseIds);
     }
 
     private String generateMovementNo(LocalDateTime now) {

@@ -7,8 +7,6 @@ public record OutboundPrintLine(
         String materialCode,
         String materialName,
         BigDecimal plannedQty,
-        BigDecimal pickedQty,
-        String warehouseName,
-        String locationName
+        BigDecimal pickedQty
 ) {
 }

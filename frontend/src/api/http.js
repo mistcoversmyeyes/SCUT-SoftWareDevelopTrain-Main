@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { ElMessage } from 'element-plus'
 
 export const http = axios.create({
   baseURL: '/api',
@@ -12,3 +13,19 @@ http.interceptors.request.use((config) => {
   }
   return config
 })
+
+http.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('wms-token')
+      localStorage.removeItem('wms-user')
+      // Avoid showing duplicate messages on the login page itself
+      if (window.location.pathname !== '/login') {
+        ElMessage.error('登录已过期，请重新登录')
+        window.location.href = '/login'
+      }
+    }
+    return Promise.reject(error)
+  }
+)

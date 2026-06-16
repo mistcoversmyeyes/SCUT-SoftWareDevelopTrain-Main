@@ -9,7 +9,7 @@
 
       <el-form :model="query" inline class="filter-form">
         <el-form-item label="状态">
-          <el-select v-model="query.status" placeholder="全部" clearable>
+          <el-select v-model="query.status" placeholder="全部" clearable style="width: 120px">
             <el-option
               v-for="s in statusOptions"
               :key="s.value"
@@ -55,7 +55,7 @@
 
       <el-table
         v-loading="loading"
-        :data="kanbans"
+        :data="paginatedKanbans"
         border
         stripe
         size="small"
@@ -82,7 +82,7 @@
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
 
-        <el-table-column label="操作" width="120" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <el-button
               type="primary"
@@ -92,9 +92,28 @@
             >
               查看详情
             </el-button>
+            <el-button
+              type="info"
+              size="small"
+              text
+              @click="handleCopyCode(row)"
+            >
+              复制看板码
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
+
+      <div v-if="kanbans.length > pageSize" class="pagination-wrapper">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 15, 20, 50]"
+          :total="kanbans.length"
+          layout="total, sizes, prev, pager, next, jumper"
+          background
+        />
+      </div>
 
       <el-empty v-if="!loading && !kanbans.length" description="暂无看板数据" />
     </el-card>
@@ -102,7 +121,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { fetchKanbanList } from '../../api/kanban'
@@ -128,6 +147,14 @@ const dateRange = ref(null)
 const kanbans = ref([])
 const loading = ref(false)
 const loadError = ref('')
+
+const currentPage = ref(1)
+const pageSize = ref(10)
+
+const paginatedKanbans = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return kanbans.value.slice(start, start + pageSize.value)
+})
 
 const statusMap = {
   ACTIVE: '活跃',
@@ -172,7 +199,7 @@ function formatQty(value) {
   if (Number.isNaN(num)) {
     return value
   }
-  return num.toFixed(3)
+  return String(num)
 }
 
 async function loadData() {
@@ -190,6 +217,7 @@ async function loadData() {
     }
     const list = await fetchKanbanList(payload)
     kanbans.value = list
+    currentPage.value = 1
   } catch (error) {
     loadError.value = error.response?.data?.message || '看板列表加载失败'
     kanbans.value = []
@@ -208,6 +236,15 @@ function resetFilters() {
 
 function handleView(row) {
   router.push('/inbound/' + row.inboundOrderId + '/kanbans')
+}
+
+async function handleCopyCode(row) {
+  try {
+    await navigator.clipboard.writeText(row.kanbanCode)
+    ElMessage.success('看板码已复制: ' + row.kanbanCode)
+  } catch {
+    ElMessage.error('复制失败，请手动复制')
+  }
 }
 
 onMounted(() => {
@@ -240,5 +277,11 @@ onMounted(() => {
 
 .mono {
   font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+
+.pagination-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
 }
 </style>

@@ -176,7 +176,7 @@ public class InventoryService {
     }
 
     private InboundOrderLine requireLine(Long lineId) {
-        InboundOrderLine line = inboundOrderLineMapper.selectById(lineId);
+        InboundOrderLine line = inboundOrderLineMapper.selectByIdForUpdate(lineId);
         if (line == null) {
             throw new BusinessException(HttpStatus.NOT_FOUND, "入库单明细不存在");
         }

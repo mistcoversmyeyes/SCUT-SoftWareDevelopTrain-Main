@@ -28,11 +28,11 @@ VALUES
   (1, 'IN-20260610-001', 1, 'PO-20260610-001', 'RELEASED', 'Week 2 采购入库演示单据', '2026-06-10 09:00:00');
 
 INSERT IGNORE INTO inbound_order_line (
-  id, inbound_order_id, line_no, material_id, planned_qty, received_qty, target_warehouse_id, target_location_id
+  id, inbound_order_id, line_no, material_id, supplier_id, planned_qty, received_qty, target_warehouse_id, target_location_id
 )
 VALUES
-  (1, 1, 1, 1, 120.000, 0.000, 1, 1),
-  (2, 1, 2, 2, 80.000, 0.000, 1, 2);
+  (1, 1, 1, 1, 1, 120.000, 0.000, 1, 1),
+  (2, 1, 2, 2, 1, 80.000, 0.000, 1, 2);
 
 INSERT IGNORE INTO kanban_board (
   id, kanban_code, inbound_order_id, inbound_order_line_id, board_qty, status, printed_at
@@ -46,8 +46,8 @@ VALUES
   (1, 'OUT-20260615-001', 1, 'PRODUCTION_PICK', 'WO-20260615-001', 'DRAFT', 'Week 3 出库演示单据', NULL);
 
 INSERT IGNORE INTO outbound_order_line (
-  id, outbound_order_id, line_no, material_id, planned_qty, picked_qty, source_warehouse_id, source_location_id
+  id, outbound_order_id, line_no, material_id, supplier_id, planned_qty, picked_qty
 )
 VALUES
-  (1, 1, 1, 1, 50.000, 0.000, 1, 1),
-  (2, 1, 2, 2, 30.000, 0.000, 1, 2);
+  (1, 1, 1, 1, 1, 50.000, 0.000),
+  (2, 1, 2, 2, 1, 30.000, 0.000);

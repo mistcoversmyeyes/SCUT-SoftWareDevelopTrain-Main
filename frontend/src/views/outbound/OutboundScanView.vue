@@ -17,6 +17,9 @@
             clearable
           />
         </el-form-item>
+        <el-form-item label="出库数量（留空默认全量）">
+          <el-input-number v-model="scanQty" :min="1" :step="1" :precision="0" />
+        </el-form-item>
         <el-form-item>
           <el-button
             type="primary"
@@ -36,6 +39,38 @@
         show-icon
         :closable="false"
       />
+
+      <el-card v-if="kanbanPreview" class="result-card" shadow="never">
+        <template #header>
+          <span>看板信息</span>
+        </template>
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="看板码">
+            {{ kanbanPreview.kanbanCode }}
+          </el-descriptions-item>
+          <el-descriptions-item label="看板状态">
+            {{ kanbanPreview.kanbanStatus }}
+          </el-descriptions-item>
+          <el-descriptions-item label="物料编码">
+            {{ kanbanPreview.materialCode }}
+          </el-descriptions-item>
+          <el-descriptions-item label="物料名称">
+            {{ kanbanPreview.materialName }}
+          </el-descriptions-item>
+          <el-descriptions-item label="库位">
+            {{ kanbanPreview.locationName }}
+          </el-descriptions-item>
+          <el-descriptions-item label="看板数量">
+            {{ kanbanPreview.boardQty }}
+          </el-descriptions-item>
+          <el-descriptions-item label="已拣数量">
+            {{ kanbanPreview.pickedQty || 0 }}
+          </el-descriptions-item>
+          <el-descriptions-item label="剩余数量">
+            <strong>{{ kanbanPreview.boardQty - (kanbanPreview.pickedQty || 0) }}</strong>
+          </el-descriptions-item>
+        </el-descriptions>
+      </el-card>
 
       <el-card v-if="scanResult" class="result-card" shadow="never">
         <template #header>
@@ -73,14 +108,32 @@
 </template>
 
 <script setup>
-import { nextTick, ref } from 'vue'
-import { scanOutbound } from '../../api/outbound'
+import { nextTick, ref, watch } from 'vue'
+import { scanOutbound, lookupKanban } from '../../api/outbound'
 
 const kanbanCode = ref('')
+const scanQty = ref(undefined)
 const scanning = ref(false)
 const scanResult = ref(null)
+const kanbanPreview = ref(null)
 const errorMessage = ref('')
 const scanInputRef = ref()
+
+let lookupTimer = null
+
+watch(kanbanCode, (code) => {
+  clearTimeout(lookupTimer)
+  kanbanPreview.value = null
+  const trimmed = code.trim()
+  if (!trimmed) return
+  lookupTimer = setTimeout(async () => {
+    try {
+      kanbanPreview.value = await lookupKanban(trimmed)
+    } catch {
+      kanbanPreview.value = null
+    }
+  }, 400)
+})
 
 async function handleScan() {
   const code = kanbanCode.value.trim()
@@ -95,8 +148,13 @@ async function handleScan() {
   scanResult.value = null
 
   try {
-    scanResult.value = await scanOutbound(code)
+    scanResult.value = await scanOutbound({
+      kanbanCode: code,
+      qty: scanQty.value || undefined
+    })
     kanbanCode.value = ''
+    scanQty.value = undefined
+    kanbanPreview.value = null
   } catch (error) {
     errorMessage.value =
       error.response?.data?.message ||

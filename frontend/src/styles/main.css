@@ -20,3 +20,20 @@ button,
 input {
   font: inherit;
 }
+
+@media print {
+  body {
+    background: #fff;
+  }
+
+  .admin-header,
+  .admin-aside,
+  .tab-bar {
+    display: none !important;
+  }
+
+  .admin-main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}

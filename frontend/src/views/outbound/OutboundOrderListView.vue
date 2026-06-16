@@ -10,7 +10,7 @@
 
       <el-form :model="query" inline class="filter-form">
         <el-form-item label="状态">
-          <el-select v-model="query.status" placeholder="全部" clearable>
+          <el-select v-model="query.status" placeholder="全部" clearable style="width: 130px">
             <el-option
               v-for="status in statusOptions"
               :key="status.value"
@@ -25,7 +25,7 @@
         </el-form-item>
 
         <el-form-item label="供应商">
-          <el-select v-model="query.purpose" placeholder="全部供应商" clearable filterable>
+          <el-select v-model="query.supplierId" placeholder="全部供应商" clearable filterable style="width: 220px">
             <el-option
               v-for="supplier in masterData.suppliers"
               :key="supplier.id"
@@ -51,7 +51,7 @@
 
       <el-table
         v-loading="loading"
-        :data="orders"
+        :data="paginatedOrders"
         border
         stripe
         size="small"
@@ -139,10 +139,29 @@
                   </el-button>
                 </template>
               </el-popconfirm>
+              <el-button
+                type="success"
+                size="small"
+                :disabled="!canStartPicking(row)"
+                @click="handleStartPicking(row)"
+              >
+                开始拣货
+              </el-button>
             </el-space>
           </template>
         </el-table-column>
       </el-table>
+
+      <div v-if="orders.length > pageSize" class="pagination-wrapper">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 15, 20, 50]"
+          :total="orders.length"
+          layout="total, sizes, prev, pager, next, jumper"
+          background
+        />
+      </div>
 
       <el-empty v-if="!loading && !orders.length" description="暂无出库单" />
     </el-card>
@@ -152,13 +171,13 @@
       :mode="formMode"
       :initial-order="editingOrder"
       :master-data="masterData"
-      @save="handleSave"
+      :on-save="handleSave"
     />
   </section>
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
@@ -176,6 +195,7 @@ const router = useRouter()
 const statusOptions = [
   { value: 'DRAFT', label: '草稿' },
   { value: 'RELEASED', label: '已释放' },
+  { value: 'PICKING', label: '拣货中' },
   { value: 'PARTIAL_SHIPPED', label: '部分发货' },
   { value: 'COMPLETED', label: '已完成' },
   { value: 'CANCELLED', label: '已取消' }
@@ -183,6 +203,7 @@ const statusOptions = [
 
 const DRAFT = 'DRAFT'
 const RELEASED = 'RELEASED'
+const PICKING = 'PICKING'
 const COMPLETED = 'COMPLETED'
 const PARTIAL_SHIPPED = 'PARTIAL_SHIPPED'
 const CANCELLED = 'CANCELLED'
@@ -207,9 +228,18 @@ const masterData = ref({
   locations: []
 })
 
+const currentPage = ref(1)
+const pageSize = ref(10)
+
+const paginatedOrders = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return orders.value.slice(start, start + pageSize.value)
+})
+
 const statusMap = {
   [DRAFT]: '草稿',
   [RELEASED]: '已释放',
+  [PICKING]: '拣货中',
   [PARTIAL_SHIPPED]: '部分发货',
   [COMPLETED]: '已完成',
   [CANCELLED]: '已取消'
@@ -218,6 +248,7 @@ const statusMap = {
 const statusTagType = {
   [DRAFT]: 'info',
   [RELEASED]: 'warning',
+  [PICKING]: 'warning',
   [PARTIAL_SHIPPED]: 'success',
   [COMPLETED]: 'success',
   [CANCELLED]: 'danger'
@@ -225,8 +256,9 @@ const statusTagType = {
 
 const canEdit = (row) => [DRAFT, RELEASED].includes(row.status)
 const canRelease = (row) => row.status === DRAFT
-const canCancel = (row) => [DRAFT, RELEASED].includes(row.status)
-const canPrint = (row) => [RELEASED, PARTIAL_SHIPPED, COMPLETED].includes(row.status)
+const canCancel = (row) => [DRAFT, RELEASED, PICKING].includes(row.status)
+const canStartPicking = (row) => row.status === RELEASED || row.status === PICKING
+const canPrint = (row) => [RELEASED, PICKING, PARTIAL_SHIPPED, COMPLETED].includes(row.status)
 
 function statusType(status) {
   return statusTagType[status] || 'info'
@@ -255,7 +287,7 @@ function formatQty(value) {
   if (Number.isNaN(num)) {
     return value
   }
-  return num.toFixed(3)
+  return String(num)
 }
 
 async function loadMasterData() {
@@ -273,10 +305,11 @@ async function loadOrders() {
     const payload = {
       status: query.status || undefined,
       outboundNo: query.outboundNo || undefined,
-      supplierId: query.purpose || undefined
+      supplierId: query.supplierId || undefined
     }
     const list = await fetchOutboundOrders(payload)
     orders.value = list
+    currentPage.value = 1
   } catch (error) {
     loadError.value = error.response?.data?.message || '出库单列表加载失败'
     orders.value = []
@@ -288,7 +321,7 @@ async function loadOrders() {
 function resetFilters() {
   query.status = ''
   query.outboundNo = ''
-  query.purpose = ''
+  query.supplierId = ''
   loadOrders()
 }
 
@@ -301,14 +334,13 @@ function openCreateDrawer() {
 function openEditDrawer(row) {
   editingOrder.value = {
     id: row.id,
-    supplierId: row.supplier?.id,
+    purpose: row.purpose,
     sourceDocNo: row.sourceDocNo || '',
     remark: row.remark || '',
     lines: (row.lines || []).map((line) => ({
       materialId: line.materialId,
-      plannedQty: line.plannedQty,
-      targetWarehouseId: line.targetWarehouseId,
-      targetLocationId: line.targetLocationId
+      supplierId: line.supplier?.id,
+      plannedQty: line.plannedQty
     }))
   }
   formMode.value = 'edit'
@@ -352,6 +384,10 @@ async function handleCancel(row) {
   }
 }
 
+function handleStartPicking(row) {
+  router.push('/outbound/' + row.id + '/picking')
+}
+
 function handlePrintOrder(row) {
   router.push('/outbound/' + row.id)
 }
@@ -382,5 +418,11 @@ onMounted(() => {
 
 .order-table {
   min-height: 260px;
+}
+
+.pagination-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
 }
 </style>

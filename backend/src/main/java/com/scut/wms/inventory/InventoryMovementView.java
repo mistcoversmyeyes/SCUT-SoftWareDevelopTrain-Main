@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 
 public class InventoryMovementView {
     private String movementNo;
+    private String movementType;
     private String materialCode;
     private String materialName;
     private String warehouseCode;
@@ -22,6 +23,14 @@ public class InventoryMovementView {
 
     public void setMovementNo(String movementNo) {
         this.movementNo = movementNo;
+    }
+
+    public String getMovementType() {
+        return movementType;
+    }
+
+    public void setMovementType(String movementType) {
+        this.movementType = movementType;
     }
 
     public String getMaterialCode() {

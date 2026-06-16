@@ -77,7 +77,7 @@ function formatQty(value) {
   if (value === null || value === undefined) return '0'
   const num = Number(value)
   if (Number.isNaN(num)) return value
-  return num.toFixed(3)
+  return String(num)
 }
 
 async function loadData() {

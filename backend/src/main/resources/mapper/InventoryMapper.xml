@@ -9,6 +9,7 @@
                kb.kanban_code,
                kb.status AS kanban_status,
                kb.board_qty,
+               COALESCE(kb.picked_qty, 0) AS picked_qty,
                kb.received_at,
                o.id AS order_id,
                o.inbound_no,
@@ -31,6 +32,35 @@
                  JOIN storage_location sl ON sl.id = l.target_location_id
         WHERE kb.kanban_code = #{kanbanCode}
         FOR UPDATE
+    </select>
+
+    <select id="selectKanbanContext" resultType="com.scut.wms.inventory.ScanKanbanContext">
+        SELECT kb.id AS kanban_id,
+               kb.kanban_code,
+               kb.status AS kanban_status,
+               kb.board_qty,
+               COALESCE(kb.picked_qty, 0) AS picked_qty,
+               kb.received_at,
+               o.id AS order_id,
+               o.inbound_no,
+               o.status AS order_status,
+               l.id AS line_id,
+               l.line_no,
+               l.planned_qty,
+               l.received_qty AS line_received_qty,
+               l.material_id,
+               m.material_code,
+               m.material_name,
+               l.target_warehouse_id,
+               l.target_location_id,
+               sl.warehouse_id AS location_warehouse_id,
+               sl.location_name
+        FROM kanban_board kb
+                 JOIN inbound_order o ON o.id = kb.inbound_order_id
+                 JOIN inbound_order_line l ON l.id = kb.inbound_order_line_id
+                 JOIN material m ON m.id = l.material_id
+                 JOIN storage_location sl ON sl.id = l.target_location_id
+        WHERE kb.kanban_code = #{kanbanCode}
     </select>
 
     <select id="selectBalanceForUpdate" resultType="com.scut.wms.inventory.InventoryBalance">
@@ -68,6 +98,7 @@
 
     <select id="selectInventoryMovements" resultType="com.scut.wms.inventory.InventoryMovementView">
         SELECT im.movement_no,
+               im.movement_type,
                m.material_code,
                m.material_name,
                w.warehouse_code,
@@ -113,6 +144,16 @@
         LIMIT 1
     </select>
 
+    <resultMap id="pickRecommendationMap" type="com.scut.wms.outbound.picking.PickRecommendation">
+        <constructor>
+            <arg column="kanban_code" javaType="String"/>
+            <arg column="warehouse_name" javaType="String"/>
+            <arg column="location_name" javaType="String"/>
+            <arg column="available_qty" javaType="java.math.BigDecimal"/>
+            <arg column="received_at" javaType="java.time.LocalDateTime"/>
+        </constructor>
+    </resultMap>
+
     <select id="selectFifoCandidateForUpdate" resultType="com.scut.wms.outbound.picking.FifoPickCandidate">
         SELECT kb.id AS kanbanId,
                kb.kanban_code AS kanbanCode,
@@ -131,6 +172,26 @@
           AND (kb.board_qty - COALESCE(kb.picked_qty, 0)) > 0
         ORDER BY kb.received_at ASC, kb.id ASC
         FOR UPDATE
+    </select>
+
+    <select id="selectFifoRecommendations" resultMap="pickRecommendationMap">
+        SELECT k.kanban_code,
+               w.warehouse_name,
+               sl.location_name,
+               (k.board_qty - COALESCE(k.picked_qty, 0)) AS available_qty,
+               k.received_at
+        FROM kanban_board k
+                 JOIN inbound_order_line iol ON iol.id = k.inbound_order_line_id
+                 JOIN storage_location sl ON sl.id = iol.target_location_id
+                 JOIN warehouse w ON w.id = iol.target_warehouse_id
+        WHERE k.status = 'RECEIVED'
+          AND (k.board_qty - COALESCE(k.picked_qty, 0)) > 0
+          AND iol.material_id = #{materialId}
+          AND iol.target_warehouse_id IN
+        <foreach collection="warehouseIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        ORDER BY k.received_at ASC, k.id ASC
     </select>
 
 </mapper>

@@ -26,6 +26,7 @@ public record InboundOrderResponse(
             Long id,
             Integer lineNo,
             Long materialId,
+            SupplierDisplay supplier,
             BigDecimal plannedQty,
             BigDecimal receivedQty,
             Long targetWarehouseId,

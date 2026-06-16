@@ -5,10 +5,13 @@ import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 import com.scut.wms.outbound.picking.FifoPickCandidate;
+import com.scut.wms.outbound.picking.PickRecommendation;
 
 @Mapper
 public interface InventoryTransactionMapper {
     ScanKanbanContext selectScanKanbanForUpdate(@Param("kanbanCode") String kanbanCode);
+
+    ScanKanbanContext selectKanbanContext(@Param("kanbanCode") String kanbanCode);
 
     InventoryBalance selectBalanceForUpdate(
             @Param("materialId") Long materialId,
@@ -36,5 +39,10 @@ public interface InventoryTransactionMapper {
             @Param("materialId") Long materialId,
             @Param("warehouseId") Long warehouseId,
             @Param("storageLocationId") Long storageLocationId
+    );
+
+    List<PickRecommendation> selectFifoRecommendations(
+            @Param("materialId") Long materialId,
+            @Param("warehouseIds") List<Long> warehouseIds
     );
 }

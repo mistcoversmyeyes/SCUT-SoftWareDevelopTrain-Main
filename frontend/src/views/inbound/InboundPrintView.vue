@@ -136,13 +136,30 @@ h2 {
     display: none;
   }
 
+  .module-shell {
+    padding: 0;
+  }
+
   .print-area {
     margin: 0;
   }
 
   :deep(.el-card) {
-    border: none;
-    box-shadow: none;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  :deep(.el-card__body) {
+    padding: 0 !important;
+  }
+
+  :deep(.el-descriptions) {
+    border: 1px solid #000;
+  }
+
+  .totals {
+    margin-top: 8px;
+    font-size: 14px;
   }
 }
 </style>

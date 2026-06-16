@@ -30,7 +30,27 @@ export async function fetchOutboundOrderById(id) {
   return response.data
 }
 
-export async function scanOutbound(kanbanCode) {
-  const response = await http.post('/outbound/scan', { kanbanCode })
+export async function scanOutbound(payload) {
+  const response = await http.post('/outbound/scan', payload)
+  return response.data
+}
+
+export async function startPicking(id) {
+  const response = await http.post(`/outbound-orders/${id}/start-picking`)
+  return response.data
+}
+
+export async function suspendPicking(id) {
+  const response = await http.post(`/outbound-orders/${id}/suspend`)
+  return response.data
+}
+
+export async function recommendPick(payload) {
+  const response = await http.post('/outbound/recommend', payload)
+  return response.data
+}
+
+export async function lookupKanban(kanbanCode) {
+  const response = await http.get('/outbound/kanban-lookup', { params: { kanbanCode } })
   return response.data
 }

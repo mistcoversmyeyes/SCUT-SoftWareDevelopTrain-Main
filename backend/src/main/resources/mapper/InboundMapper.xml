@@ -35,7 +35,8 @@
     </select>
 
     <select id="selectKanbanPrints" resultType="com.scut.wms.inbound.KanbanPrintResponse">
-        SELECT kb.kanban_code,
+        SELECT o.id AS inbound_order_id,
+               kb.kanban_code,
                o.inbound_no,
                s.supplier_code,
                s.supplier_name,
@@ -56,7 +57,8 @@
     </select>
 
     <select id="selectKanbanPrintsByFilter" resultType="com.scut.wms.inbound.KanbanPrintResponse">
-        SELECT kb.kanban_code,
+        SELECT o.id AS inbound_order_id,
+               kb.kanban_code,
                o.inbound_no,
                s.supplier_code,
                s.supplier_name,

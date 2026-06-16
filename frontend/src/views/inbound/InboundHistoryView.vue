@@ -9,7 +9,7 @@
 
       <el-form :model="query" inline class="filter-form">
         <el-form-item label="状态">
-          <el-select v-model="query.status" placeholder="全部" clearable multiple>
+          <el-select v-model="query.status" placeholder="全部" clearable multiple style="width: 170px">
             <el-option
               v-for="s in statusOptions"
               :key="s.value"
@@ -51,7 +51,7 @@
 
       <el-table
         v-loading="loading"
-        :data="orders"
+        :data="paginatedOrders"
         border
         stripe
         size="small"
@@ -106,13 +106,24 @@
         </el-table-column>
       </el-table>
 
+      <div v-if="orders.length > pageSize" class="pagination-wrapper">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 15, 20, 50]"
+          :total="orders.length"
+          layout="total, sizes, prev, pager, next, jumper"
+          background
+        />
+      </div>
+
       <el-empty v-if="!loading && !orders.length" description="暂无历史数据" />
     </el-card>
   </section>
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { fetchInboundOrders } from '../../api/inbound'
@@ -134,6 +145,14 @@ const dateRange = ref(null)
 const orders = ref([])
 const loading = ref(false)
 const loadError = ref('')
+
+const currentPage = ref(1)
+const pageSize = ref(15)
+
+const paginatedOrders = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return orders.value.slice(start, start + pageSize.value)
+})
 
 const statusMap = {
   DRAFT: '草稿',
@@ -178,7 +197,7 @@ function formatQty(value) {
   if (Number.isNaN(num)) {
     return value
   }
-  return num.toFixed(3)
+  return String(num)
 }
 
 async function loadOrders() {
@@ -189,7 +208,7 @@ async function loadOrders() {
       inboundNo: query.inboundNo || undefined
     }
     if (query.status && query.status.length) {
-      payload.status = query.status
+      payload.status = query.status.join(',')
     }
     if (dateRange.value) {
       payload.startDate = dateRange.value[0]
@@ -197,6 +216,7 @@ async function loadOrders() {
     }
     const list = await fetchInboundOrders(payload)
     orders.value = list
+    currentPage.value = 1
   } catch (error) {
     loadError.value = error.response?.data?.message || '历史数据加载失败'
     orders.value = []
@@ -242,5 +262,11 @@ onMounted(() => {
 
 .order-table {
   min-height: 260px;
+}
+
+.pagination-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
 }
 </style>

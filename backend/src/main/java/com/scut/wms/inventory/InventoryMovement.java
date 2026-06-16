@@ -22,6 +22,8 @@ public class InventoryMovement {
     private BigDecimal qty;
     private LocalDateTime occurredAt;
     private String operatorName;
+    private Long outboundOrderId;
+    private Long outboundOrderLineId;
     private LocalDateTime createdAt;
 
     public Long getId() {
@@ -118,6 +120,22 @@ public class InventoryMovement {
 
     public void setOperatorName(String operatorName) {
         this.operatorName = operatorName;
+    }
+
+    public Long getOutboundOrderId() {
+        return outboundOrderId;
+    }
+
+    public void setOutboundOrderId(Long outboundOrderId) {
+        this.outboundOrderId = outboundOrderId;
+    }
+
+    public Long getOutboundOrderLineId() {
+        return outboundOrderLineId;
+    }
+
+    public void setOutboundOrderLineId(Long outboundOrderLineId) {
+        this.outboundOrderLineId = outboundOrderLineId;
     }
 
     public LocalDateTime getCreatedAt() {

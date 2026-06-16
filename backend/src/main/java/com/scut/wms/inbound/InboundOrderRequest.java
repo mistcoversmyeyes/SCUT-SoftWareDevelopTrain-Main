@@ -10,9 +10,6 @@ import java.math.BigDecimal;
 import java.util.List;
 
 public record InboundOrderRequest(
-        @NotNull(message = "供应商不能为空")
-        Long supplierId,
-
         @Size(max = 64, message = "来源单号不能超过 64 个字符")
         String sourceDocNo,
 
@@ -24,6 +21,9 @@ public record InboundOrderRequest(
         List<Line> lines
 ) {
     public record Line(
+            @NotNull(message = "供应商不能为空")
+            Long supplierId,
+
             @NotNull(message = "物料不能为空")
             Long materialId,
 

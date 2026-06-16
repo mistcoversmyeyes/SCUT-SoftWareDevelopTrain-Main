@@ -2,24 +2,11 @@
   <el-dialog
     v-model="visibleSync"
     :title="isEditMode ? '编辑入库单' : '新建入库单'"
-    width="980px"
+    width="1100px"
     top="4vh"
   >
     <el-form ref="formRef" :model="form" :rules="rules" label-width="98px" class="inbound-form">
       <el-row :gutter="12">
-        <el-col :span="8">
-          <el-form-item label="供应商" prop="supplierId">
-            <el-select v-model="form.supplierId" placeholder="请选择供应商" filterable>
-              <el-option
-                v-for="supplier in masterData.suppliers"
-                :key="supplier.id"
-                :label="`${supplier.code} ${supplier.name}`"
-                :value="supplier.id"
-              />
-            </el-select>
-          </el-form-item>
-        </el-col>
-
         <el-col :span="8">
           <el-form-item label="来源单号" prop="sourceDocNo">
             <el-input v-model="form.sourceDocNo" maxlength="64" />
@@ -40,7 +27,7 @@
       </div>
 
       <el-table :data="form.lines" border size="small" class="detail-table">
-        <el-table-column label="物料" min-width="180">
+        <el-table-column label="物料" width="200">
           <template #default="{ row, $index }">
             <el-form-item
               :rules="lineRules.material"
@@ -63,6 +50,29 @@
           </template>
         </el-table-column>
 
+        <el-table-column label="供应商" width="200">
+          <template #default="{ row, $index }">
+            <el-form-item
+              :rules="lineRules.supplier"
+              :prop="`lines.${$index}.supplierId`"
+            >
+              <el-select
+                v-model="row.supplierId"
+                placeholder="选择供应商"
+                filterable
+                clearable
+              >
+                <el-option
+                  v-for="s in masterData.suppliers"
+                  :key="s.id"
+                  :label="`${s.code} ${s.name}`"
+                  :value="s.id"
+                />
+              </el-select>
+            </el-form-item>
+          </template>
+        </el-table-column>
+
         <el-table-column label="计划数量" width="140">
           <template #default="{ row, $index }">
             <el-form-item
@@ -71,17 +81,16 @@
             >
               <el-input-number
                 v-model="row.plannedQty"
-                :min="0.001"
-                :precision="3"
-                :step="0.001"
-                controls-position="right"
+                :min="1"
+                :precision="0"
+                :step="1"
                 style="width: 100%"
               />
             </el-form-item>
           </template>
         </el-table-column>
 
-        <el-table-column label="目标仓库" width="160">
+        <el-table-column label="目标仓库" width="180">
           <template #default="{ row, $index }">
             <el-form-item
               :rules="lineRules.warehouse"
@@ -127,7 +136,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="110">
+        <el-table-column label="操作" width="100">
           <template #default="{ $index }">
             <el-button
               type="danger"
@@ -179,6 +188,10 @@ const props = defineProps({
       warehouses: [],
       locations: []
     })
+  },
+  onSave: {
+    type: Function,
+    default: null
   }
 })
 
@@ -188,7 +201,6 @@ const formRef = ref()
 const submitting = ref(false)
 const visibleSync = ref(false)
 const form = reactive({
-  supplierId: undefined,
   sourceDocNo: '',
   remark: '',
   lines: []
@@ -197,12 +209,14 @@ const form = reactive({
 const isEditMode = computed(() => props.mode === 'edit')
 
 const rules = {
-  supplierId: [{ required: true, message: '请选择供应商', trigger: 'change' }],
   sourceDocNo: [{ max: 64, message: '来源单号不能超过 64 个字符', trigger: 'blur' }],
   remark: [{ max: 255, message: '备注不能超过 255 个字符', trigger: 'blur' }]
 }
 
 const lineRules = {
+  supplier: [
+    { required: true, message: '请选择供应商', trigger: 'change' }
+  ],
   material: [
     { required: true, message: '请选择物料', trigger: 'change' }
   ],
@@ -247,6 +261,7 @@ watch(visibleSync, (visible) => {
 
 const emptyLine = () => ({
   materialId: undefined,
+  supplierId: undefined,
   plannedQty: undefined,
   targetWarehouseId: undefined,
   targetLocationId: undefined
@@ -255,7 +270,6 @@ const emptyLine = () => ({
 function normalizeInitialOrder(order) {
   if (!order) {
     return {
-      supplierId: undefined,
       sourceDocNo: '',
       remark: '',
       lines: []
@@ -263,11 +277,11 @@ function normalizeInitialOrder(order) {
   }
 
   return {
-    supplierId: order.supplierId,
     sourceDocNo: order.sourceDocNo || '',
     remark: order.remark || '',
     lines: (order.lines || []).map((line) => ({
       materialId: line.materialId,
+      supplierId: line.supplier?.id,
       plannedQty: line.plannedQty,
       targetWarehouseId: line.targetWarehouseId,
       targetLocationId: line.targetLocationId
@@ -277,7 +291,6 @@ function normalizeInitialOrder(order) {
 
 function initForm() {
   const normalized = normalizeInitialOrder(props.initialOrder)
-  form.supplierId = normalized.supplierId
   form.sourceDocNo = normalized.sourceDocNo
   form.remark = normalized.remark
   form.lines = normalized.lines.length ? normalized.lines : [emptyLine()]
@@ -319,15 +332,15 @@ function onWarehouseChange(index) {
 function toPayload() {
   const lines = form.lines
     .map((line) => ({
+      supplierId: line.supplierId,
       materialId: line.materialId,
       plannedQty: Number(line.plannedQty),
       targetWarehouseId: line.targetWarehouseId,
       targetLocationId: line.targetLocationId
     }))
-    .filter((line) => !!line.materialId)
+    .filter((line) => !!line.materialId && !!line.supplierId)
 
   return {
-    supplierId: form.supplierId,
     sourceDocNo: (form.sourceDocNo || '').trim() || null,
     remark: (form.remark || '').trim() || null,
     lines
@@ -348,7 +361,9 @@ async function submitForm() {
 
   submitting.value = true
   try {
-    emit('save', payload, props.mode)
+    if (props.onSave) {
+      await props.onSave(payload, props.mode)
+    }
   } finally {
     submitting.value = false
   }
@@ -367,5 +382,21 @@ async function submitForm() {
 .detail-table :deep(.el-input-number),
 .detail-table :deep(.el-select) {
   width: 100%;
+}
+
+.detail-table :deep(.el-form-item) {
+  margin-bottom: 0;
+}
+
+.detail-table :deep(.el-form-item__content) {
+  margin-left: 0 !important;
+}
+
+.detail-table :deep(.el-form-item__error) {
+  display: none;
+}
+
+.detail-table :deep(.el-table__cell) {
+  padding: 6px 8px;
 }
 </style>

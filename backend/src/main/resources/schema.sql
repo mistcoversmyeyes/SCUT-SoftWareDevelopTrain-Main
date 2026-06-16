@@ -62,7 +62,7 @@ CREATE TABLE storage_location (
 CREATE TABLE inbound_order (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   inbound_no VARCHAR(64) NOT NULL UNIQUE,
-  supplier_id BIGINT NOT NULL,
+  supplier_id BIGINT DEFAULT NULL,
   source_doc_no VARCHAR(64),
   status VARCHAR(32) NOT NULL,
   remark VARCHAR(255),
@@ -70,7 +70,6 @@ CREATE TABLE inbound_order (
   completed_at DATETIME,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT fk_inbound_order_supplier FOREIGN KEY (supplier_id) REFERENCES supplier(id),
   INDEX idx_inbound_order_status (status),
   INDEX idx_inbound_order_supplier_status (supplier_id, status)
 );
@@ -80,6 +79,7 @@ CREATE TABLE inbound_order_line (
   inbound_order_id BIGINT NOT NULL,
   line_no INT NOT NULL,
   material_id BIGINT NOT NULL,
+  supplier_id BIGINT DEFAULT NULL,
   planned_qty DECIMAL(18, 3) NOT NULL,
   received_qty DECIMAL(18, 3) NOT NULL DEFAULT 0,
   target_warehouse_id BIGINT NOT NULL,
@@ -89,6 +89,7 @@ CREATE TABLE inbound_order_line (
   CONSTRAINT uk_inbound_order_line UNIQUE (inbound_order_id, line_no),
   CONSTRAINT fk_inbound_line_order FOREIGN KEY (inbound_order_id) REFERENCES inbound_order(id),
   CONSTRAINT fk_inbound_line_material FOREIGN KEY (material_id) REFERENCES material(id),
+  CONSTRAINT fk_inbound_line_supplier FOREIGN KEY (supplier_id) REFERENCES supplier(id),
   CONSTRAINT fk_inbound_line_warehouse FOREIGN KEY (target_warehouse_id) REFERENCES warehouse(id),
   CONSTRAINT fk_inbound_line_location FOREIGN KEY (target_location_id) REFERENCES storage_location(id)
 );
@@ -123,6 +124,8 @@ CREATE TABLE inventory_movement (
   qty DECIMAL(18, 3) NOT NULL,
   occurred_at DATETIME NOT NULL,
   operator_name VARCHAR(64),
+  outbound_order_id BIGINT DEFAULT NULL,
+  outbound_order_line_id BIGINT DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_movement_kanban FOREIGN KEY (kanban_board_id) REFERENCES kanban_board(id),
   CONSTRAINT fk_movement_material FOREIGN KEY (material_id) REFERENCES material(id),
@@ -158,7 +161,7 @@ CREATE TABLE container_type (
 CREATE TABLE outbound_order (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   outbound_no VARCHAR(64) NOT NULL UNIQUE,
-  supplier_id BIGINT NOT NULL,
+  supplier_id BIGINT DEFAULT NULL,
   purpose VARCHAR(64),
   source_doc_no VARCHAR(64),
   status VARCHAR(32) NOT NULL,
@@ -176,15 +179,13 @@ CREATE TABLE outbound_order_line (
   outbound_order_id BIGINT NOT NULL,
   line_no INT NOT NULL,
   material_id BIGINT NOT NULL,
+  supplier_id BIGINT DEFAULT NULL,
   planned_qty DECIMAL(18, 3) NOT NULL,
   picked_qty DECIMAL(18, 3) NOT NULL DEFAULT 0,
-  source_warehouse_id BIGINT NOT NULL,
-  source_location_id BIGINT NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT uk_outbound_order_line UNIQUE (outbound_order_id, line_no),
   CONSTRAINT fk_outbound_line_order FOREIGN KEY (outbound_order_id) REFERENCES outbound_order(id),
   CONSTRAINT fk_outbound_line_material FOREIGN KEY (material_id) REFERENCES material(id),
-  CONSTRAINT fk_outbound_line_warehouse FOREIGN KEY (source_warehouse_id) REFERENCES warehouse(id),
-  CONSTRAINT fk_outbound_line_location FOREIGN KEY (source_location_id) REFERENCES storage_location(id)
+  CONSTRAINT fk_outbound_line_supplier FOREIGN KEY (supplier_id) REFERENCES supplier(id)
 );

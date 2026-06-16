@@ -14,6 +14,7 @@ public class InboundOrderLine {
     private Long inboundOrderId;
     private Integer lineNo;
     private Long materialId;
+    private Long supplierId;
     private BigDecimal plannedQty;
     private BigDecimal receivedQty;
     private Long targetWarehouseId;
@@ -51,6 +52,14 @@ public class InboundOrderLine {
 
     public void setMaterialId(Long materialId) {
         this.materialId = materialId;
+    }
+
+    public Long getSupplierId() {
+        return supplierId;
+    }
+
+    public void setSupplierId(Long supplierId) {
+        this.supplierId = supplierId;
     }
 
     public BigDecimal getPlannedQty() {

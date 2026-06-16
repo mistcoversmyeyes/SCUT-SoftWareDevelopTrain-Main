@@ -31,8 +31,8 @@
         <el-table-column prop="warehouseName" label="仓库名称" min-width="180" />
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.status === 'ACTIVE' ? 'success' : 'danger'" effect="light">
-              {{ row.status === 'ACTIVE' ? '启用' : '停用' }}
+            <el-tag :type="(row.status === 'ACTIVE' || row.status === 'ENABLED') ? 'success' : 'danger'" effect="light">
+              {{ (row.status === 'ACTIVE' || row.status === 'ENABLED') ? '启用' : '停用' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -76,8 +76,8 @@
         <el-table-column prop="warehouseName" label="所属仓库" min-width="180" />
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.status === 'ACTIVE' ? 'success' : 'danger'" effect="light">
-              {{ row.status === 'ACTIVE' ? '启用' : '停用' }}
+            <el-tag :type="(row.status === 'ACTIVE' || row.status === 'ENABLED') ? 'success' : 'danger'" effect="light">
+              {{ (row.status === 'ACTIVE' || row.status === 'ENABLED') ? '启用' : '停用' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -113,8 +113,8 @@
         </el-form-item>
         <el-form-item label="状态" prop="status">
           <el-select v-model="warehouseForm.status" placeholder="请选择状态">
-            <el-option label="启用" value="ACTIVE" />
-            <el-option label="停用" value="INACTIVE" />
+            <el-option label="启用" value="ENABLED" />
+            <el-option label="停用" value="DISABLED" />
           </el-select>
         </el-form-item>
       </el-form>
@@ -156,8 +156,8 @@
         </el-form-item>
         <el-form-item label="状态" prop="status">
           <el-select v-model="locationForm.status" placeholder="请选择状态">
-            <el-option label="启用" value="ACTIVE" />
-            <el-option label="停用" value="INACTIVE" />
+            <el-option label="启用" value="ENABLED" />
+            <el-option label="停用" value="DISABLED" />
           </el-select>
         </el-form-item>
       </el-form>
@@ -203,7 +203,7 @@ const warehouseSaving = ref(false)
 const warehouseForm = reactive({
   warehouseCode: '',
   warehouseName: '',
-  status: 'ACTIVE'
+  status: 'ENABLED'
 })
 
 const warehouseFormRules = {
@@ -221,7 +221,7 @@ const locationForm = reactive({
   locationCode: '',
   locationName: '',
   warehouseId: null,
-  status: 'ACTIVE'
+  status: 'ENABLED'
 })
 
 const locationFormRules = {
@@ -269,7 +269,7 @@ function handleWarehouseClick(row) {
 function resetWarehouseForm() {
   warehouseForm.warehouseCode = ''
   warehouseForm.warehouseName = ''
-  warehouseForm.status = 'ACTIVE'
+  warehouseForm.status = 'ENABLED'
 }
 
 function openWarehouseDrawer(mode, row) {
@@ -281,14 +281,22 @@ function openWarehouseDrawer(mode, row) {
     warehouseEditingId.value = row.id
     warehouseForm.warehouseCode = row.warehouseCode
     warehouseForm.warehouseName = row.warehouseName
-    warehouseForm.status = row.status || 'ACTIVE'
+    warehouseForm.status = row.status || 'ENABLED'
   }
   warehouseDrawerVisible.value = true
 }
 
 async function handleWarehouseSave() {
-  const valid = await warehouseFormRef.value.validate().catch(() => false)
+  if (!warehouseFormRef.value) {
+    ElMessage.error('表单未就绪，请稍后重试')
+    return
+  }
+  const valid = await warehouseFormRef.value.validate().catch((e) => {
+    ElMessage.error('表单验证失败: ' + (e?.message || '未知错误'))
+    return false
+  })
   if (!valid) {
+    ElMessage.warning('请填写必填字段（仓库编码、仓库名称）')
     return
   }
   warehouseSaving.value = true
@@ -308,7 +316,8 @@ async function handleWarehouseSave() {
     warehouseDrawerVisible.value = false
     await loadWarehouses()
   } catch (error) {
-    ElMessage.error(error.response?.data?.message || '保存失败，请重试')
+    const msg = error.response?.data?.message || error.message || '保存失败，请重试'
+    ElMessage.error('保存失败: ' + msg)
   } finally {
     warehouseSaving.value = false
   }
@@ -318,7 +327,7 @@ function resetLocationForm() {
   locationForm.locationCode = ''
   locationForm.locationName = ''
   locationForm.warehouseId = selectedWarehouse.value?.id || null
-  locationForm.status = 'ACTIVE'
+  locationForm.status = 'ENABLED'
 }
 
 function openLocationDrawer(mode, row) {
@@ -331,14 +340,22 @@ function openLocationDrawer(mode, row) {
     locationForm.locationCode = row.locationCode
     locationForm.locationName = row.locationName
     locationForm.warehouseId = row.warehouseId || selectedWarehouse.value?.id
-    locationForm.status = row.status || 'ACTIVE'
+    locationForm.status = row.status || 'ENABLED'
   }
   locationDrawerVisible.value = true
 }
 
 async function handleLocationSave() {
-  const valid = await locationFormRef.value.validate().catch(() => false)
+  if (!locationFormRef.value) {
+    ElMessage.error('表单未就绪，请稍后重试')
+    return
+  }
+  const valid = await locationFormRef.value.validate().catch((e) => {
+    ElMessage.error('表单验证失败: ' + (e?.message || '未知错误'))
+    return false
+  })
   if (!valid) {
+    ElMessage.warning('请填写必填字段（库位编码、库位名称）')
     return
   }
   locationSaving.value = true
@@ -359,7 +376,8 @@ async function handleLocationSave() {
     locationDrawerVisible.value = false
     await loadStorageLocations()
   } catch (error) {
-    ElMessage.error(error.response?.data?.message || '保存失败，请重试')
+    const msg = error.response?.data?.message || error.message || '保存失败，请重试'
+    ElMessage.error('保存失败: ' + msg)
   } finally {
     locationSaving.value = false
   }

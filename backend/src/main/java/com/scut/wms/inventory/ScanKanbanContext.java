@@ -8,6 +8,7 @@ public class ScanKanbanContext {
     private String kanbanCode;
     private String kanbanStatus;
     private BigDecimal boardQty;
+    private BigDecimal pickedQty;
     private LocalDateTime receivedAt;
     private Long orderId;
     private String inboundNo;
@@ -54,6 +55,14 @@ public class ScanKanbanContext {
 
     public void setBoardQty(BigDecimal boardQty) {
         this.boardQty = boardQty;
+    }
+
+    public BigDecimal getPickedQty() {
+        return pickedQty;
+    }
+
+    public void setPickedQty(BigDecimal pickedQty) {
+        this.pickedQty = pickedQty;
     }
 
     public LocalDateTime getReceivedAt() {

@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/master-data")
+@RequestMapping("/api")
 public class MasterDataController {
     private final MasterDataService service;
 
@@ -19,7 +19,7 @@ public class MasterDataController {
         this.service = service;
     }
 
-    @GetMapping("/options")
+    @GetMapping("/master-data/options")
     public MasterDataOptionsResponse options() {
         return service.options();
     }

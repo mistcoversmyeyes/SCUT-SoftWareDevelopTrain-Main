@@ -146,7 +146,7 @@ public class MasterDataService {
         Warehouse warehouse = new Warehouse();
         warehouse.setWarehouseCode(request.warehouseCode());
         warehouse.setWarehouseName(request.warehouseName());
-        warehouse.setStatus(ENABLED);
+        warehouse.setStatus(request.status() != null ? request.status() : ENABLED);
         warehouseMapper.insert(warehouse);
         return warehouse;
     }
@@ -162,6 +162,9 @@ public class MasterDataService {
         }
         warehouse.setWarehouseCode(request.warehouseCode());
         warehouse.setWarehouseName(request.warehouseName());
+        if (request.status() != null) {
+            warehouse.setStatus(request.status());
+        }
         warehouseMapper.updateById(warehouse);
         return warehouse;
     }
@@ -187,7 +190,7 @@ public class MasterDataService {
         location.setWarehouseId(request.warehouseId());
         location.setLocationCode(request.locationCode());
         location.setLocationName(request.locationName());
-        location.setStatus(ENABLED);
+        location.setStatus(request.status() != null ? request.status() : ENABLED);
         storageLocationMapper.insert(location);
         return location;
     }
@@ -208,6 +211,9 @@ public class MasterDataService {
         location.setWarehouseId(request.warehouseId());
         location.setLocationCode(request.locationCode());
         location.setLocationName(request.locationName());
+        if (request.status() != null) {
+            location.setStatus(request.status());
+        }
         storageLocationMapper.updateById(location);
         return location;
     }

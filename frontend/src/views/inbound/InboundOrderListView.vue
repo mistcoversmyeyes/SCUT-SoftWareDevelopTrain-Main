@@ -10,7 +10,7 @@
 
       <el-form :model="query" inline class="filter-form">
         <el-form-item label="状态">
-          <el-select v-model="query.status" placeholder="全部" clearable>
+          <el-select v-model="query.status" placeholder="全部" clearable style="width: 130px">
             <el-option
               v-for="status in statusOptions"
               :key="status.value"
@@ -25,7 +25,7 @@
         </el-form-item>
 
         <el-form-item label="供应商">
-          <el-select v-model="query.supplierId" placeholder="全部供应商" clearable filterable>
+          <el-select v-model="query.supplierId" placeholder="全部供应商" clearable filterable style="width: 220px">
             <el-option
               v-for="supplier in masterData.suppliers"
               :key="supplier.id"
@@ -51,7 +51,7 @@
 
       <el-table
         v-loading="loading"
-        :data="orders"
+        :data="paginatedOrders"
         border
         stripe
         size="small"
@@ -153,6 +153,17 @@
         </el-table-column>
       </el-table>
 
+      <div v-if="orders.length > pageSize" class="pagination-wrapper">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 15, 20, 50]"
+          :total="orders.length"
+          layout="total, sizes, prev, pager, next, jumper"
+          background
+        />
+      </div>
+
       <el-empty v-if="!loading && !orders.length" description="暂无入库单" />
     </el-card>
 
@@ -161,13 +172,13 @@
       :mode="formMode"
       :initial-order="editingOrder"
       :master-data="masterData"
-      @save="handleSave"
+      :on-save="handleSave"
     />
   </section>
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
@@ -214,6 +225,14 @@ const masterData = ref({
   materials: [],
   warehouses: [],
   locations: []
+})
+
+const currentPage = ref(1)
+const pageSize = ref(10)
+
+const paginatedOrders = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return orders.value.slice(start, start + pageSize.value)
 })
 
 const statusMap = {
@@ -265,7 +284,7 @@ function formatQty(value) {
   if (Number.isNaN(num)) {
     return value
   }
-  return num.toFixed(3)
+  return String(num)
 }
 
 async function loadMasterData() {
@@ -287,6 +306,7 @@ async function loadOrders() {
     }
     const list = await fetchInboundOrders(payload)
     orders.value = list
+    currentPage.value = 1
   } catch (error) {
     loadError.value = error.response?.data?.message || '入库单列表加载失败'
     orders.value = []
@@ -299,6 +319,7 @@ function resetFilters() {
   query.status = ''
   query.inboundNo = ''
   query.supplierId = ''
+  currentPage.value = 1
   loadOrders()
 }
 
@@ -311,11 +332,11 @@ function openCreateDrawer() {
 function openEditDrawer(row) {
   editingOrder.value = {
     id: row.id,
-    supplierId: row.supplier?.id,
     sourceDocNo: row.sourceDocNo || '',
     remark: row.remark || '',
     lines: (row.lines || []).map((line) => ({
       materialId: line.materialId,
+      supplierId: line.supplier?.id,
       plannedQty: line.plannedQty,
       targetWarehouseId: line.targetWarehouseId,
       targetLocationId: line.targetLocationId
@@ -396,5 +417,11 @@ onMounted(() => {
 
 .order-table {
   min-height: 260px;
+}
+
+.pagination-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
 }
 </style>

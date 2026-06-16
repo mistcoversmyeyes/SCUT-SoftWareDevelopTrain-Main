@@ -16,8 +16,8 @@
       <template v-if="order">
         <el-descriptions :column="2" border>
           <el-descriptions-item label="入库单号">{{ order.inboundNo }}</el-descriptions-item>
-          <el-descriptions-item label="供应商">
-            {{ order.supplierCode }} {{ order.supplierName }}
+          <el-descriptions-item label="供应商（主）">
+            {{ order.supplier?.code }} {{ order.supplier?.name }}
           </el-descriptions-item>
           <el-descriptions-item label="来源单号">{{ order.sourceDocNo || '-' }}</el-descriptions-item>
           <el-descriptions-item label="状态">
@@ -30,7 +30,13 @@
         <el-table :data="order.lines || []" border stripe class="detail-table" style="margin-top: 16px;">
           <el-table-column prop="lineNo" label="行号" width="80" />
           <el-table-column prop="materialCode" label="物料编码" min-width="160" />
-          <el-table-column prop="materialName" label="物料名称" min-width="220" />
+          <el-table-column prop="materialName" label="物料名称" min-width="200" />
+          <el-table-column label="供应商" min-width="180">
+            <template #default="{ row }">
+              <template v-if="row.supplier">{{ row.supplier.code }} {{ row.supplier.name }}</template>
+              <template v-else>—</template>
+            </template>
+          </el-table-column>
           <el-table-column prop="plannedQty" label="计划数量" width="120" align="right">
             <template #default="{ row }">{{ formatQty(row.plannedQty) }}</template>
           </el-table-column>
@@ -102,7 +108,7 @@ function formatQty(value) {
   if (Number.isNaN(num)) {
     return value
   }
-  return num.toFixed(3)
+  return String(num)
 }
 
 function getInboundId() {

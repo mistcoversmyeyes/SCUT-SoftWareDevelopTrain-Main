@@ -7,7 +7,7 @@
 
       <el-form :model="query" inline class="filter-form">
         <el-form-item label="状态">
-          <el-select v-model="query.status" placeholder="全部" clearable>
+          <el-select v-model="query.status" placeholder="全部" clearable multiple collapse-tags style="width: 150px">
             <el-option v-for="s in statusOptions" :key="s.value" :label="s.label" :value="s.value" />
           </el-select>
         </el-form-item>
@@ -25,7 +25,7 @@
 
       <el-alert v-if="loadError" :title="loadError" type="error" :closable="false" show-icon />
 
-      <el-table v-loading="loading" :data="orders" border stripe size="small" class="order-table">
+      <el-table v-loading="loading" :data="paginatedOrders" border stripe size="small" class="order-table">
         <el-table-column prop="outboundNo" label="出库单号" min-width="160" />
         <el-table-column prop="purpose" label="出库用途" width="120">
           <template #default="{ row }">{{ purposeLabel(row.purpose) }}</template>
@@ -54,13 +54,24 @@
         </el-table-column>
       </el-table>
 
+      <div v-if="orders.length > pageSize" class="pagination-wrapper">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 15, 20, 50]"
+          :total="orders.length"
+          layout="total, sizes, prev, pager, next, jumper"
+          background
+        />
+      </div>
+
       <el-empty v-if="!loading && !orders.length" description="暂无出库历史" />
     </el-card>
   </section>
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { fetchOutboundOrders } from '../../api/outbound'
@@ -74,11 +85,19 @@ const statusOptions = [
 
 const purposeMap = { PICKING: '生产领料', RETURN: '退货', TRANSFER: '调拨', OTHER: '其他' }
 
-const query = reactive({ status: 'COMPLETED,CANCELLED', outboundNo: '' })
-const dateRange = ref([])
+const query = reactive({ status: ['COMPLETED', 'CANCELLED'], outboundNo: '' })
+const dateRange = ref(null)
 const orders = ref([])
 const loading = ref(false)
 const loadError = ref('')
+
+const currentPage = ref(1)
+const pageSize = ref(10)
+
+const paginatedOrders = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return orders.value.slice(start, start + pageSize.value)
+})
 
 function purposeLabel(purpose) { return purposeMap[purpose] || purpose || '-' }
 function formatDateTime(value) {
@@ -91,25 +110,29 @@ function formatQty(value) {
   if (value === null || value === undefined) return '0'
   const num = Number(value)
   if (Number.isNaN(num)) return value
-  return num.toFixed(3)
+  return String(num)
 }
 
 async function loadOrders() {
   loading.value = true; loadError.value = ''
   try {
-    const payload = { status: query.status || undefined, outboundNo: query.outboundNo || undefined }
+    const payload = { outboundNo: query.outboundNo || undefined }
+    if (query.status && query.status.length) {
+      payload.status = query.status.join(',')
+    }
     if (dateRange.value && dateRange.value.length === 2) {
       payload.startDate = dateRange.value[0]
       payload.endDate = dateRange.value[1]
     }
     orders.value = await fetchOutboundOrders(payload)
+    currentPage.value = 1
   } catch (error) {
     loadError.value = error.response?.data?.message || '出库历史加载失败'
     orders.value = []
   } finally { loading.value = false }
 }
 
-function resetFilters() { query.status = 'COMPLETED,CANCELLED'; query.outboundNo = ''; dateRange.value = []; loadOrders() }
+function resetFilters() { query.status = ['COMPLETED', 'CANCELLED']; query.outboundNo = ''; dateRange.value = null; loadOrders() }
 function handleView(row) { router.push('/outbound/' + row.id) }
 
 onMounted(() => { loadOrders() })
@@ -120,4 +143,9 @@ onMounted(() => { loadOrders() })
 h2 { margin: 0; }
 .filter-form { margin-bottom: 16px; }
 .order-table { min-height: 260px; }
+.pagination-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
 </style>

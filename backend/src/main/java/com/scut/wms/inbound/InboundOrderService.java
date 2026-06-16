@@ -20,6 +20,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -73,9 +74,11 @@ public class InboundOrderService {
         }
 
         LambdaQueryWrapper<InboundOrder> query = Wrappers.<InboundOrder>lambdaQuery()
-                .eq(StringUtils.hasText(status), InboundOrder::getStatus, status)
+                .in(StringUtils.hasText(status), InboundOrder::getStatus, splitStatus(status))
                 .like(StringUtils.hasText(inboundNo), InboundOrder::getInboundNo, inboundNo)
-                .eq(supplierId != null, InboundOrder::getSupplierId, supplierId)
+                .apply(supplierId != null,
+                        "EXISTS (SELECT 1 FROM inbound_order_line l WHERE l.inbound_order_id = inbound_order.id AND l.supplier_id = {0})",
+                        supplierId)
                 .in(!supplierIds.isEmpty(), InboundOrder::getSupplierId, supplierIds)
                 .orderByDesc(InboundOrder::getCreatedAt)
                 .orderByDesc(InboundOrder::getId);
@@ -90,7 +93,7 @@ public class InboundOrderService {
 
         InboundOrder order = new InboundOrder();
         order.setInboundNo(generateInboundNo());
-        order.setSupplierId(request.supplierId());
+        order.setSupplierId(request.lines().isEmpty() ? null : request.lines().get(0).supplierId());
         order.setSourceDocNo(request.sourceDocNo());
         order.setStatus(DRAFT);
         order.setRemark(request.remark());
@@ -151,7 +154,7 @@ public class InboundOrderService {
 
     @Transactional
     public InboundOrderResponse cancel(Long id) {
-        InboundOrder order = requireOrder(id);
+        InboundOrder order = requireLockedOrder(id);
         if (CANCELLED.equals(order.getStatus())) {
             return toResponse(id);
         }
@@ -196,7 +199,7 @@ public class InboundOrderService {
     }
 
     private void replaceOrder(InboundOrder order, InboundOrderRequest request, boolean rebuildKanbans) {
-        order.setSupplierId(request.supplierId());
+        order.setSupplierId(request.lines().isEmpty() ? null : request.lines().get(0).supplierId());
         order.setSourceDocNo(request.sourceDocNo());
         order.setRemark(request.remark());
         inboundOrderMapper.updateById(order);
@@ -215,8 +218,8 @@ public class InboundOrderService {
     }
 
     private void validateRequest(InboundOrderRequest request) {
-        requireEnabledSupplier(request.supplierId());
         for (InboundOrderRequest.Line line : request.lines()) {
+            requireEnabledSupplier(line.supplierId());
             requireEnabledMaterial(line.materialId());
             Warehouse warehouse = requireEnabledWarehouse(line.targetWarehouseId());
             StorageLocation location = requireEnabledLocation(line.targetLocationId());
@@ -265,6 +268,7 @@ public class InboundOrderService {
             line.setInboundOrderId(orderId);
             line.setLineNo(lineNo++);
             line.setMaterialId(requestLine.materialId());
+            line.setSupplierId(requestLine.supplierId());
             line.setPlannedQty(requestLine.plannedQty());
             line.setReceivedQty(BigDecimal.ZERO);
             line.setTargetWarehouseId(requestLine.targetWarehouseId());
@@ -353,14 +357,21 @@ public class InboundOrderService {
                 plannedQty,
                 receivedQty,
                 lines.stream()
-                        .map(line -> new InboundOrderResponse.LineDisplay(
+                        .map(line -> {
+                            Supplier lineSupplier = line.getSupplierId() == null ? null : supplierMapper.selectById(line.getSupplierId());
+                            return new InboundOrderResponse.LineDisplay(
                                 line.getId(),
                                 line.getLineNo(),
                                 line.getMaterialId(),
+                                lineSupplier == null ? null : new InboundOrderResponse.SupplierDisplay(
+                                        lineSupplier.getId(),
+                                        lineSupplier.getSupplierCode(),
+                                        lineSupplier.getSupplierName()),
                                 line.getPlannedQty(),
                                 line.getReceivedQty(),
                                 line.getTargetWarehouseId(),
-                                line.getTargetLocationId()))
+                                line.getTargetLocationId());
+                        })
                         .toList()
         );
     }
@@ -390,5 +401,15 @@ public class InboundOrderService {
                 .toString()
                 .substring(0, 8)
                 .toUpperCase();
+    }
+
+    private static List<String> splitStatus(String status) {
+        if (!StringUtils.hasText(status)) {
+            return List.of();
+        }
+        return Arrays.stream(status.split(","))
+                .map(String::trim)
+                .filter(StringUtils::hasText)
+                .toList();
     }
 }

@@ -5,12 +5,8 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.scut.wms.common.BusinessException;
 import com.scut.wms.masterdata.Material;
 import com.scut.wms.masterdata.MaterialMapper;
-import com.scut.wms.masterdata.StorageLocation;
-import com.scut.wms.masterdata.StorageLocationMapper;
 import com.scut.wms.masterdata.Supplier;
 import com.scut.wms.masterdata.SupplierMapper;
-import com.scut.wms.masterdata.Warehouse;
-import com.scut.wms.masterdata.WarehouseMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +16,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -33,6 +30,7 @@ public class OutboundOrderService {
     private static final String ENABLED = "ENABLED";
     private static final String DRAFT = "DRAFT";
     private static final String RELEASED = "RELEASED";
+    private static final String PICKING = "PICKING";
     private static final String PARTIAL_SHIPPED = "PARTIAL_SHIPPED";
     private static final String COMPLETED = "COMPLETED";
     private static final String CANCELLED = "CANCELLED";
@@ -42,30 +40,26 @@ public class OutboundOrderService {
     private final OutboundOrderLineMapper outboundOrderLineMapper;
     private final SupplierMapper supplierMapper;
     private final MaterialMapper materialMapper;
-    private final WarehouseMapper warehouseMapper;
-    private final StorageLocationMapper storageLocationMapper;
 
     public OutboundOrderService(
             OutboundOrderMapper outboundOrderMapper,
             OutboundOrderLineMapper outboundOrderLineMapper,
             SupplierMapper supplierMapper,
-            MaterialMapper materialMapper,
-            WarehouseMapper warehouseMapper,
-            StorageLocationMapper storageLocationMapper
+            MaterialMapper materialMapper
     ) {
         this.outboundOrderMapper = outboundOrderMapper;
         this.outboundOrderLineMapper = outboundOrderLineMapper;
         this.supplierMapper = supplierMapper;
         this.materialMapper = materialMapper;
-        this.warehouseMapper = warehouseMapper;
-        this.storageLocationMapper = storageLocationMapper;
     }
 
     public List<OutboundOrderResponse> list(String status, String outboundNo, Long supplierId) {
         LambdaQueryWrapper<OutboundOrder> query = Wrappers.<OutboundOrder>lambdaQuery()
-                .eq(StringUtils.hasText(status), OutboundOrder::getStatus, status)
+                .in(StringUtils.hasText(status), OutboundOrder::getStatus, splitStatus(status))
                 .like(StringUtils.hasText(outboundNo), OutboundOrder::getOutboundNo, outboundNo)
-                .eq(supplierId != null, OutboundOrder::getSupplierId, supplierId)
+                .apply(supplierId != null,
+                        "EXISTS (SELECT 1 FROM outbound_order_line l WHERE l.outbound_order_id = outbound_order.id AND l.supplier_id = {0})",
+                        supplierId)
                 .orderByDesc(OutboundOrder::getCreatedAt)
                 .orderByDesc(OutboundOrder::getId);
         return outboundOrderMapper.selectList(query).stream()
@@ -79,7 +73,7 @@ public class OutboundOrderService {
 
         OutboundOrder order = new OutboundOrder();
         order.setOutboundNo(generateOutboundNo());
-        order.setSupplierId(request.supplierId());
+        order.setSupplierId(request.lines().isEmpty() ? null : request.lines().get(0).supplierId());
         order.setPurpose(request.purpose());
         order.setSourceDocNo(request.sourceDocNo());
         order.setStatus(DRAFT);
@@ -131,7 +125,7 @@ public class OutboundOrderService {
 
     @Transactional
     public OutboundOrderResponse cancel(Long id) {
-        OutboundOrder order = requireOrder(id);
+        OutboundOrder order = requireLockedOrder(id);
         if (CANCELLED.equals(order.getStatus())) {
             return toResponse(id);
         }
@@ -141,6 +135,76 @@ public class OutboundOrderService {
         order.setStatus(CANCELLED);
         outboundOrderMapper.updateById(order);
         return toResponse(id);
+    }
+
+    @Transactional
+    public OutboundOrderResponse startPicking(Long id) {
+        OutboundOrder order = requireLockedOrder(id);
+        if (!RELEASED.equals(order.getStatus())) {
+            throw new BusinessException("只有已释放的出库单才能开始拣货");
+        }
+        order.setStatus(PICKING);
+        outboundOrderMapper.updateById(order);
+        return toResponse(id);
+    }
+
+    @Transactional
+    public OutboundOrderResponse suspendPicking(Long id) {
+        OutboundOrder order = requireLockedOrder(id);
+        if (!PICKING.equals(order.getStatus())) {
+            throw new BusinessException("只有拣货中的出库单才能挂起");
+        }
+        order.setStatus(RELEASED);
+        outboundOrderMapper.updateById(order);
+        return toResponse(id);
+    }
+
+    @Transactional
+    public void addPickedQty(Long orderId, Long lineId, BigDecimal qty) {
+        OutboundOrderLine line = outboundOrderLineMapper.selectByIdForUpdate(lineId);
+        if (line == null || !line.getOutboundOrderId().equals(orderId)) {
+            throw new BusinessException("出库单明细行不存在");
+        }
+        if (qty == null || qty.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("拣货数量必须大于 0");
+        }
+        OutboundOrder order = requireLockedOrder(orderId);
+        if (!PICKING.equals(order.getStatus()) && !RELEASED.equals(order.getStatus())) {
+            throw new BusinessException("出库单状态不允许拣货");
+        }
+        // 确保状态为 PICKING
+        if (RELEASED.equals(order.getStatus())) {
+            order.setStatus(PICKING);
+            outboundOrderMapper.updateById(order);
+        }
+        BigDecimal current = line.getPickedQty() == null ? BigDecimal.ZERO : line.getPickedQty();
+        BigDecimal newPicked = current.add(qty);
+        if (line.getPlannedQty() != null && newPicked.compareTo(line.getPlannedQty()) > 0) {
+            throw new BusinessException("拣货数量不能超过计划数量");
+        }
+        line.setPickedQty(newPicked);
+        outboundOrderLineMapper.updateById(line);
+        // 检查是否全部完成
+        checkAndCompleteOrder(orderId);
+    }
+
+    @Transactional
+    public void checkAndCompleteOrder(Long orderId) {
+        List<OutboundOrderLine> lines = linesOf(orderId);
+        boolean allDone = lines.stream()
+                .allMatch(line -> line.getPickedQty() != null
+                        && line.getPickedQty().compareTo(line.getPlannedQty()) >= 0);
+        if (allDone) {
+            OutboundOrder order = requireOrder(orderId);
+            order.setStatus(COMPLETED);
+            order.setCompletedAt(LocalDateTime.now());
+            outboundOrderMapper.updateById(order);
+        }
+    }
+
+    public String getOrderStatus(Long id) {
+        OutboundOrder order = outboundOrderMapper.selectById(id);
+        return order != null ? order.getStatus() : null;
     }
 
     public OutboundPrintResponse print(Long id) {
@@ -165,7 +229,7 @@ public class OutboundOrderService {
     }
 
     private void replaceOrder(OutboundOrder order, OutboundOrderRequest request) {
-        order.setSupplierId(request.supplierId());
+        order.setSupplierId(request.lines().isEmpty() ? null : request.lines().get(0).supplierId());
         order.setPurpose(request.purpose());
         order.setSourceDocNo(request.sourceDocNo());
         order.setRemark(request.remark());
@@ -177,14 +241,9 @@ public class OutboundOrderService {
     }
 
     private void validateRequest(OutboundOrderRequest request) {
-        requireEnabledSupplier(request.supplierId());
         for (OutboundOrderRequest.LineItem line : request.lines()) {
+            requireEnabledSupplier(line.supplierId());
             requireEnabledMaterial(line.materialId());
-            Warehouse warehouse = requireEnabledWarehouse(line.sourceWarehouseId());
-            StorageLocation location = requireEnabledLocation(line.sourceLocationId());
-            if (!Objects.equals(location.getWarehouseId(), warehouse.getId())) {
-                throw new BusinessException("来源库位不属于来源仓库");
-            }
         }
     }
 
@@ -204,22 +263,6 @@ public class OutboundOrderService {
         return material;
     }
 
-    private Warehouse requireEnabledWarehouse(Long id) {
-        Warehouse warehouse = warehouseMapper.selectById(id);
-        if (warehouse == null || !ENABLED.equals(warehouse.getStatus())) {
-            throw new BusinessException("仓库不存在或已停用");
-        }
-        return warehouse;
-    }
-
-    private StorageLocation requireEnabledLocation(Long id) {
-        StorageLocation location = storageLocationMapper.selectById(id);
-        if (location == null || !ENABLED.equals(location.getStatus())) {
-            throw new BusinessException("库位不存在或已停用");
-        }
-        return location;
-    }
-
     private void insertLines(Long orderId, List<OutboundOrderRequest.LineItem> requestLines) {
         int lineNo = 1;
         for (OutboundOrderRequest.LineItem requestLine : requestLines) {
@@ -227,10 +270,9 @@ public class OutboundOrderService {
             line.setOutboundOrderId(orderId);
             line.setLineNo(lineNo++);
             line.setMaterialId(requestLine.materialId());
+            line.setSupplierId(requestLine.supplierId());
             line.setPlannedQty(requestLine.plannedQty());
             line.setPickedQty(BigDecimal.ZERO);
-            line.setSourceWarehouseId(requestLine.sourceWarehouseId());
-            line.setSourceLocationId(requestLine.sourceLocationId());
             outboundOrderLineMapper.insert(line);
         }
     }
@@ -299,8 +341,7 @@ public class OutboundOrderService {
 
     private OutboundOrderResponse.LineDisplay toLineDisplay(OutboundOrderLine line) {
         Material material = materialMapper.selectById(line.getMaterialId());
-        Warehouse warehouse = warehouseMapper.selectById(line.getSourceWarehouseId());
-        StorageLocation location = storageLocationMapper.selectById(line.getSourceLocationId());
+        Supplier supplier = line.getSupplierId() == null ? null : supplierMapper.selectById(line.getSupplierId());
 
         return new OutboundOrderResponse.LineDisplay(
                 line.getId(),
@@ -308,14 +349,12 @@ public class OutboundOrderService {
                 line.getMaterialId(),
                 material == null ? null : material.getMaterialCode(),
                 material == null ? null : material.getMaterialName(),
+                supplier == null ? null : new OutboundOrderResponse.SupplierInfo(
+                        supplier.getId(),
+                        supplier.getSupplierCode(),
+                        supplier.getSupplierName()),
                 line.getPlannedQty(),
-                line.getPickedQty(),
-                line.getSourceWarehouseId(),
-                warehouse == null ? null : warehouse.getWarehouseCode(),
-                warehouse == null ? null : warehouse.getWarehouseName(),
-                line.getSourceLocationId(),
-                location == null ? null : location.getLocationCode(),
-                location == null ? null : location.getLocationName()
+                line.getPickedQty()
         );
     }
 
@@ -331,5 +370,15 @@ public class OutboundOrderService {
                 .toString()
                 .substring(0, 8)
                 .toUpperCase();
+    }
+
+    private static List<String> splitStatus(String status) {
+        if (!StringUtils.hasText(status)) {
+            return List.of();
+        }
+        return Arrays.stream(status.split(","))
+                .map(String::trim)
+                .filter(StringUtils::hasText)
+                .toList();
     }
 }

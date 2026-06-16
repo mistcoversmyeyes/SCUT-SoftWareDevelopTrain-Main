@@ -65,8 +65,8 @@
         </el-table-column>
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.status === 'ACTIVE' ? 'success' : 'danger'" effect="light">
-              {{ row.status === 'ACTIVE' ? '启用' : '停用' }}
+            <el-tag :type="(row.status === 'ACTIVE' || row.status === 'ENABLED') ? 'success' : 'danger'" effect="light">
+              {{ (row.status === 'ACTIVE' || row.status === 'ENABLED') ? '启用' : '停用' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -137,10 +137,10 @@
           </el-select>
         </el-form-item>
         <el-form-item label="低库存阈值" prop="lowStockQty">
-          <el-input-number v-model="form.lowStockQty" :min="0" :precision="3" style="width:100%" />
+          <el-input-number v-model="form.lowStockQty" :min="0" :step="1" :precision="0" style="width:100%" />
         </el-form-item>
         <el-form-item label="高库存阈值" prop="highStockQty">
-          <el-input-number v-model="form.highStockQty" :min="0" :precision="3" style="width:100%" />
+          <el-input-number v-model="form.highStockQty" :min="0" :step="1" :precision="0" style="width:100%" />
         </el-form-item>
       </el-form>
 
@@ -271,7 +271,7 @@ function openEditDrawer(row) {
   form.unit = row.unit || ''
   form.supplierId = row.supplierId || null
   form.containerTypeId = row.containerTypeId || null
-  form.status = row.status || 'ACTIVE'
+  form.status = (row.status === 'ENABLED' ? 'ACTIVE' : row.status) || 'ACTIVE'
   form.lowStockQty = row.lowStockQty ?? null
   form.highStockQty = row.highStockQty ?? null
   drawerVisible.value = true

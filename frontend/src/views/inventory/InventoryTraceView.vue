@@ -79,13 +79,26 @@
         </el-form-item>
       </el-form>
 
-      <el-table :data="movements" border stripe v-loading="loading" style="margin-top: 12px;">
+      <el-table :data="paginatedMovements" border stripe v-loading="loading" style="margin-top: 12px;">
         <el-table-column prop="movementNo" label="流水号" min-width="170" />
+        <el-table-column prop="movementType" label="类型" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.movementType === 'INBOUND_RECEIVE' ? 'success' : 'warning'" size="small">
+              {{ movementTypeLabel(row.movementType) }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="materialCode" label="物料编码" width="130" />
         <el-table-column prop="materialName" label="物料名称" min-width="200" />
         <el-table-column prop="warehouseCode" label="仓库" width="120" />
         <el-table-column prop="locationCode" label="库位" width="120" />
-        <el-table-column prop="qty" label="数量" width="120" />
+        <el-table-column label="数量" width="120" align="right">
+          <template #default="{ row }">
+            <span :style="{ color: row.movementType === 'OUTBOUND_PICK' ? '#e6a23c' : '#67c23a' }">
+              {{ row.movementType === 'OUTBOUND_PICK' ? '-' : '' }}{{ formatQty(row.qty) }}
+            </span>
+          </template>
+        </el-table-column>
         <el-table-column prop="kanbanCode" label="看板码" width="160" />
         <el-table-column prop="inboundNo" label="入库单号" width="140" />
         <el-table-column prop="occurredAt" label="发生时间" min-width="180">
@@ -94,12 +107,22 @@
           </template>
         </el-table-column>
       </el-table>
+      <div v-if="movements.length > pageSize" class="pagination-wrapper">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 15, 20, 50]"
+          :total="movements.length"
+          layout="total, sizes, prev, pager, next, jumper"
+          background
+        />
+      </div>
     </el-card>
   </section>
 </template>
 
 <script setup>
-import { onBeforeMount, reactive, ref } from 'vue'
+import { computed, onBeforeMount, reactive, ref } from 'vue'
 import { fetchInventoryMovements } from '../../api/inventory'
 import { fetchMasterDataOptions } from '../../api/masterData'
 
@@ -118,6 +141,14 @@ const materialOptions = ref([])
 const warehouseOptions = ref([])
 const locationOptions = ref([])
 
+const currentPage = ref(1)
+const pageSize = ref(10)
+
+const paginatedMovements = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return movements.value.slice(start, start + pageSize.value)
+})
+
 function pick(query) {
   return Object.fromEntries(
     Object.entries(query).filter(([, value]) => value)
@@ -129,6 +160,7 @@ async function queryMovements() {
   fetchError.value = ''
   try {
     movements.value = await fetchInventoryMovements(pick(filters))
+    currentPage.value = 1
   } catch (error) {
     fetchError.value = error.response?.data?.message || '库存追溯查询失败'
   } finally {
@@ -143,6 +175,18 @@ function resetFilters() {
   filters.inboundNo = ''
   filters.kanbanCode = ''
   queryMovements()
+}
+
+function movementTypeLabel(type) {
+  const map = { INBOUND_RECEIVE: '入库', OUTBOUND_PICK: '出库' }
+  return map[type] || type || '-'
+}
+
+function formatQty(value) {
+  if (value === null || value === undefined) return '0'
+  const num = Number(value)
+  if (Number.isNaN(num)) return value
+  return String(num)
 }
 
 function formatDateTime(value) {
@@ -180,5 +224,11 @@ onBeforeMount(() => {
 
 h2 {
   margin: 0;
+}
+
+.pagination-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
 }
 </style>

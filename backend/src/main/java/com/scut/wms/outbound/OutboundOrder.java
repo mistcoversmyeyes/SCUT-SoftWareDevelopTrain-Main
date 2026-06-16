@@ -13,6 +13,7 @@ public class OutboundOrder {
     public static final String PARTIAL_SHIPPED = "PARTIAL_SHIPPED";
     public static final String COMPLETED = "COMPLETED";
     public static final String CANCELLED = "CANCELLED";
+    public static final String PICKING = "PICKING";
 
     @TableId(type = IdType.AUTO)
     private Long id;

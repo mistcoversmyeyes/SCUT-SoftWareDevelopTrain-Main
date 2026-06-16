@@ -31,8 +31,8 @@
         </el-table-column>
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.status === 'ACTIVE' ? 'success' : 'danger'" effect="light">
-              {{ row.status === 'ACTIVE' ? '启用' : '停用' }}
+            <el-tag :type="(row.status === 'ACTIVE' || row.status === 'ENABLED') ? 'success' : 'danger'" effect="light">
+              {{ (row.status === 'ACTIVE' || row.status === 'ENABLED') ? '启用' : '停用' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -41,7 +41,7 @@
             <el-space size="small">
               <el-button type="primary" size="small" text @click="openEditDrawer(row)">编辑</el-button>
               <el-switch
-                :model-value="row.status === 'ACTIVE'"
+                :model-value="row.status === 'ACTIVE' || row.status === 'ENABLED'"
                 :loading="row._statusLoading"
                 size="small"
                 active-text="启用"
@@ -75,7 +75,7 @@
           <el-input v-model="form.containerName" placeholder="请输入容器名称" />
         </el-form-item>
         <el-form-item label="容量" prop="capacityQty">
-          <el-input-number v-model="form.capacityQty" :min="0" :precision="3" style="width:100%" />
+          <el-input-number v-model="form.capacityQty" :min="0" :step="1" :precision="0" style="width:100%" />
         </el-form-item>
         <el-form-item label="状态" prop="status">
           <el-select v-model="form.status" placeholder="请选择状态">
@@ -129,7 +129,7 @@ function formatQty(value) {
   if (Number.isNaN(num)) {
     return value
   }
-  return num.toFixed(3)
+  return String(num)
 }
 
 async function loadContainerTypes() {
@@ -166,7 +166,7 @@ function openEditDrawer(row) {
   form.containerCode = row.containerCode
   form.containerName = row.containerName
   form.capacityQty = row.capacityQty ?? 0
-  form.status = row.status || 'ACTIVE'
+  form.status = (row.status === 'ENABLED' ? 'ACTIVE' : row.status) || 'ACTIVE'
   drawerVisible.value = true
 }
 
