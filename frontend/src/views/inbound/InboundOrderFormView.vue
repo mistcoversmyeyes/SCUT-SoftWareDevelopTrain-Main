@@ -38,6 +38,7 @@
                 placeholder="选择物料"
                 filterable
                 clearable
+                @change="onMaterialChange($index)"
               >
                 <el-option
                   v-for="material in masterData.materials"
@@ -67,6 +68,30 @@
                   :key="s.id"
                   :label="`${s.code} ${s.name}`"
                   :value="s.id"
+                />
+              </el-select>
+            </el-form-item>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="容器类型" width="200">
+          <template #default="{ row, $index }">
+            <el-form-item
+              :rules="lineRules.containerType"
+              :prop="`lines.${$index}.containerTypeId`"
+            >
+              <el-select
+                v-model="row.containerTypeId"
+                placeholder="选择容器类型"
+                clearable
+                :disabled="row._containerOptions && row._containerOptions.length === 1"
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="ct in row._containerOptions"
+                  :key="ct.id"
+                  :value="ct.id"
+                  :label="ct.containerName + (ct.isDefault ? ' (默认)' : '') + ' — ' + ct.capacity + '件/箱'"
                 />
               </el-select>
             </el-form-item>
@@ -166,6 +191,7 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import { fetchMaterialContainerTypes } from '../../api/masterData'
 
 const props = defineProps({
   visible: {
@@ -239,6 +265,9 @@ const lineRules = {
   ],
   location: [
     { required: true, message: '请选择目标库位', trigger: 'change' }
+  ],
+  containerType: [
+    { required: true, message: '请选择容器类型', trigger: 'change' }
   ]
 }
 
@@ -264,7 +293,9 @@ const emptyLine = () => ({
   supplierId: undefined,
   plannedQty: undefined,
   targetWarehouseId: undefined,
-  targetLocationId: undefined
+  targetLocationId: undefined,
+  containerTypeId: undefined,
+  _containerOptions: []
 })
 
 function normalizeInitialOrder(order) {
@@ -329,6 +360,40 @@ function onWarehouseChange(index) {
   }
 }
 
+async function onMaterialChange(index) {
+  const line = form.lines[index]
+  if (!line) {
+    return
+  }
+  if (!line.materialId) {
+    line._containerOptions = []
+    line.containerTypeId = undefined
+    return
+  }
+  try {
+    const types = await fetchMaterialContainerTypes(line.materialId)
+    const list = Array.isArray(types) ? types : []
+    if (list.length === 0) {
+      ElMessage.warning('该物料未配置包装容器，请先在基础数据中配置')
+      line.materialId = undefined
+      line._containerOptions = []
+      line.containerTypeId = undefined
+      return
+    }
+    line._containerOptions = list
+    if (list.length === 1) {
+      line.containerTypeId = list[0].id
+    } else {
+      const defaultType = list.find((t) => t.isDefault)
+      line.containerTypeId = defaultType ? defaultType.id : list[0].id
+    }
+  } catch (error) {
+    ElMessage.error(error.response?.data?.message || '加载容器类型失败')
+    line._containerOptions = []
+    line.containerTypeId = undefined
+  }
+}
+
 function toPayload() {
   const lines = form.lines
     .map((line) => ({
@@ -336,7 +401,8 @@ function toPayload() {
       materialId: line.materialId,
       plannedQty: Number(line.plannedQty),
       targetWarehouseId: line.targetWarehouseId,
-      targetLocationId: line.targetLocationId
+      targetLocationId: line.targetLocationId,
+      containerTypeId: line.containerTypeId
     }))
     .filter((line) => !!line.materialId && !!line.supplierId)
 

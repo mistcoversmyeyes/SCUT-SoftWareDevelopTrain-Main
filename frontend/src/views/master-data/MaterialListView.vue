@@ -57,12 +57,6 @@
             <template v-else>—</template>
           </template>
         </el-table-column>
-        <el-table-column label="容器类型" min-width="140">
-          <template #default="{ row }">
-            <template v-if="row.containerType">{{ row.containerType.containerName }}</template>
-            <template v-else>—</template>
-          </template>
-        </el-table-column>
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
             <el-tag :type="(row.status === 'ACTIVE' || row.status === 'ENABLED') ? 'success' : 'danger'" effect="light">
@@ -76,9 +70,12 @@
         <el-table-column prop="highStockQty" label="高库存阈值" width="120" align="right">
           <template #default="{ row }">{{ row.highStockQty ?? '—' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" size="small" text @click="openEditDrawer(row)">编辑</el-button>
+            <el-space size="small">
+              <el-button type="primary" size="small" text @click="openEditDrawer(row)">编辑</el-button>
+              <el-button type="info" size="small" text @click="openPackagingDrawer(row)">包装</el-button>
+            </el-space>
           </template>
         </el-table-column>
       </el-table>
@@ -120,16 +117,6 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="容器类型" prop="containerTypeId">
-          <el-select v-model="form.containerTypeId" placeholder="请选择容器类型" filterable clearable>
-            <el-option
-              v-for="ct in containerTypes"
-              :key="ct.id"
-              :value="ct.id"
-              :label="ct.containerName"
-            />
-          </el-select>
-        </el-form-item>
         <el-form-item label="状态" prop="status">
           <el-select v-model="form.status" placeholder="请选择状态">
             <el-option label="启用" value="ACTIVE" />
@@ -151,13 +138,39 @@
         </el-space>
       </template>
     </el-drawer>
+
+    <el-drawer
+      v-model:visible="packagingDrawerVisible"
+      :title="packagingDrawerTitle"
+      size="400px"
+    >
+      <p style="color:#606266; margin-bottom:16px;">选择该物料可用的包装容器类型</p>
+      <div v-loading="packagingLoading">
+        <el-checkbox-group v-model="packagingCheckedIds">
+          <div v-for="ct in packagingContainerTypes" :key="ct.id" style="margin-bottom:10px;">
+            <el-checkbox :label="ct.id" :value="ct.id">
+              {{ ct.containerName }}
+              <span v-if="ct.isDefault" style="color:#909399; font-size:12px;"> (默认)</span>
+              <span style="color:#909399; font-size:12px; margin-left:8px;">容量: {{ ct.capacity }}件/箱</span>
+            </el-checkbox>
+          </div>
+        </el-checkbox-group>
+        <el-empty v-if="!packagingLoading && !packagingContainerTypes.length" description="暂无可用容器类型" />
+      </div>
+      <template #footer>
+        <el-space>
+          <el-button @click="packagingDrawerVisible = false">取消</el-button>
+          <el-button type="primary" :loading="packagingSaving" @click="confirmPackaging">保存</el-button>
+        </el-space>
+      </template>
+    </el-drawer>
   </section>
 </template>
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { fetchSuppliers, fetchContainerTypes, fetchMaterials, createMaterial, updateMaterial } from '../../api/masterData'
+import { fetchSuppliers, fetchContainerTypes, fetchMaterials, createMaterial, updateMaterial, fetchMaterialContainerTypes, updateMaterialContainerTypes } from '../../api/masterData'
 
 const query = reactive({
   materialCode: '',
@@ -182,7 +195,6 @@ const form = reactive({
   specification: '',
   unit: '',
   supplierId: null,
-  containerTypeId: null,
   status: 'ACTIVE',
   lowStockQty: null,
   highStockQty: null
@@ -249,7 +261,6 @@ function resetForm() {
   form.specification = ''
   form.unit = ''
   form.supplierId = null
-  form.containerTypeId = null
   form.status = 'ACTIVE'
   form.lowStockQty = null
   form.highStockQty = null
@@ -270,7 +281,6 @@ function openEditDrawer(row) {
   form.specification = row.specification || ''
   form.unit = row.unit || ''
   form.supplierId = row.supplierId || null
-  form.containerTypeId = row.containerTypeId || null
   form.status = (row.status === 'ENABLED' ? 'ACTIVE' : row.status) || 'ACTIVE'
   form.lowStockQty = row.lowStockQty ?? null
   form.highStockQty = row.highStockQty ?? null
@@ -290,7 +300,6 @@ async function handleSave() {
       specification: form.specification || undefined,
       unit: form.unit || undefined,
       supplierId: form.supplierId || undefined,
-      containerTypeId: form.containerTypeId || undefined,
       status: form.status,
       lowStockQty: form.lowStockQty,
       highStockQty: form.highStockQty
@@ -308,6 +317,54 @@ async function handleSave() {
     ElMessage.error(error.response?.data?.message || '保存失败，请重试')
   } finally {
     saving.value = false
+  }
+}
+
+// Packaging drawer
+const packagingDrawerVisible = ref(false)
+const packagingDrawerTitle = ref('')
+const packagingMaterialId = ref(null)
+const packagingContainerTypes = ref([])
+const packagingCheckedIds = ref([])
+const packagingLoading = ref(false)
+const packagingSaving = ref(false)
+
+async function openPackagingDrawer(row) {
+  packagingMaterialId.value = row.id
+  packagingDrawerTitle.value = `物料包装关联 — ${row.materialCode} ${row.materialName}`
+  packagingCheckedIds.value = []
+  packagingContainerTypes.value = []
+  packagingDrawerVisible.value = true
+  packagingLoading.value = true
+  try {
+    const [allTypes, materialTypes] = await Promise.all([
+      fetchContainerTypes({ pageSize: 9999 }),
+      fetchMaterialContainerTypes(row.id)
+    ])
+    const enabledTypes = (Array.isArray(allTypes) ? allTypes : []).filter(
+      (t) => t.status === 'ENABLED' || t.status === 'ACTIVE' || !t.status
+    )
+    packagingContainerTypes.value = enabledTypes
+    const associatedIds = (Array.isArray(materialTypes) ? materialTypes : []).map((t) => t.id)
+    packagingCheckedIds.value = associatedIds
+  } catch (error) {
+    ElMessage.error(error.response?.data?.message || '加载容器类型失败')
+  } finally {
+    packagingLoading.value = false
+  }
+}
+
+async function confirmPackaging() {
+  packagingSaving.value = true
+  try {
+    await updateMaterialContainerTypes(packagingMaterialId.value, packagingCheckedIds.value)
+    ElMessage.success('包装关联保存成功')
+    packagingDrawerVisible.value = false
+    await loadMaterials()
+  } catch (error) {
+    ElMessage.error(error.response?.data?.message || '保存失败')
+  } finally {
+    packagingSaving.value = false
   }
 }
 

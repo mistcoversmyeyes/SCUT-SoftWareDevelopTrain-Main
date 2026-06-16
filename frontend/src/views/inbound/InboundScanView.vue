@@ -17,6 +17,22 @@
             clearable
           />
         </el-form-item>
+        <el-form-item label="目标库位">
+          <el-select
+            v-model="selectedLocationId"
+            placeholder="留空则按计划库位入库"
+            clearable
+            filterable
+            style="width: 300px"
+          >
+            <el-option
+              v-for="loc in locationOptions"
+              :key="loc.id"
+              :value="loc.id"
+              :label="`${loc.code} ${loc.name}`"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item>
           <el-button
             type="primary"
@@ -73,14 +89,17 @@
 </template>
 
 <script setup>
-import { nextTick, ref } from 'vue'
+import { nextTick, onMounted, ref } from 'vue'
 import { scanInbound } from '../../api/inventory'
+import { fetchMasterDataOptions } from '../../api/masterData'
 
 const kanbanCode = ref('')
 const scanning = ref(false)
 const scanResult = ref(null)
 const errorMessage = ref('')
 const scanInputRef = ref()
+const selectedLocationId = ref(null)
+const locationOptions = ref([])
 
 async function handleScan() {
   const code = kanbanCode.value.trim()
@@ -95,8 +114,9 @@ async function handleScan() {
   scanResult.value = null
 
   try {
-    scanResult.value = await scanInbound(code)
+    scanResult.value = await scanInbound(code, selectedLocationId.value)
     kanbanCode.value = ''
+    selectedLocationId.value = null
   } catch (error) {
     errorMessage.value =
       error.response?.data?.message ||
@@ -125,6 +145,15 @@ function formatDateTime(value) {
 
 nextTick(() => {
   scanInputRef.value?.focus()
+})
+
+onMounted(async () => {
+  try {
+    const data = await fetchMasterDataOptions()
+    locationOptions.value = data.locations || []
+  } catch {
+    // keep location options empty
+  }
 })
 </script>
 
