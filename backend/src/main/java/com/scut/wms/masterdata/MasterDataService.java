@@ -99,7 +99,7 @@ public class MasterDataService {
         material.setSpecification(request.specification());
         material.setUnit(request.unit());
         material.setSupplierId(request.supplierId());
-        material.setContainerTypeId(request.containerTypeId());
+        // containerTypeId removed — replaced by material_container_type middle table (D02)
         material.setLowStockQty(request.lowStockQty());
         material.setHighStockQty(request.highStockQty());
         material.setStatus(ENABLED);
@@ -122,7 +122,7 @@ public class MasterDataService {
         material.setSpecification(request.specification());
         material.setUnit(request.unit());
         material.setSupplierId(request.supplierId());
-        material.setContainerTypeId(request.containerTypeId());
+        // containerTypeId removed — replaced by material_container_type middle table (D02)
         material.setLowStockQty(request.lowStockQty());
         material.setHighStockQty(request.highStockQty());
         materialMapper.updateById(material);
@@ -232,12 +232,8 @@ public class MasterDataService {
                 throw new BusinessException("供应商不存在");
             }
         }
-        if (request.containerTypeId() != null) {
-            ContainerType containerType = containerTypeMapper.selectById(request.containerTypeId());
-            if (containerType == null) {
-                throw new BusinessException("器具类型不存在");
-            }
-        }
+        // containerTypeId validation removed — D02: container association moved to
+        // separate PUT /api/materials/{id}/container-types endpoint
     }
 
     private Supplier requireSupplier(Long id) {

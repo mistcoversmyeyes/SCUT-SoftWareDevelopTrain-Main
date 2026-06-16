@@ -19,7 +19,7 @@ public class InboundOrderLine {
     private BigDecimal receivedQty;
     private Long targetWarehouseId;
     private Long targetLocationId;
-    private Long containerTypeId;
+    private Long containerTypeId = 0L;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

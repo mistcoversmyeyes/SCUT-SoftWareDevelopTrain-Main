@@ -14,8 +14,8 @@ public class KanbanBoard {
     private String kanbanCode;
     private Long inboundOrderId;
     private Long inboundOrderLineId;
-    private Long locationId;
-    private Long containerTypeId;
+    private Long locationId = 0L;
+    private Long containerTypeId = 0L;
     private BigDecimal boardQty;
     private BigDecimal pickedQty;
     private String status;

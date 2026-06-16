@@ -87,17 +87,33 @@ public class DatabaseMigration implements CommandLineRunner {
 
             // 3. kanban_board add location_id + container_type_id (NOT NULL, D24)
             ensureColumn(conn, "kanban_board", "location_id", "BIGINT NOT NULL DEFAULT 0");
-            ensureForeignKey(conn, "kanban_board", "location_id", "storage_location", "id", "fk_kanban_location");
+            try {
+                ensureForeignKey(conn, "kanban_board", "location_id", "storage_location", "id", "fk_kanban_location");
+            } catch (Exception e) {
+                log.warn("添加外键 fk_kanban_location 失败（可能因存在无效引用值，重建数据后自动修复）: {}", e.getMessage());
+            }
             ensureColumn(conn, "kanban_board", "container_type_id", "BIGINT NOT NULL DEFAULT 0");
-            ensureForeignKey(conn, "kanban_board", "container_type_id", "container_type", "id", "fk_kanban_container");
+            try {
+                ensureForeignKey(conn, "kanban_board", "container_type_id", "container_type", "id", "fk_kanban_container");
+            } catch (Exception e) {
+                log.warn("添加外键 fk_kanban_container 失败（可能因存在无效引用值）: {}", e.getMessage());
+            }
 
             // 4. inbound_order_line add container_type_id (NOT NULL, D24)
             ensureColumn(conn, "inbound_order_line", "container_type_id", "BIGINT NOT NULL DEFAULT 0");
-            ensureForeignKey(conn, "inbound_order_line", "container_type_id", "container_type", "id", "fk_inbound_line_container");
+            try {
+                ensureForeignKey(conn, "inbound_order_line", "container_type_id", "container_type", "id", "fk_inbound_line_container");
+            } catch (Exception e) {
+                log.warn("添加外键 fk_inbound_line_container 失败: {}", e.getMessage());
+            }
 
-            // 5. inventory_movement add planned_location_id (nullable — outbound movements have no planned location)
+            // 5. inventory_movement add planned_location_id (nullable)
             ensureColumn(conn, "inventory_movement", "planned_location_id", "BIGINT DEFAULT NULL");
-            ensureForeignKey(conn, "inventory_movement", "planned_location_id", "storage_location", "id", "fk_movement_planned_location");
+            try {
+                ensureForeignKey(conn, "inventory_movement", "planned_location_id", "storage_location", "id", "fk_movement_planned_location");
+            } catch (Exception e) {
+                log.warn("添加外键 fk_movement_planned_location 失败: {}", e.getMessage());
+            }
         } catch (Exception e) {
             log.warn("数据库列迁移失败（不影响已有功能）: {}", e.getMessage());
         }
