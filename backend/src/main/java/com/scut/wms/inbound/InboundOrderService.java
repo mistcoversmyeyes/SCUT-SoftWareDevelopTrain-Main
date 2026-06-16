@@ -6,6 +6,8 @@ import com.scut.wms.common.BusinessException;
 import com.scut.wms.container.ContainerType;
 import com.scut.wms.container.ContainerTypeMapper;
 import com.scut.wms.masterdata.Material;
+import com.scut.wms.masterdata.MaterialContainerType;
+import com.scut.wms.masterdata.MaterialContainerTypeMapper;
 import com.scut.wms.masterdata.MaterialMapper;
 import com.scut.wms.masterdata.StorageLocation;
 import com.scut.wms.masterdata.StorageLocationMapper;
@@ -51,6 +53,7 @@ public class InboundOrderService {
     private final WarehouseMapper warehouseMapper;
     private final StorageLocationMapper storageLocationMapper;
     private final ContainerTypeMapper containerTypeMapper;
+    private final MaterialContainerTypeMapper materialContainerTypeMapper;
 
     public InboundOrderService(
             InboundOrderMapper inboundOrderMapper,
@@ -60,7 +63,8 @@ public class InboundOrderService {
             MaterialMapper materialMapper,
             WarehouseMapper warehouseMapper,
             StorageLocationMapper storageLocationMapper,
-            ContainerTypeMapper containerTypeMapper
+            ContainerTypeMapper containerTypeMapper,
+            MaterialContainerTypeMapper materialContainerTypeMapper
     ) {
         this.inboundOrderMapper = inboundOrderMapper;
         this.inboundOrderLineMapper = inboundOrderLineMapper;
@@ -70,6 +74,7 @@ public class InboundOrderService {
         this.warehouseMapper = warehouseMapper;
         this.storageLocationMapper = storageLocationMapper;
         this.containerTypeMapper = containerTypeMapper;
+        this.materialContainerTypeMapper = materialContainerTypeMapper;
     }
 
     public List<InboundOrderResponse> list(String status, String inboundNo, Long supplierId, String supplierKeyword) {
@@ -230,6 +235,13 @@ public class InboundOrderService {
             StorageLocation location = requireEnabledLocation(line.targetLocationId());
             if (!Objects.equals(location.getWarehouseId(), warehouse.getId())) {
                 throw new BusinessException("目标库位不属于目标仓库");
+            }
+            // D23: ensure material has the selected container type configured
+            var mctCount = materialContainerTypeMapper.selectCount(Wrappers.<MaterialContainerType>lambdaQuery()
+                    .eq(MaterialContainerType::getMaterialId, line.materialId())
+                    .eq(MaterialContainerType::getContainerTypeId, line.containerTypeId()));
+            if (mctCount == 0) {
+                throw new BusinessException("所选容器类型不适用于该物料");
             }
         }
     }

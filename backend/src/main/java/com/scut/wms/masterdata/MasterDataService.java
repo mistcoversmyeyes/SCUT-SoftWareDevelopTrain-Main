@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -19,19 +20,22 @@ public class MasterDataService {
     private final WarehouseMapper warehouseMapper;
     private final StorageLocationMapper storageLocationMapper;
     private final ContainerTypeMapper containerTypeMapper;
+    private final MaterialContainerTypeMapper materialContainerTypeMapper;
 
     public MasterDataService(
             SupplierMapper supplierMapper,
             MaterialMapper materialMapper,
             WarehouseMapper warehouseMapper,
             StorageLocationMapper storageLocationMapper,
-            ContainerTypeMapper containerTypeMapper
+            ContainerTypeMapper containerTypeMapper,
+            MaterialContainerTypeMapper materialContainerTypeMapper
     ) {
         this.supplierMapper = supplierMapper;
         this.materialMapper = materialMapper;
         this.warehouseMapper = warehouseMapper;
         this.storageLocationMapper = storageLocationMapper;
         this.containerTypeMapper = containerTypeMapper;
+        this.materialContainerTypeMapper = materialContainerTypeMapper;
     }
 
     public MasterDataOptionsResponse options() {
@@ -223,6 +227,50 @@ public class MasterDataService {
         StorageLocation location = requireStorageLocation(id);
         location.setStatus(status);
         storageLocationMapper.updateById(location);
+    }
+
+    public List<MaterialContainerTypeResponse> getMaterialContainerTypes(Long materialId) {
+        requireMaterial(materialId);
+        return materialContainerTypeMapper.selectList(
+                Wrappers.<MaterialContainerType>lambdaQuery()
+                    .eq(MaterialContainerType::getMaterialId, materialId))
+            .stream()
+            .map(mct -> {
+                ContainerType ct = containerTypeMapper.selectById(mct.getContainerTypeId());
+                return new MaterialContainerTypeResponse(
+                    mct.getContainerTypeId(),
+                    ct != null ? ct.getContainerCode() : "",
+                    ct != null ? ct.getContainerName() : "",
+                    ct != null ? ct.getCapacityQty() : BigDecimal.ZERO,
+                    mct.getIsDefault() != null && mct.getIsDefault() == 1
+                );
+            })
+            .toList();
+    }
+
+    @Transactional
+    public void updateMaterialContainerTypes(Long materialId, MaterialContainerTypeUpdateRequest request) {
+        requireMaterial(materialId);
+        List<Long> ctIds = request.containerTypeIds();
+        if (ctIds != null) {
+            for (Long ctId : ctIds) {
+                if (containerTypeMapper.selectById(ctId) == null) {
+                    throw new BusinessException("容器类型不存在: " + ctId);
+                }
+            }
+        }
+        // Full replace: delete old, insert new
+        materialContainerTypeMapper.delete(Wrappers.<MaterialContainerType>lambdaQuery()
+                .eq(MaterialContainerType::getMaterialId, materialId));
+        if (ctIds != null) {
+            for (Long ctId : ctIds) {
+                MaterialContainerType mct = new MaterialContainerType();
+                mct.setMaterialId(materialId);
+                mct.setContainerTypeId(ctId);
+                mct.setIsDefault(0);
+                materialContainerTypeMapper.insert(mct);
+            }
+        }
     }
 
     private void validateMaterialReferences(MaterialRequest request) {

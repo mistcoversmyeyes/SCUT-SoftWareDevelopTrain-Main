@@ -16,8 +16,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -27,6 +31,7 @@ public class InventoryService {
     private static final String RELEASED = "RELEASED";
     private static final String PARTIAL_RECEIVED = "PARTIAL_RECEIVED";
     private static final String COMPLETED = "COMPLETED";
+    private static final String CANCELLED = "CANCELLED";
     private static final String INBOUND_RECEIVE = "INBOUND_RECEIVE";
     private static final String KANBAN_BOARD = "KANBAN_BOARD";
     private static final DateTimeFormatter MOVEMENT_NO_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
@@ -162,6 +167,80 @@ public class InventoryService {
             throw new BusinessException(HttpStatus.NOT_FOUND, "未找到看板");
         }
         return trace;
+    }
+
+    @Transactional
+    public Map<String, Object> cancelKanban(Long kanbanId) {
+        KanbanBoard kanban = kanbanBoardMapper.selectByIdForUpdate(kanbanId);
+        if (kanban == null) throw new BusinessException(HttpStatus.NOT_FOUND, "看板不存在");
+        if (!PRINTED.equals(kanban.getStatus())) throw new BusinessException("看板状态不允许取消");
+
+        InboundOrder order = inboundOrderMapper.selectById(kanban.getInboundOrderId());
+        if (order == null) throw new BusinessException("关联入库单不存在");
+        if (!RELEASED.equals(order.getStatus()) && !PARTIAL_RECEIVED.equals(order.getStatus())) {
+            throw new BusinessException("入库单状态不允许取消看板");
+        }
+
+        kanban.setStatus(CANCELLED);
+        kanbanBoardMapper.updateById(kanban);
+
+        recalcPlannedQtyAndRefreshStatus(kanban.getInboundOrderLineId(), kanban.getInboundOrderId());
+
+        return Map.of("cancelled", true, "kanbanCode", kanban.getKanbanCode());
+    }
+
+    @Transactional
+    public Map<String, Object> cancelKanbansBatch(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) throw new BusinessException("请选择要取消的看板");
+
+        List<KanbanBoard> cancelled = new ArrayList<>();
+        Set<Long> affectedLineIds = new HashSet<>();
+        Set<Long> affectedOrderIds = new HashSet<>();
+
+        for (Long kanbanId : ids) {
+            KanbanBoard kanban = kanbanBoardMapper.selectByIdForUpdate(kanbanId);
+            if (kanban == null) throw new BusinessException("看板不存在: " + kanbanId);
+            if (!PRINTED.equals(kanban.getStatus())) {
+                throw new BusinessException("看板 %s 状态不允许取消".formatted(kanban.getKanbanCode()));
+            }
+            InboundOrder order = inboundOrderMapper.selectById(kanban.getInboundOrderId());
+            if (!RELEASED.equals(order.getStatus()) && !PARTIAL_RECEIVED.equals(order.getStatus())) {
+                throw new BusinessException("入库单 %s 状态不允许取消看板".formatted(order.getInboundNo()));
+            }
+            kanban.setStatus(CANCELLED);
+            kanbanBoardMapper.updateById(kanban);
+            cancelled.add(kanban);
+            affectedLineIds.add(kanban.getInboundOrderLineId());
+            affectedOrderIds.add(kanban.getInboundOrderId());
+        }
+
+        for (Long lineId : affectedLineIds) {
+            Long orderId = cancelled.stream()
+                    .filter(k -> k.getInboundOrderLineId().equals(lineId))
+                    .findFirst().get().getInboundOrderId();
+            recalcPlannedQtyAndRefreshStatus(lineId, orderId);
+        }
+
+        return Map.of("cancelledCount", cancelled.size());
+    }
+
+    private void recalcPlannedQtyAndRefreshStatus(Long lineId, Long orderId) {
+        List<KanbanBoard> lineKanbans = kanbanBoardMapper.selectList(Wrappers.<KanbanBoard>lambdaQuery()
+                .eq(KanbanBoard::getInboundOrderLineId, lineId)
+                .ne(KanbanBoard::getStatus, CANCELLED));
+        BigDecimal newPlannedQty = lineKanbans.stream()
+                .map(KanbanBoard::getBoardQty)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        InboundOrderLine line = inboundOrderLineMapper.selectById(lineId);
+        if (line != null) {
+            line.setPlannedQty(newPlannedQty);
+            inboundOrderLineMapper.updateById(line);
+        }
+
+        InboundOrder order = inboundOrderMapper.selectById(orderId);
+        if (order != null) refreshOrderStatus(order, LocalDateTime.now());
     }
 
     private InventoryMovement createMovement(ScanKanbanContext context, LocalDateTime now) {

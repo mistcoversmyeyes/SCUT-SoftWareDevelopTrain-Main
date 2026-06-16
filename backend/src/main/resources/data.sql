@@ -8,11 +8,17 @@ VALUES
   (1, '8KH', '佛山华翔金属件 8KH', '张工', '13800000001', 'ENABLED'),
   (2, '4MU', '宁波劳伦斯 4MU', '李工', '13800000002', 'ENABLED');
 
-INSERT IGNORE INTO material (id, material_code, material_name, specification, unit, supplier_id, container_type_id, low_stock_qty, high_stock_qty, status)
+INSERT IGNORE INTO material (id, material_code, material_name, specification, unit, supplier_id, low_stock_qty, high_stock_qty, status)
 VALUES
-  (1, '5HG 807 109 C', '前保险杠支架', '汽车零件', '件', 1, 1, 10, 500, 'ENABLED'),
-  (2, '5WD 723 913 C', '踏板组件', '汽车零件', '件', 1, 1, 20, 400, 'ENABLED'),
-  (3, '5Q0 803 219 D', '车身连接件', '汽车零件', '件', 2, 2, 30, 600, 'ENABLED');
+  (1, '5HG 807 109 C', '前保险杠支架', '汽车零件', '件', 1, 10, 500, 'ENABLED'),
+  (2, '5WD 723 913 C', '踏板组件', '汽车零件', '件', 1, 20, 400, 'ENABLED'),
+  (3, '5Q0 803 219 D', '车身连接件', '汽车零件', '件', 2, 30, 600, 'ENABLED');
+
+INSERT IGNORE INTO material_container_type (material_id, container_type_id, is_default)
+VALUES
+  (1, 1, 1),
+  (2, 1, 1),
+  (3, 2, 1);
 
 INSERT IGNORE INTO warehouse (id, warehouse_code, warehouse_name, status)
 VALUES (1, 'WH-JY', '吉耀仓', 'ENABLED');

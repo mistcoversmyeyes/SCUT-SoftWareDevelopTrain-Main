@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.scut.wms.masterdata.MaterialContainerType;
+import com.scut.wms.masterdata.MaterialContainerTypeMapper;
 import com.scut.wms.masterdata.StorageLocation;
 import com.scut.wms.masterdata.Warehouse;
 import com.scut.wms.masterdata.WarehouseMapper;
@@ -52,8 +54,17 @@ class InboundOrderControllerTest {
     @Autowired
     private WarehouseMapper warehouseMapper;
 
+    @Autowired
+    private MaterialContainerTypeMapper materialContainerTypeMapper;
+
     @BeforeEach
     void fixExistingDemoData() {
+        // Seed material-container type associations for tests
+        seedMaterialContainerType(1L, 1L);
+        seedMaterialContainerType(2L, 1L);
+        seedMaterialContainerType(3L, 2L);
+
+        // Fix existing demo data
         // Fix board location_id/container_type_id for existing demo data (may still have default 0 values)
         KanbanBoard board1 = kanbanBoardMapper.selectById(1L);
         if (board1 != null) {
@@ -187,8 +198,8 @@ class InboundOrderControllerTest {
 
         mockMvc.perform(post("/api/inbound-orders/{id}/release", orderId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("RELEASED"))
-                .andExpect(jsonPath("$.releasedAt").isNotEmpty());
+                .andExpect(jsonPath("$.order.status").value("RELEASED"))
+                .andExpect(jsonPath("$.order.releasedAt").isNotEmpty());
 
         InboundOrder order = inboundOrderMapper.selectById(orderId);
         List<KanbanBoard> kanbans = kanbansOf(orderId);
@@ -209,7 +220,7 @@ class InboundOrderControllerTest {
                 .andExpect(status().isOk());
         mockMvc.perform(post("/api/inbound-orders/{id}/release", orderId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("RELEASED"));
+                .andExpect(jsonPath("$.order.status").value("RELEASED"));
 
         assertThat(kanbansOf(orderId)).hasSize(2);
     }
@@ -457,6 +468,19 @@ class InboundOrderControllerTest {
                   ]
                 }
                 """.formatted(sourceDocNo, plannedQty);
+    }
+
+    private void seedMaterialContainerType(Long materialId, Long containerTypeId) {
+        Long count = materialContainerTypeMapper.selectCount(Wrappers.<MaterialContainerType>lambdaQuery()
+                .eq(MaterialContainerType::getMaterialId, materialId)
+                .eq(MaterialContainerType::getContainerTypeId, containerTypeId));
+        if (count == 0) {
+            MaterialContainerType mct = new MaterialContainerType();
+            mct.setMaterialId(materialId);
+            mct.setContainerTypeId(containerTypeId);
+            mct.setIsDefault(1);
+            materialContainerTypeMapper.insert(mct);
+        }
     }
 
     private String defaultCreateRequest(String sourceDocNo) {
