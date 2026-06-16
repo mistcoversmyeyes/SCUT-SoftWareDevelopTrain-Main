@@ -11,6 +11,10 @@ public record ScanInboundResponse(
         BigDecimal receivedQty,
         String locationName,
         String orderStatus,
-        LocalDateTime receivedAt
+        LocalDateTime receivedAt,
+        Long plannedLocationId,
+        String plannedLocationName,
+        Long actualLocationId,
+        String actualLocationName
 ) {
 }

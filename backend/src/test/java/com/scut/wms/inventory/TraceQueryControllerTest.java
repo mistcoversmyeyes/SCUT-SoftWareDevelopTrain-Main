@@ -157,7 +157,9 @@ class TraceQueryControllerTest {
                 .eq(KanbanBoard::getId, boardId)
                 .set(KanbanBoard::getKanbanCode, kanbanCode)
                 .set(KanbanBoard::getStatus, "PRINTED")
-                .set(KanbanBoard::getReceivedAt, null));
+                .set(KanbanBoard::getReceivedAt, null)
+                .set(KanbanBoard::getLocationId, boardId.equals(DEMO_BOARD_ONE_ID) ? 1L : 2L)
+                .set(KanbanBoard::getContainerTypeId, 1L));
     }
 
     private String scanRequest(String kanbanCode) {

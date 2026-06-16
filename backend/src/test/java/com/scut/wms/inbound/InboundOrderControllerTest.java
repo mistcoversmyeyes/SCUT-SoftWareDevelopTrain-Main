@@ -1,11 +1,13 @@
 package com.scut.wms.inbound;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.scut.wms.masterdata.StorageLocation;
 import com.scut.wms.masterdata.Warehouse;
 import com.scut.wms.masterdata.WarehouseMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -49,6 +51,34 @@ class InboundOrderControllerTest {
 
     @Autowired
     private WarehouseMapper warehouseMapper;
+
+    @BeforeEach
+    void fixExistingDemoData() {
+        // Fix board location_id/container_type_id for existing demo data (may still have default 0 values)
+        KanbanBoard board1 = kanbanBoardMapper.selectById(1L);
+        if (board1 != null) {
+            board1.setLocationId(1L);
+            board1.setContainerTypeId(1L);
+            kanbanBoardMapper.updateById(board1);
+        }
+        KanbanBoard board2 = kanbanBoardMapper.selectById(2L);
+        if (board2 != null) {
+            board2.setLocationId(2L);
+            board2.setContainerTypeId(1L);
+            kanbanBoardMapper.updateById(board2);
+        }
+        // Fix line container_type_id for existing demo data
+        InboundOrderLine line1 = inboundOrderLineMapper.selectById(1L);
+        if (line1 != null) {
+            line1.setContainerTypeId(1L);
+            inboundOrderLineMapper.updateById(line1);
+        }
+        InboundOrderLine line2 = inboundOrderLineMapper.selectById(2L);
+        if (line2 != null) {
+            line2.setContainerTypeId(1L);
+            inboundOrderLineMapper.updateById(line2);
+        }
+    }
 
     @Test
     void createOrderWithTwoLinesReturnsDraftAndPersistsLines() throws Exception {
@@ -269,7 +299,8 @@ class InboundOrderControllerTest {
                       "materialId": 1,
                       "plannedQty": 1.000,
                       "targetWarehouseId": %d,
-                      "targetLocationId": 1
+                      "targetLocationId": 1,
+                      "containerTypeId": 1
                     }
                   ]
                 }
@@ -401,7 +432,8 @@ class InboundOrderControllerTest {
                       "materialId": 3,
                       "plannedQty": 7.000,
                       "targetWarehouseId": 1,
-                      "targetLocationId": 3
+                      "targetLocationId": 3,
+                      "containerTypeId": 2
                     }
                   ]
                 }
@@ -419,7 +451,8 @@ class InboundOrderControllerTest {
                       "materialId": 1,
                       "plannedQty": %s,
                       "targetWarehouseId": 1,
-                      "targetLocationId": 1
+                      "targetLocationId": 1,
+                      "containerTypeId": 1
                     }
                   ]
                 }
@@ -437,14 +470,16 @@ class InboundOrderControllerTest {
                       "materialId": 1,
                       "plannedQty": 12.500,
                       "targetWarehouseId": 1,
-                      "targetLocationId": 1
+                      "targetLocationId": 1,
+                      "containerTypeId": 1
                     },
                     {
                       "supplierId": 1,
                       "materialId": 2,
                       "plannedQty": 8.000,
                       "targetWarehouseId": 1,
-                      "targetLocationId": 2
+                      "targetLocationId": 2,
+                      "containerTypeId": 1
                     }
                   ]
                 }

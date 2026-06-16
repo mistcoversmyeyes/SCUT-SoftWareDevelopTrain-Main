@@ -204,6 +204,8 @@ class ScanInboundControllerTest {
         board.setKanbanCode(kanbanCode);
         board.setStatus("PRINTED");
         board.setReceivedAt(null);
+        board.setLocationId(boardId.equals(DEMO_BOARD_ONE_ID) ? 1L : 2L);
+        board.setContainerTypeId(1L);
         kanbanBoardMapper.updateById(board);
     }
 

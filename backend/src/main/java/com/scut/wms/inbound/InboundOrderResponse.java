@@ -30,7 +30,8 @@ public record InboundOrderResponse(
             BigDecimal plannedQty,
             BigDecimal receivedQty,
             Long targetWarehouseId,
-            Long targetLocationId
+            Long targetLocationId,
+            Long containerTypeId
     ) {
     }
 }

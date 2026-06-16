@@ -12,6 +12,8 @@ public class InventoryMovementView {
     private String warehouseName;
     private String locationCode;
     private String locationName;
+    private String plannedLocationCode;
+    private String plannedLocationName;
     private BigDecimal qty;
     private String kanbanCode;
     private String inboundNo;
@@ -79,6 +81,22 @@ public class InventoryMovementView {
 
     public void setLocationName(String locationName) {
         this.locationName = locationName;
+    }
+
+    public String getPlannedLocationCode() {
+        return plannedLocationCode;
+    }
+
+    public void setPlannedLocationCode(String plannedLocationCode) {
+        this.plannedLocationCode = plannedLocationCode;
+    }
+
+    public String getPlannedLocationName() {
+        return plannedLocationName;
+    }
+
+    public void setPlannedLocationName(String plannedLocationName) {
+        this.plannedLocationName = plannedLocationName;
     }
 
     public BigDecimal getQty() {
