@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS inventory_lock;
 DROP TABLE IF EXISTS inventory_balance;
 DROP TABLE IF EXISTS inventory_movement;
 DROP TABLE IF EXISTS kanban_board;
@@ -23,6 +24,16 @@ CREATE TABLE supplier (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+CREATE TABLE container_type (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  container_code VARCHAR(64) NOT NULL UNIQUE,
+  container_name VARCHAR(128) NOT NULL,
+  capacity_qty DECIMAL(18, 3),
+  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
 CREATE TABLE material (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   material_code VARCHAR(64) NOT NULL UNIQUE,
@@ -36,6 +47,19 @@ CREATE TABLE material (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_material_supplier FOREIGN KEY (supplier_id) REFERENCES supplier(id)
+);
+
+CREATE TABLE material_container_type (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  material_id BIGINT NOT NULL,
+  container_type_id BIGINT NOT NULL,
+  is_default TINYINT DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT uk_mct UNIQUE (material_id, container_type_id),
+  CONSTRAINT fk_mct_material FOREIGN KEY (material_id) REFERENCES material(id),
+  CONSTRAINT fk_mct_container FOREIGN KEY (container_type_id) REFERENCES container_type(id),
+  INDEX idx_mct_material (material_id),
+  INDEX idx_mct_container (container_type_id)
 );
 
 CREATE TABLE warehouse (
@@ -157,29 +181,6 @@ CREATE TABLE inventory_balance (
   CONSTRAINT fk_balance_location FOREIGN KEY (storage_location_id) REFERENCES storage_location(id)
 );
 
-CREATE TABLE container_type (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  container_code VARCHAR(64) NOT NULL UNIQUE,
-  container_name VARCHAR(128) NOT NULL,
-  capacity_qty DECIMAL(18, 3),
-  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
-
-CREATE TABLE material_container_type (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  material_id BIGINT NOT NULL,
-  container_type_id BIGINT NOT NULL,
-  is_default TINYINT DEFAULT 0,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT uk_mct UNIQUE (material_id, container_type_id),
-  CONSTRAINT fk_mct_material FOREIGN KEY (material_id) REFERENCES material(id),
-  CONSTRAINT fk_mct_container FOREIGN KEY (container_type_id) REFERENCES container_type(id),
-  INDEX idx_mct_material (material_id),
-  INDEX idx_mct_container (container_type_id)
-);
-
 CREATE TABLE outbound_order (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   outbound_no VARCHAR(64) NOT NULL UNIQUE,
@@ -210,4 +211,25 @@ CREATE TABLE outbound_order_line (
   CONSTRAINT fk_outbound_line_order FOREIGN KEY (outbound_order_id) REFERENCES outbound_order(id),
   CONSTRAINT fk_outbound_line_material FOREIGN KEY (material_id) REFERENCES material(id),
   CONSTRAINT fk_outbound_line_supplier FOREIGN KEY (supplier_id) REFERENCES supplier(id)
+);
+
+CREATE TABLE inventory_lock (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  outbound_order_id BIGINT NOT NULL,
+  outbound_order_line_id BIGINT NOT NULL,
+  kanban_board_id BIGINT NOT NULL,
+  material_id BIGINT NOT NULL,
+  lock_qty DECIMAL(18, 3) NOT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'LOCKED',
+  stolen_by_order_id BIGINT DEFAULT NULL,
+  stolen_at DATETIME DEFAULT NULL,
+  unlocked_at DATETIME DEFAULT NULL,
+  unlocked_by VARCHAR(64) DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_lock_order FOREIGN KEY (outbound_order_id) REFERENCES outbound_order(id),
+  CONSTRAINT fk_lock_line FOREIGN KEY (outbound_order_line_id) REFERENCES outbound_order_line(id),
+  CONSTRAINT fk_lock_kanban FOREIGN KEY (kanban_board_id) REFERENCES kanban_board(id),
+  INDEX idx_lock_order (outbound_order_id),
+  INDEX idx_lock_kanban (kanban_board_id),
+  INDEX idx_lock_status (status)
 );
