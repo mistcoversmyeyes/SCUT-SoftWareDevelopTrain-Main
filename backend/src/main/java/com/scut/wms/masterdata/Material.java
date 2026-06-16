@@ -16,7 +16,6 @@ public class Material {
     private String specification;
     private String unit;
     private Long supplierId;
-    private Long containerTypeId;
     private BigDecimal lowStockQty;
     private BigDecimal highStockQty;
     private String status;
@@ -69,14 +68,6 @@ public class Material {
 
     public void setSupplierId(Long supplierId) {
         this.supplierId = supplierId;
-    }
-
-    public Long getContainerTypeId() {
-        return containerTypeId;
-    }
-
-    public void setContainerTypeId(Long containerTypeId) {
-        this.containerTypeId = containerTypeId;
     }
 
     public BigDecimal getLowStockQty() {

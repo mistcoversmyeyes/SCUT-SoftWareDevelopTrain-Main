@@ -14,6 +14,8 @@ public class KanbanBoard {
     private String kanbanCode;
     private Long inboundOrderId;
     private Long inboundOrderLineId;
+    private Long locationId;
+    private Long containerTypeId;
     private BigDecimal boardQty;
     private BigDecimal pickedQty;
     private String status;
@@ -52,6 +54,22 @@ public class KanbanBoard {
 
     public void setInboundOrderLineId(Long inboundOrderLineId) {
         this.inboundOrderLineId = inboundOrderLineId;
+    }
+
+    public Long getLocationId() {
+        return locationId;
+    }
+
+    public void setLocationId(Long locationId) {
+        this.locationId = locationId;
+    }
+
+    public Long getContainerTypeId() {
+        return containerTypeId;
+    }
+
+    public void setContainerTypeId(Long containerTypeId) {
+        this.containerTypeId = containerTypeId;
     }
 
     public BigDecimal getBoardQty() {

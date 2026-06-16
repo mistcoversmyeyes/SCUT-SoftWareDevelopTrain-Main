@@ -57,6 +57,47 @@ public class DatabaseMigration implements CommandLineRunner {
                     "supplier", "id", "fk_inbound_line_supplier");
             alterColumnNullable(conn, "inbound_order", "supplier_id",
                     "BIGINT DEFAULT NULL");
+
+            // --- WMS Refactor: Layer 0 DDL ---
+
+            // 1. Create material_container_type table (idempotent)
+            if (!tableExists(conn, "material_container_type")) {
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.execute("""
+                        CREATE TABLE material_container_type (
+                          id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                          material_id BIGINT NOT NULL,
+                          container_type_id BIGINT NOT NULL,
+                          is_default TINYINT DEFAULT 0,
+                          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                          CONSTRAINT uk_mct UNIQUE (material_id, container_type_id),
+                          CONSTRAINT fk_mct_material FOREIGN KEY (material_id) REFERENCES material(id),
+                          CONSTRAINT fk_mct_container FOREIGN KEY (container_type_id) REFERENCES container_type(id),
+                          INDEX idx_mct_material (material_id),
+                          INDEX idx_mct_container (container_type_id)
+                        )
+                        """);
+                    log.info("迁移: 创建 material_container_type 表");
+                }
+            }
+
+            // 2. Remove old material.container_type_id
+            dropForeignKeysForColumn(conn, "material", "container_type_id");
+            dropColumnIfExists(conn, "material", "container_type_id");
+
+            // 3. kanban_board add location_id + container_type_id (NOT NULL, D24)
+            ensureColumn(conn, "kanban_board", "location_id", "BIGINT NOT NULL DEFAULT 0");
+            ensureForeignKey(conn, "kanban_board", "location_id", "storage_location", "id", "fk_kanban_location");
+            ensureColumn(conn, "kanban_board", "container_type_id", "BIGINT NOT NULL DEFAULT 0");
+            ensureForeignKey(conn, "kanban_board", "container_type_id", "container_type", "id", "fk_kanban_container");
+
+            // 4. inbound_order_line add container_type_id (NOT NULL, D24)
+            ensureColumn(conn, "inbound_order_line", "container_type_id", "BIGINT NOT NULL DEFAULT 0");
+            ensureForeignKey(conn, "inbound_order_line", "container_type_id", "container_type", "id", "fk_inbound_line_container");
+
+            // 5. inventory_movement add planned_location_id (nullable — outbound movements have no planned location)
+            ensureColumn(conn, "inventory_movement", "planned_location_id", "BIGINT DEFAULT NULL");
+            ensureForeignKey(conn, "inventory_movement", "planned_location_id", "storage_location", "id", "fk_movement_planned_location");
         } catch (Exception e) {
             log.warn("数据库列迁移失败（不影响已有功能）: {}", e.getMessage());
         }
@@ -143,6 +184,13 @@ public class DatabaseMigration implements CommandLineRunner {
     private boolean columnExists(Connection conn, String table, String column) throws Exception {
         DatabaseMetaData meta = conn.getMetaData();
         try (ResultSet rs = meta.getColumns(null, null, table, column)) {
+            return rs.next();
+        }
+    }
+
+    private boolean tableExists(Connection conn, String tableName) throws Exception {
+        DatabaseMetaData meta = conn.getMetaData();
+        try (ResultSet rs = meta.getTables(null, null, tableName, null)) {
             return rs.next();
         }
     }

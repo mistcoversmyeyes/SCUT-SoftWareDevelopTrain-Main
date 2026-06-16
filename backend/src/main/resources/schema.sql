@@ -9,6 +9,7 @@ DROP TABLE IF EXISTS storage_location;
 DROP TABLE IF EXISTS warehouse;
 DROP TABLE IF EXISTS material;
 DROP TABLE IF EXISTS supplier;
+DROP TABLE IF EXISTS material_container_type;
 DROP TABLE IF EXISTS container_type;
 
 CREATE TABLE supplier (
@@ -29,7 +30,6 @@ CREATE TABLE material (
   specification VARCHAR(128),
   unit VARCHAR(32) NOT NULL,
   supplier_id BIGINT,
-  container_type_id BIGINT,
   low_stock_qty DECIMAL(18, 3),
   high_stock_qty DECIMAL(18, 3),
   status VARCHAR(32) NOT NULL,
@@ -84,6 +84,7 @@ CREATE TABLE inbound_order_line (
   received_qty DECIMAL(18, 3) NOT NULL DEFAULT 0,
   target_warehouse_id BIGINT NOT NULL,
   target_location_id BIGINT NOT NULL,
+  container_type_id BIGINT NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT uk_inbound_order_line UNIQUE (inbound_order_id, line_no),
@@ -99,6 +100,8 @@ CREATE TABLE kanban_board (
   kanban_code VARCHAR(128) NOT NULL UNIQUE,
   inbound_order_id BIGINT NOT NULL,
   inbound_order_line_id BIGINT NOT NULL,
+  location_id BIGINT NOT NULL DEFAULT 0,
+  container_type_id BIGINT NOT NULL DEFAULT 0,
   board_qty DECIMAL(18, 3) NOT NULL,
   picked_qty DECIMAL(18, 3) NOT NULL DEFAULT 0,
   status VARCHAR(32) NOT NULL,
@@ -108,7 +111,10 @@ CREATE TABLE kanban_board (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_kanban_order FOREIGN KEY (inbound_order_id) REFERENCES inbound_order(id),
   CONSTRAINT fk_kanban_line FOREIGN KEY (inbound_order_line_id) REFERENCES inbound_order_line(id),
-  INDEX idx_kanban_line_status (inbound_order_line_id, status)
+  CONSTRAINT fk_kanban_location FOREIGN KEY (location_id) REFERENCES storage_location(id),
+  CONSTRAINT fk_kanban_container FOREIGN KEY (container_type_id) REFERENCES container_type(id),
+  INDEX idx_kanban_line_status (inbound_order_line_id, status),
+  INDEX idx_kanban_location_status (location_id, status)
 );
 
 CREATE TABLE inventory_movement (
@@ -121,6 +127,7 @@ CREATE TABLE inventory_movement (
   material_id BIGINT NOT NULL,
   warehouse_id BIGINT NOT NULL,
   storage_location_id BIGINT NOT NULL,
+  planned_location_id BIGINT DEFAULT NULL,
   qty DECIMAL(18, 3) NOT NULL,
   occurred_at DATETIME NOT NULL,
   operator_name VARCHAR(64),
@@ -131,6 +138,7 @@ CREATE TABLE inventory_movement (
   CONSTRAINT fk_movement_material FOREIGN KEY (material_id) REFERENCES material(id),
   CONSTRAINT fk_movement_warehouse FOREIGN KEY (warehouse_id) REFERENCES warehouse(id),
   CONSTRAINT fk_movement_location FOREIGN KEY (storage_location_id) REFERENCES storage_location(id),
+  CONSTRAINT fk_movement_planned_location FOREIGN KEY (planned_location_id) REFERENCES storage_location(id),
   INDEX idx_movement_material_time (material_id, occurred_at),
   INDEX idx_movement_location_time (warehouse_id, storage_location_id, occurred_at)
 );
@@ -156,6 +164,19 @@ CREATE TABLE container_type (
   status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE material_container_type (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  material_id BIGINT NOT NULL,
+  container_type_id BIGINT NOT NULL,
+  is_default TINYINT DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT uk_mct UNIQUE (material_id, container_type_id),
+  CONSTRAINT fk_mct_material FOREIGN KEY (material_id) REFERENCES material(id),
+  CONSTRAINT fk_mct_container FOREIGN KEY (container_type_id) REFERENCES container_type(id),
+  INDEX idx_mct_material (material_id),
+  INDEX idx_mct_container (container_type_id)
 );
 
 CREATE TABLE outbound_order (

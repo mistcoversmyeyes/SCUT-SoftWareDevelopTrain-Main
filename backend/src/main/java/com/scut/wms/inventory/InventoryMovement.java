@@ -19,6 +19,7 @@ public class InventoryMovement {
     private Long materialId;
     private Long warehouseId;
     private Long storageLocationId;
+    private Long plannedLocationId;
     private BigDecimal qty;
     private LocalDateTime occurredAt;
     private String operatorName;
@@ -96,6 +97,14 @@ public class InventoryMovement {
 
     public void setStorageLocationId(Long storageLocationId) {
         this.storageLocationId = storageLocationId;
+    }
+
+    public Long getPlannedLocationId() {
+        return plannedLocationId;
+    }
+
+    public void setPlannedLocationId(Long plannedLocationId) {
+        this.plannedLocationId = plannedLocationId;
     }
 
     public BigDecimal getQty() {
