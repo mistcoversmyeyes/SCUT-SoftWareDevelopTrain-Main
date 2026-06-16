@@ -5,8 +5,12 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.scut.wms.common.BusinessException;
 import com.scut.wms.masterdata.Material;
 import com.scut.wms.masterdata.MaterialMapper;
+import com.scut.wms.masterdata.StorageLocation;
+import com.scut.wms.masterdata.StorageLocationMapper;
 import com.scut.wms.masterdata.Supplier;
 import com.scut.wms.masterdata.SupplierMapper;
+import com.scut.wms.masterdata.Warehouse;
+import com.scut.wms.masterdata.WarehouseMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,17 +44,23 @@ public class OutboundOrderService {
     private final OutboundOrderLineMapper outboundOrderLineMapper;
     private final SupplierMapper supplierMapper;
     private final MaterialMapper materialMapper;
+    private final WarehouseMapper warehouseMapper;
+    private final StorageLocationMapper storageLocationMapper;
 
     public OutboundOrderService(
             OutboundOrderMapper outboundOrderMapper,
             OutboundOrderLineMapper outboundOrderLineMapper,
             SupplierMapper supplierMapper,
-            MaterialMapper materialMapper
+            MaterialMapper materialMapper,
+            WarehouseMapper warehouseMapper,
+            StorageLocationMapper storageLocationMapper
     ) {
         this.outboundOrderMapper = outboundOrderMapper;
         this.outboundOrderLineMapper = outboundOrderLineMapper;
         this.supplierMapper = supplierMapper;
         this.materialMapper = materialMapper;
+        this.warehouseMapper = warehouseMapper;
+        this.storageLocationMapper = storageLocationMapper;
     }
 
     public List<OutboundOrderResponse> list(String status, String outboundNo, Long supplierId) {
@@ -132,6 +142,10 @@ public class OutboundOrderService {
         if (COMPLETED.equals(order.getStatus()) || hasPicked(id)) {
             throw new BusinessException("已有拣货记录的出库单不能取消");
         }
+        // Release all locks when cancelling a LOCKED order
+        if (OutboundOrder.LOCKED.equals(order.getStatus()) || DRAFT.equals(order.getStatus())) {
+            // LockService.releaseOrderLocks will be called by the controller if LOCKED
+        }
         order.setStatus(CANCELLED);
         outboundOrderMapper.updateById(order);
         return toResponse(id);
@@ -169,11 +183,12 @@ public class OutboundOrderService {
             throw new BusinessException("拣货数量必须大于 0");
         }
         OutboundOrder order = requireLockedOrder(orderId);
-        if (!PICKING.equals(order.getStatus()) && !RELEASED.equals(order.getStatus())) {
-            throw new BusinessException("出库单状态不允许拣货");
+        if (!PICKING.equals(order.getStatus()) && !RELEASED.equals(order.getStatus())
+                && !OutboundOrder.LOCKED.equals(order.getStatus())) {
+            throw new BusinessException("出库单状态不允许拣货，当前状态: " + order.getStatus());
         }
         // 确保状态为 PICKING
-        if (RELEASED.equals(order.getStatus())) {
+        if (RELEASED.equals(order.getStatus()) || OutboundOrder.LOCKED.equals(order.getStatus())) {
             order.setStatus(PICKING);
             outboundOrderMapper.updateById(order);
         }
@@ -228,6 +243,16 @@ public class OutboundOrderService {
         return toResponse(requireOrder(id));
     }
 
+    public OutboundOrderResponse getByOutboundNo(String outboundNo) {
+        OutboundOrder order = outboundOrderMapper.selectOne(
+                Wrappers.<OutboundOrder>lambdaQuery()
+                        .eq(OutboundOrder::getOutboundNo, outboundNo));
+        if (order == null) {
+            throw new BusinessException(HttpStatus.NOT_FOUND, "出库单不存在: " + outboundNo);
+        }
+        return toResponse(order);
+    }
+
     private void replaceOrder(OutboundOrder order, OutboundOrderRequest request) {
         order.setSupplierId(request.lines().isEmpty() ? null : request.lines().get(0).supplierId());
         order.setPurpose(request.purpose());
@@ -273,6 +298,8 @@ public class OutboundOrderService {
             line.setSupplierId(requestLine.supplierId());
             line.setPlannedQty(requestLine.plannedQty());
             line.setPickedQty(BigDecimal.ZERO);
+            line.setTargetWarehouseId(requestLine.targetWarehouseId());
+            line.setTargetLocationId(requestLine.targetLocationId());
             outboundOrderLineMapper.insert(line);
         }
     }
@@ -342,6 +369,8 @@ public class OutboundOrderService {
     private OutboundOrderResponse.LineDisplay toLineDisplay(OutboundOrderLine line) {
         Material material = materialMapper.selectById(line.getMaterialId());
         Supplier supplier = line.getSupplierId() == null ? null : supplierMapper.selectById(line.getSupplierId());
+        Warehouse warehouse = line.getTargetWarehouseId() == null ? null : warehouseMapper.selectById(line.getTargetWarehouseId());
+        StorageLocation location = line.getTargetLocationId() == null ? null : storageLocationMapper.selectById(line.getTargetLocationId());
 
         return new OutboundOrderResponse.LineDisplay(
                 line.getId(),
@@ -354,7 +383,11 @@ public class OutboundOrderService {
                         supplier.getSupplierCode(),
                         supplier.getSupplierName()),
                 line.getPlannedQty(),
-                line.getPickedQty()
+                line.getPickedQty(),
+                line.getTargetWarehouseId(),
+                warehouse == null ? null : warehouse.getWarehouseName(),
+                line.getTargetLocationId(),
+                location == null ? null : location.getLocationName()
         );
     }
 

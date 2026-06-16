@@ -19,6 +19,8 @@ public class KanbanBoard {
     private String status;
     private LocalDateTime printedAt;
     private LocalDateTime receivedAt;
+    private Long lockedByOrderId;
+    private Long lockedByOrderLineId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -92,6 +94,22 @@ public class KanbanBoard {
 
     public void setReceivedAt(LocalDateTime receivedAt) {
         this.receivedAt = receivedAt;
+    }
+
+    public Long getLockedByOrderId() {
+        return lockedByOrderId;
+    }
+
+    public void setLockedByOrderId(Long lockedByOrderId) {
+        this.lockedByOrderId = lockedByOrderId;
+    }
+
+    public Long getLockedByOrderLineId() {
+        return lockedByOrderLineId;
+    }
+
+    public void setLockedByOrderLineId(Long lockedByOrderLineId) {
+        this.lockedByOrderLineId = lockedByOrderLineId;
     }
 
     public LocalDateTime getCreatedAt() {

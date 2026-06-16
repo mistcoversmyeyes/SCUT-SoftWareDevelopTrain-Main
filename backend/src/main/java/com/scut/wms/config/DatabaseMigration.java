@@ -57,6 +57,32 @@ public class DatabaseMigration implements CommandLineRunner {
                     "supplier", "id", "fk_inbound_line_supplier");
             alterColumnNullable(conn, "inbound_order", "supplier_id",
                     "BIGINT DEFAULT NULL");
+
+            // 出库单行增加目标仓库/库位列（带单出库）
+            ensureColumn(conn, "outbound_order_line", "target_warehouse_id",
+                    "BIGINT DEFAULT NULL");
+            ensureColumn(conn, "outbound_order_line", "target_location_id",
+                    "BIGINT DEFAULT NULL");
+
+            // 库位最大容量
+            ensureColumn(conn, "storage_location", "max_capacity",
+                    "DECIMAL(10,2) DEFAULT NULL");
+
+            // ====== 锁货功能迁移 ======
+            ensureLockTable(conn);
+
+            ensureColumn(conn, "kanban_board", "locked_by_order_id",
+                    "BIGINT DEFAULT NULL");
+            ensureColumn(conn, "kanban_board", "locked_by_order_line_id",
+                    "BIGINT DEFAULT NULL");
+
+            ensureColumn(conn, "inventory_movement", "force_outbound",
+                    "TINYINT(1) NOT NULL DEFAULT 0");
+            ensureColumn(conn, "inventory_movement", "force_remark",
+                    "VARCHAR(255) DEFAULT NULL");
+
+            ensureColumn(conn, "outbound_order", "qrcode",
+                    "VARCHAR(255) DEFAULT NULL");
         } catch (Exception e) {
             log.warn("数据库列迁移失败（不影响已有功能）: {}", e.getMessage());
         }
@@ -158,6 +184,45 @@ public class DatabaseMigration implements CommandLineRunner {
                 """.formatted(table, fkName);
         try (Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
+            return rs.next();
+        }
+    }
+
+    private void ensureLockTable(Connection conn) throws Exception {
+        if (tableExists(conn, "inventory_lock")) {
+            return;
+        }
+        String sql = """
+                CREATE TABLE inventory_lock (
+                  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                  outbound_order_id BIGINT NOT NULL,
+                  outbound_order_line_id BIGINT NOT NULL,
+                  kanban_board_id BIGINT NOT NULL,
+                  material_id BIGINT NOT NULL,
+                  lock_qty DECIMAL(18, 3) NOT NULL,
+                  status VARCHAR(32) NOT NULL DEFAULT 'LOCKED',
+                  stolen_by_order_id BIGINT DEFAULT NULL,
+                  stolen_at DATETIME DEFAULT NULL,
+                  unlocked_at DATETIME DEFAULT NULL,
+                  unlocked_by VARCHAR(64) DEFAULT NULL,
+                  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                  CONSTRAINT fk_lock_order FOREIGN KEY (outbound_order_id) REFERENCES outbound_order(id),
+                  CONSTRAINT fk_lock_line FOREIGN KEY (outbound_order_line_id) REFERENCES outbound_order_line(id),
+                  CONSTRAINT fk_lock_kanban FOREIGN KEY (kanban_board_id) REFERENCES kanban_board(id),
+                  INDEX idx_lock_order (outbound_order_id),
+                  INDEX idx_lock_kanban (kanban_board_id),
+                  INDEX idx_lock_status (status)
+                )
+                """;
+        log.info("迁移: CREATE TABLE inventory_lock");
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+        }
+    }
+
+    private boolean tableExists(Connection conn, String tableName) throws Exception {
+        DatabaseMetaData meta = conn.getMetaData();
+        try (ResultSet rs = meta.getTables(null, null, tableName, null)) {
             return rs.next();
         }
     }

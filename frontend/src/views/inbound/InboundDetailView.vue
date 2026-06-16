@@ -7,6 +7,7 @@
           <div class="toolbar-actions">
             <el-button size="default" @click="handleCopy">复制单号</el-button>
             <el-button type="primary" size="default" @click="handlePrint">打印</el-button>
+            <el-button type="success" size="default" @click="handleSaveImage">保存为图片</el-button>
           </div>
         </div>
       </template>
@@ -14,6 +15,7 @@
       <el-alert v-if="errorMessage" type="error" :title="errorMessage" show-icon :closable="false" />
 
       <template v-if="order">
+        <div ref="detailAreaRef" class="detail-area">
         <el-descriptions :column="2" border>
           <el-descriptions-item label="入库单号">{{ order.inboundNo }}</el-descriptions-item>
           <el-descriptions-item label="供应商（主）">
@@ -46,6 +48,7 @@
           <el-table-column prop="warehouseName" label="仓库" min-width="180" />
           <el-table-column prop="locationName" label="库位" min-width="180" />
         </el-table>
+        </div>
       </template>
 
       <el-empty v-else-if="!loading && !errorMessage" description="暂无数据" />
@@ -56,6 +59,7 @@
 <script setup>
 import { computed, onBeforeMount, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { saveAsImage } from '../../composables/useSaveImage'
 import { ElMessage } from 'element-plus'
 import { fetchInboundOrderById } from '../../api/inbound'
 
@@ -63,6 +67,7 @@ const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const errorMessage = ref('')
+const detailAreaRef = ref(null)
 const order = ref(null)
 
 const statusMap = {
@@ -145,6 +150,14 @@ function handleCopy() {
 function handlePrint() {
   const id = getInboundId()
   router.push('/inbound/' + id + '/print')
+}
+
+async function handleSaveImage() {
+  if (!detailAreaRef.value) { ElMessage.error('未找到详情内容'); return }
+  try {
+    await saveAsImage(detailAreaRef.value, order.value?.inboundNo || '入库单')
+    ElMessage.success('已保存为图片')
+  } catch { ElMessage.error('保存失败') }
 }
 
 onBeforeMount(() => {

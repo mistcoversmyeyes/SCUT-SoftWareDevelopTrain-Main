@@ -14,6 +14,7 @@ public class OutboundOrder {
     public static final String COMPLETED = "COMPLETED";
     public static final String CANCELLED = "CANCELLED";
     public static final String PICKING = "PICKING";
+    public static final String LOCKED = "LOCKED";
 
     @TableId(type = IdType.AUTO)
     private Long id;
@@ -22,6 +23,7 @@ public class OutboundOrder {
     private String purpose;
     private String sourceDocNo;
     private String status;
+    private String qrcode;
     private String remark;
     private LocalDateTime releasedAt;
     private LocalDateTime completedAt;
@@ -40,6 +42,8 @@ public class OutboundOrder {
     public void setSourceDocNo(String sourceDocNo) { this.sourceDocNo = sourceDocNo; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    public String getQrcode() { return qrcode; }
+    public void setQrcode(String qrcode) { this.qrcode = qrcode; }
     public String getRemark() { return remark; }
     public void setRemark(String remark) { this.remark = remark; }
     public LocalDateTime getReleasedAt() { return releasedAt; }

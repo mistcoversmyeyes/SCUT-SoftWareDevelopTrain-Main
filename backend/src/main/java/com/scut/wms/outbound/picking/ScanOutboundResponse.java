@@ -13,6 +13,6 @@ public record ScanOutboundResponse(
         LocalDateTime occurredAt,
         Long outboundOrderId,
         Long outboundOrderLineId,
+        String outboundNo,
         String orderStatus
-) {
-}
+) {}

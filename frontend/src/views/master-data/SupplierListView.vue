@@ -71,17 +71,17 @@
       <el-empty v-if="!loading && !suppliers.length" description="暂无供应商" />
     </el-card>
 
-    <el-drawer
-      v-model:visible="drawerVisible"
+    <el-dialog
+      v-model="drawerVisible"
       :title="drawerMode === 'create' ? '新建供应商' : '编辑供应商'"
-      size="400px"
+      width="500px"
+      top="6vh"
     >
       <el-form
         ref="formRef"
         :model="form"
         :rules="formRules"
         label-width="100px"
-        label-position="top"
       >
         <el-form-item label="供应商编码" prop="supplierCode">
           <el-input v-model="form.supplierCode" placeholder="请输入供应商编码" />
@@ -104,12 +104,10 @@
       </el-form>
 
       <template #footer>
-        <el-space>
-          <el-button @click="drawerVisible = false">取消</el-button>
-          <el-button type="primary" :loading="saving" @click="handleSave">保存</el-button>
-        </el-space>
+        <el-button @click="drawerVisible = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="handleSave">保存</el-button>
       </template>
-    </el-drawer>
+    </el-dialog>
   </section>
 </template>
 
@@ -146,13 +144,9 @@ const formRules = {
 }
 
 function formatDateTime(value) {
-  if (!value) {
-    return '—'
-  }
+  if (!value) return '—'
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return value
-  }
+  if (Number.isNaN(date.getTime())) return value
   return date.toLocaleString()
 }
 
@@ -164,8 +158,7 @@ async function loadSuppliers() {
       supplierCode: query.supplierCode || undefined,
       supplierName: query.supplierName || undefined
     }
-    const list = await fetchSuppliers(payload)
-    suppliers.value = list
+    suppliers.value = await fetchSuppliers(payload)
   } catch (error) {
     loadError.value = error.response?.data?.message || '供应商列表加载失败'
     suppliers.value = []
@@ -208,9 +201,7 @@ function openEditDrawer(row) {
 
 async function handleSave() {
   const valid = await formRef.value.validate().catch(() => false)
-  if (!valid) {
-    return
-  }
+  if (!valid) return
   saving.value = true
   try {
     const payload = {
@@ -237,11 +228,10 @@ async function handleSave() {
 }
 
 async function handleStatusChange(row, val) {
-  const newStatus = val ? 'ACTIVE' : 'INACTIVE'
   row._statusLoading = true
   try {
-    await updateSupplierStatus(row.id, newStatus)
-    ElMessage.success(newStatus === 'ACTIVE' ? '供应商已启用' : '供应商已停用')
+    await updateSupplierStatus(row.id, val ? 'ACTIVE' : 'INACTIVE')
+    ElMessage.success(val ? '供应商已启用' : '供应商已停用')
     await loadSuppliers()
   } catch (error) {
     ElMessage.error(error.response?.data?.message || '状态更新失败')
@@ -250,31 +240,13 @@ async function handleStatusChange(row, val) {
   }
 }
 
-onMounted(() => {
-  loadSuppliers()
-})
+onMounted(() => { loadSuppliers() })
 </script>
 
 <style scoped>
-.supplier-page :deep(.el-card__body) {
-  padding-top: 12px;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.card-header h2 {
-  margin: 0;
-}
-
-.filter-form {
-  margin-bottom: 16px;
-}
-
-.data-table {
-  min-height: 260px;
-}
+.supplier-page :deep(.el-card__body) { padding-top: 12px; }
+.card-header { display: flex; justify-content: space-between; align-items: center; }
+.card-header h2 { margin: 0; }
+.filter-form { margin-bottom: 16px; }
+.data-table { min-height: 260px; }
 </style>

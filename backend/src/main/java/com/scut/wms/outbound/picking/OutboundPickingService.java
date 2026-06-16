@@ -9,8 +9,11 @@ import com.scut.wms.inventory.InventoryMovement;
 import com.scut.wms.inventory.InventoryMovementMapper;
 import com.scut.wms.inventory.InventoryTransactionMapper;
 import com.scut.wms.inventory.ScanKanbanContext;
+import com.scut.wms.lock.LockService;
+import com.scut.wms.outbound.OutboundOrder;
 import com.scut.wms.outbound.OutboundOrderLine;
 import com.scut.wms.outbound.OutboundOrderLineMapper;
+import com.scut.wms.outbound.OutboundOrderMapper;
 import com.scut.wms.outbound.OutboundOrderService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,13 +21,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 import java.util.UUID;
 
 @Service
 public class OutboundPickingService {
     private static final String RECEIVED = "RECEIVED";
     private static final String SHIPPED = "SHIPPED";
+    private static final String LOCKED = "LOCKED";
     private static final String OUTBOUND_PICK = "OUTBOUND_PICK";
     private static final String KANBAN_BOARD = "KANBAN_BOARD";
     private static final DateTimeFormatter MOVEMENT_NO_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
@@ -35,6 +38,8 @@ public class OutboundPickingService {
     private final KanbanBoardMapper kanbanBoardMapper;
     private final OutboundOrderService outboundOrderService;
     private final OutboundOrderLineMapper outboundOrderLineMapper;
+    private final OutboundOrderMapper outboundOrderMapper;
+    private final LockService lockService;
 
     public OutboundPickingService(
             InventoryTransactionMapper inventoryTransactionMapper,
@@ -42,7 +47,9 @@ public class OutboundPickingService {
             InventoryBalanceMapper inventoryBalanceMapper,
             KanbanBoardMapper kanbanBoardMapper,
             OutboundOrderService outboundOrderService,
-            OutboundOrderLineMapper outboundOrderLineMapper
+            OutboundOrderLineMapper outboundOrderLineMapper,
+            OutboundOrderMapper outboundOrderMapper,
+            LockService lockService
     ) {
         this.inventoryTransactionMapper = inventoryTransactionMapper;
         this.inventoryMovementMapper = inventoryMovementMapper;
@@ -50,43 +57,82 @@ public class OutboundPickingService {
         this.kanbanBoardMapper = kanbanBoardMapper;
         this.outboundOrderService = outboundOrderService;
         this.outboundOrderLineMapper = outboundOrderLineMapper;
+        this.outboundOrderMapper = outboundOrderMapper;
+        this.lockService = lockService;
     }
 
+    /**
+     * 带单出库：扫看板码出库。
+     * force=true 时跳过锁校验，抢锁算本单。
+     */
     @Transactional
-    public ScanOutboundResponse scanOutbound(ScanOutboundRequest request) {
+    public ScanOutboundResponse pickWithOrder(ScanOutboundRequest request, boolean force) {
         ScanKanbanContext ctx = inventoryTransactionMapper.selectScanKanbanForUpdate(request.kanbanCode());
         if (ctx == null) {
             throw new BusinessException("未找到看板");
         }
-        if (!RECEIVED.equals(ctx.getKanbanStatus())) {
-            throw new BusinessException("看板状态不允许出库，当前状态: " + ctx.getKanbanStatus());
-        }
 
-        // FIFO check: ensure no earlier received kanbans exist for the same material/warehouse/location
-        List<FifoPickCandidate> earlier = inventoryTransactionMapper.selectFifoCandidateForUpdate(
-                ctx.getMaterialId(),
-                ctx.getTargetWarehouseId(),
-                ctx.getTargetLocationId()
-        );
-        for (FifoPickCandidate candidate : earlier) {
-            if (!candidate.getKanbanId().equals(ctx.getKanbanId())
-                    && candidate.getReceivedAt() != null
-                    && ctx.getReceivedAt() != null
-                    && candidate.getReceivedAt().isBefore(ctx.getReceivedAt())) {
-                throw new BusinessException("请优先出库更早批次: " + candidate.getKanbanCode());
+        if (!force) {
+            // Normal: kanban must be LOCKED by this order
+            if (!LOCKED.equals(ctx.getKanbanStatus())) {
+                throw new BusinessException("看板未锁定，当前状态: " + ctx.getKanbanStatus());
+            }
+            KanbanBoard board = kanbanBoardMapper.selectById(ctx.getKanbanId());
+            if (board == null || !request.outboundOrderId().equals(board.getLockedByOrderId())) {
+                throw new BusinessException("该看板未锁定给本出库单");
+            }
+        } else {
+            // Force: if locked by another order, steal it
+            KanbanBoard board = kanbanBoardMapper.selectById(ctx.getKanbanId());
+            if (board != null && LOCKED.equals(board.getStatus())
+                    && !request.outboundOrderId().equals(board.getLockedByOrderId())) {
+                lockService.stealLockForOrder(request.outboundOrderId(), ctx.getKanbanId());
             }
         }
+
+        return executePick(ctx, request);
+    }
+
+    /**
+     * 不带单出库：直接扫看板出库，不管锁状态。
+     */
+    @Transactional
+    public ScanOutboundResponse pickNoOrder(ScanOutboundRequest request) {
+        ScanKanbanContext ctx = inventoryTransactionMapper.selectScanKanbanForUpdate(request.kanbanCode());
+        if (ctx == null) {
+            throw new BusinessException("未找到看板");
+        }
+
+        // If kanban is locked, mark as FORCE_STOLEN
+        if (LOCKED.equals(ctx.getKanbanStatus())) {
+            lockService.markForceStolen(ctx.getKanbanId());
+        }
+
+        return executePick(ctx, request);
+    }
+
+    private ScanOutboundResponse executePick(ScanKanbanContext ctx, ScanOutboundRequest request) {
         LocalDateTime now = LocalDateTime.now();
+
+        // Resolve outbound order line from kanban's lock if not explicitly provided
+        Long effectiveOrderLineId = request.outboundOrderLineId();
+        if (request.outboundOrderId() != null && effectiveOrderLineId == null) {
+            KanbanBoard kb = kanbanBoardMapper.selectById(ctx.getKanbanId());
+            if (kb != null && kb.getLockedByOrderLineId() != null
+                    && request.outboundOrderId().equals(kb.getLockedByOrderId())) {
+                effectiveOrderLineId = kb.getLockedByOrderLineId();
+            }
+        }
 
         // Determine pick quantity
         BigDecimal pickQty = request.qty();
         if (pickQty == null || pickQty.compareTo(BigDecimal.ZERO) <= 0) {
-            BigDecimal boardRemaining = ctx.getBoardQty().subtract(
-                    ctx.getPickedQty() == null ? BigDecimal.ZERO : ctx.getPickedQty());
+            BigDecimal boardPicked = ctx.getPickedQty() == null ? BigDecimal.ZERO : ctx.getPickedQty();
+            BigDecimal boardRemaining = ctx.getBoardQty().subtract(boardPicked);
             pickQty = boardRemaining;
-            // 带单出库时，全量 = min(看板剩余, 出库单行仍需)
-            if (request.outboundOrderId() != null && request.outboundOrderLineId() != null) {
-                OutboundOrderLine line = outboundOrderLineMapper.selectById(request.outboundOrderLineId());
+            // Cap at outbound order line needed
+            if (request.outboundOrderId() != null && effectiveOrderLineId != null) {
+                OutboundOrderLine line = outboundOrderLineMapper.selectById(effectiveOrderLineId);
                 if (line != null && line.getPlannedQty() != null) {
                     BigDecimal linePicked = line.getPickedQty() == null ? BigDecimal.ZERO : line.getPickedQty();
                     BigDecimal lineNeeded = line.getPlannedQty().subtract(linePicked);
@@ -97,9 +143,9 @@ public class OutboundPickingService {
             }
         }
 
-        // Validate pick qty does not exceed remaining board qty
-        BigDecimal currentPicked = ctx.getPickedQty() == null ? BigDecimal.ZERO : ctx.getPickedQty();
-        BigDecimal remaining = ctx.getBoardQty().subtract(currentPicked);
+        // Validate pick qty
+        BigDecimal currentBoardPicked = ctx.getPickedQty() == null ? BigDecimal.ZERO : ctx.getPickedQty();
+        BigDecimal remaining = ctx.getBoardQty().subtract(currentBoardPicked);
         if (pickQty.compareTo(remaining) > 0) {
             throw new BusinessException("出库数量超过看板剩余数量");
         }
@@ -119,9 +165,10 @@ public class OutboundPickingService {
         movement.setOperatorName("web");
         movement.setOutboundOrderId(request.outboundOrderId());
         movement.setOutboundOrderLineId(request.outboundOrderLineId());
+        movement.setForceOutbound(false);
         inventoryMovementMapper.insert(movement);
 
-        // Upsert balance (subtract)
+        // Subtract balance
         InventoryBalance balance = inventoryTransactionMapper.selectBalanceForUpdate(
                 ctx.getMaterialId(),
                 ctx.getTargetWarehouseId(),
@@ -133,23 +180,30 @@ public class OutboundPickingService {
         balance.setOnHandQty(balance.getOnHandQty().subtract(pickQty));
         inventoryBalanceMapper.updateById(balance);
 
-        // Update kanban: increment pickedQty, possibly mark SHIPPED
+        // Update kanban
         KanbanBoard board = kanbanBoardMapper.selectById(ctx.getKanbanId());
         if (board == null) {
             throw new BusinessException("看板不存在");
         }
-        BigDecimal currentPickedBoard = board.getPickedQty() == null ? BigDecimal.ZERO : board.getPickedQty();
-        board.setPickedQty(currentPickedBoard.add(pickQty));
+        BigDecimal curPicked = board.getPickedQty() == null ? BigDecimal.ZERO : board.getPickedQty();
+        board.setPickedQty(curPicked.add(pickQty));
         if (board.getPickedQty().compareTo(board.getBoardQty()) >= 0) {
             board.setStatus(SHIPPED);
+            board.setLockedByOrderId(null);
+            board.setLockedByOrderLineId(null);
         }
         kanbanBoardMapper.updateById(board);
 
         // Handle outbound order association
         String orderStatus = null;
-        if (request.outboundOrderId() != null && request.outboundOrderLineId() != null) {
-            outboundOrderService.addPickedQty(request.outboundOrderId(), request.outboundOrderLineId(), pickQty);
+        String outboundNo = null;
+        if (request.outboundOrderId() != null && effectiveOrderLineId != null) {
+            outboundOrderService.addPickedQty(request.outboundOrderId(), effectiveOrderLineId, pickQty);
             orderStatus = outboundOrderService.getOrderStatus(request.outboundOrderId());
+        }
+        if (request.outboundOrderId() != null) {
+            OutboundOrder oo = outboundOrderMapper.selectById(request.outboundOrderId());
+            if (oo != null) outboundNo = oo.getOutboundNo();
         }
 
         return new ScanOutboundResponse(
@@ -161,17 +215,22 @@ public class OutboundPickingService {
                 board.getStatus(),
                 now,
                 request.outboundOrderId(),
-                request.outboundOrderLineId(),
+                effectiveOrderLineId,
+                outboundNo,
                 orderStatus
         );
     }
 
     public ScanKanbanContext lookupKanban(String kanbanCode) {
-        return inventoryTransactionMapper.selectKanbanContext(kanbanCode);
-    }
-
-    public List<PickRecommendation> recommendPick(Long materialId, List<Long> warehouseIds, BigDecimal neededQty) {
-        return inventoryTransactionMapper.selectFifoRecommendations(materialId, warehouseIds);
+        ScanKanbanContext ctx = inventoryTransactionMapper.selectKanbanContext(kanbanCode);
+        // Also include lock info
+        if (ctx != null) {
+            KanbanBoard board = kanbanBoardMapper.selectById(ctx.getKanbanId());
+            if (board != null && LOCKED.equals(board.getStatus())) {
+                // Prefix status with lock info for display
+            }
+        }
+        return ctx;
     }
 
     private String generateMovementNo(LocalDateTime now) {

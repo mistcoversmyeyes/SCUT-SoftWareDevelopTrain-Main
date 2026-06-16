@@ -1,5 +1,6 @@
 package com.scut.wms.outbound;
 
+import com.scut.wms.lock.LockService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,9 +17,11 @@ import java.util.List;
 @RequestMapping("/api/outbound-orders")
 public class OutboundOrderController {
     private final OutboundOrderService service;
+    private final LockService lockService;
 
-    public OutboundOrderController(OutboundOrderService service) {
+    public OutboundOrderController(OutboundOrderService service, LockService lockService) {
         this.service = service;
+        this.lockService = lockService;
     }
 
     @GetMapping
@@ -45,24 +48,14 @@ public class OutboundOrderController {
         return service.update(id, request);
     }
 
-    @PostMapping("/{id}/release")
-    public OutboundOrderResponse release(@PathVariable Long id) {
-        return service.release(id);
-    }
-
     @PostMapping("/{id}/cancel")
     public OutboundOrderResponse cancel(@PathVariable Long id) {
+        // Release locks before cancelling
+        OutboundOrderResponse order = service.getById(id);
+        if (OutboundOrder.LOCKED.equals(order.status())) {
+            lockService.releaseOrderLocks(id);
+        }
         return service.cancel(id);
-    }
-
-    @PostMapping("/{id}/start-picking")
-    public OutboundOrderResponse startPicking(@PathVariable Long id) {
-        return service.startPicking(id);
-    }
-
-    @PostMapping("/{id}/suspend")
-    public OutboundOrderResponse suspendPicking(@PathVariable Long id) {
-        return service.suspendPicking(id);
     }
 
     @GetMapping("/{id}/print")

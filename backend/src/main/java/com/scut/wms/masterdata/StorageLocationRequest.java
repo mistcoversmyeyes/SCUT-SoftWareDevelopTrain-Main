@@ -4,6 +4,7 @@ public record StorageLocationRequest(
         Long warehouseId,
         String locationCode,
         String locationName,
-        String status
+        String status,
+        java.math.BigDecimal maxCapacity
 ) {
 }

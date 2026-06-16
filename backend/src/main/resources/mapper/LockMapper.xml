@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scut.wms.lock.InventoryLockMapper">
+
+    <select id="selectLockOrderSummaries" resultType="com.scut.wms.lock.LockOrderSummary">
+        SELECT oo.id AS outboundOrderId,
+               oo.outbound_no AS outboundNo,
+               COALESCE(s.supplier_name, '') AS supplierName,
+               oo.status,
+               COALESCE(SUM(il.lock_qty), 0) AS totalLockQty,
+               COALESCE(SUM(ol.picked_qty), 0) AS totalPickedQty,
+               COALESCE(MAX(CASE WHEN il.status = 'FORCE_STOLEN' THEN 1 ELSE 0 END), 0) = 1 AS hasForceStolen,
+               oo.created_at AS createdAt
+        FROM outbound_order oo
+                 INNER JOIN inventory_lock il ON il.outbound_order_id = oo.id
+                 LEFT JOIN outbound_order_line ol ON ol.id = il.outbound_order_line_id
+                 LEFT JOIN supplier s ON s.id = oo.supplier_id
+        WHERE 1=1
+            <if test="outboundNo != null and outboundNo != ''">
+                AND oo.outbound_no LIKE CONCAT('%', #{outboundNo}, '%')
+            </if>
+            <if test="materialCode != null and materialCode != ''">
+                AND EXISTS (
+                    SELECT 1 FROM material m WHERE m.id = il.material_id AND m.material_code LIKE CONCAT('%', #{materialCode}, '%')
+                )
+            </if>
+            <if test="status != null and status != ''">
+                AND il.status = #{status}
+            </if>
+        GROUP BY oo.id, oo.outbound_no, s.supplier_name, oo.status, oo.created_at
+        ORDER BY oo.created_at DESC
+    </select>
+
+    <select id="selectLockDetails" resultType="com.scut.wms.lock.LockDetailView">
+        SELECT il.id AS lockId,
+               kb.kanban_code AS kanbanCode,
+               m.material_code AS materialCode,
+               m.material_name AS materialName,
+               sl.location_name AS locationName,
+               il.lock_qty AS lockQty,
+               il.status AS lockStatus,
+               il.outbound_order_line_id AS lineNo,
+               COALESCE(sbo.outbound_no, '') AS stolenByOutboundNo,
+               il.stolen_at AS stolenAt,
+               il.unlocked_at AS unlockedAt,
+               COALESCE(il.unlocked_by, '') AS unlockedBy
+        FROM inventory_lock il
+                 JOIN kanban_board kb ON kb.id = il.kanban_board_id
+                 JOIN material m ON m.id = il.material_id
+                 JOIN inbound_order_line iol ON iol.id = kb.inbound_order_line_id
+                 JOIN storage_location sl ON sl.id = iol.target_location_id
+                 LEFT JOIN outbound_order sbo ON sbo.id = il.stolen_by_order_id
+        WHERE il.outbound_order_id = #{outboundOrderId}
+        ORDER BY il.id ASC
+    </select>
+
+    <select id="selectForceLogs" resultType="com.scut.wms.lock.ForceLogView">
+        SELECT kb.kanban_code AS kanbanCode,
+               m.material_code AS materialCode,
+               m.material_name AS materialName,
+               il.lock_qty AS qty,
+               COALESCE(oo.outbound_no, '') AS originalOutboundNo,
+               COALESCE(sbo.outbound_no, '') AS stolenByOutboundNo,
+               il.stolen_at AS stolenAt
+        FROM inventory_lock il
+                 JOIN kanban_board kb ON kb.id = il.kanban_board_id
+                 JOIN material m ON m.id = il.material_id
+                 LEFT JOIN outbound_order oo ON oo.id = il.outbound_order_id
+                 LEFT JOIN outbound_order sbo ON sbo.id = il.stolen_by_order_id
+        WHERE il.status = 'FORCE_STOLEN'
+            <if test="outboundNo != null and outboundNo != ''">
+                AND (oo.outbound_no LIKE CONCAT('%', #{outboundNo}, '%')
+                     OR sbo.outbound_no LIKE CONCAT('%', #{outboundNo}, '%'))
+            </if>
+        ORDER BY il.stolen_at DESC
+    </select>
+
+    <select id="selectByKanbanForUpdate" resultType="com.scut.wms.lock.InventoryLock">
+        SELECT id, outbound_order_id, outbound_order_line_id, kanban_board_id,
+               material_id, lock_qty, status, stolen_by_order_id, stolen_at,
+               unlocked_at, unlocked_by, created_at
+        FROM inventory_lock
+        WHERE kanban_board_id = #{kanbanBoardId}
+          AND status = 'LOCKED'
+        FOR UPDATE
+    </select>
+
+    <select id="selectByOrderLineForUpdate" resultType="com.scut.wms.lock.InventoryLock">
+        SELECT id, outbound_order_id, outbound_order_line_id, kanban_board_id,
+               material_id, lock_qty, status, stolen_by_order_id, stolen_at,
+               unlocked_at, unlocked_by, created_at
+        FROM inventory_lock
+        WHERE outbound_order_id = #{outboundOrderId}
+          AND outbound_order_line_id = #{outboundOrderLineId}
+          AND status = 'LOCKED'
+        FOR UPDATE
+    </select>
+
+</mapper>

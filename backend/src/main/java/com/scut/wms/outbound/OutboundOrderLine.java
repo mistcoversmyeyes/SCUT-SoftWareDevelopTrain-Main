@@ -17,6 +17,8 @@ public class OutboundOrderLine {
     private Long supplierId;
     private BigDecimal plannedQty;
     private BigDecimal pickedQty;
+    private Long targetWarehouseId;
+    private Long targetLocationId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -34,6 +36,10 @@ public class OutboundOrderLine {
     public void setPlannedQty(BigDecimal plannedQty) { this.plannedQty = plannedQty; }
     public BigDecimal getPickedQty() { return pickedQty; }
     public void setPickedQty(BigDecimal pickedQty) { this.pickedQty = pickedQty; }
+    public Long getTargetWarehouseId() { return targetWarehouseId; }
+    public void setTargetWarehouseId(Long targetWarehouseId) { this.targetWarehouseId = targetWarehouseId; }
+    public Long getTargetLocationId() { return targetLocationId; }
+    public void setTargetLocationId(Long targetLocationId) { this.targetLocationId = targetLocationId; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

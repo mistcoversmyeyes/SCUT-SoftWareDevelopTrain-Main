@@ -24,6 +24,8 @@ public class InventoryMovement {
     private String operatorName;
     private Long outboundOrderId;
     private Long outboundOrderLineId;
+    private Boolean forceOutbound;
+    private String forceRemark;
     private LocalDateTime createdAt;
 
     public Long getId() {
@@ -136,6 +138,22 @@ public class InventoryMovement {
 
     public void setOutboundOrderLineId(Long outboundOrderLineId) {
         this.outboundOrderLineId = outboundOrderLineId;
+    }
+
+    public Boolean getForceOutbound() {
+        return forceOutbound;
+    }
+
+    public void setForceOutbound(Boolean forceOutbound) {
+        this.forceOutbound = forceOutbound;
+    }
+
+    public String getForceRemark() {
+        return forceRemark;
+    }
+
+    public void setForceRemark(String forceRemark) {
+        this.forceRemark = forceRemark;
     }
 
     public LocalDateTime getCreatedAt() {

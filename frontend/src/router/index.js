@@ -20,9 +20,12 @@ import OutboundOrderListView from '../views/outbound/OutboundOrderListView.vue'
 import OutboundScanView from '../views/outbound/OutboundScanView.vue'
 import OutboundDetailView from '../views/outbound/OutboundDetailView.vue'
 import OutboundHistoryView from '../views/outbound/OutboundHistoryView.vue'
-import OutboundPickingView from '../views/outbound/OutboundPickingView.vue'
+import OutboundPickWithOrderView from '../views/outbound/OutboundPickWithOrderView.vue'
+import OutboundPickNoOrderView from '../views/outbound/OutboundPickNoOrderView.vue'
+import OutboundLockView from '../views/outbound/OutboundLockView.vue'
 import InventoryBalanceView from '../views/inventory/InventoryBalanceView.vue'
 import InventoryTraceView from '../views/inventory/InventoryTraceView.vue'
+import InventoryOverviewView from '../views/inventory/InventoryOverviewView.vue'
 import KanbanListView from '../views/kanban/KanbanListView.vue'
 import KanbanTraceView from '../views/kanban/KanbanTraceView.vue'
 import PlaceholderPage from '../views/PlaceholderPage.vue'
@@ -39,9 +42,13 @@ const pageByKey = {
   'inbound-history': InboundHistoryView,
   'outbound-orders': OutboundOrderListView,
   'outbound-scan': OutboundScanView,
+  'outbound-pick-with-order': OutboundPickWithOrderView,
+  'outbound-pick-no-order': OutboundPickNoOrderView,
+  'outbound-locks': OutboundLockView,
   'outbound-history': OutboundHistoryView,
   'inventory-balances': InventoryBalanceView,
   'inventory-trace': InventoryTraceView,
+  'inventory-overview': InventoryOverviewView,
   'kanbans-list': KanbanListView,
   'kanbans-trace': KanbanTraceView
 }
@@ -73,16 +80,16 @@ const routes = [
       }
     }).concat([
       {
+        path: 'outbound/scan',
+        name: 'outbound-scan',
+        component: OutboundScanView,
+        meta: { requiresAuth: true, tabKey: 'outbound-scan', title: '出库扫码' }
+      },
+      {
         path: 'outbound/:id',
         name: 'outbound-detail',
         component: OutboundDetailView,
         meta: { requiresAuth: true, tabKey: 'outbound-detail', title: '出库单详情' }
-      },
-      {
-        path: 'outbound/:id/picking',
-        name: 'outbound-picking',
-        component: OutboundPickingView,
-        meta: { requiresAuth: true, tabKey: 'outbound-picking', title: '出库拣货' }
       },
       {
         path: 'inbound/:id/print',
@@ -113,7 +120,7 @@ const routes = [
         name: 'kanban-detail',
         component: KanbanDetailView,
         meta: { requiresAuth: true, tabKey: 'kanban-detail', title: '看板详情' }
-      }
+      },
     ])
   },
   {

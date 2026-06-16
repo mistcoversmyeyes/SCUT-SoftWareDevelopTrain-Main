@@ -25,12 +25,18 @@ export const menuItems = [
   { key: 'outbound', title: '出库管理', icon: Van, children: [
       { key: 'outbound-orders', title: '出库单', path: '/outbound/orders',
         description: '处理生产领料、退货等出库业务。', fields: ['出库单号', '出库用途'] },
-      { key: 'outbound-scan', title: '出库扫码', path: '/outbound/scan',
-        description: '扫描看板码执行 FIFO 出库拣货。', fields: ['看板码', '拣货结果'] },
+      { key: 'outbound-pick-with-order', title: '带单出库', path: '/outbound/pick-with-order',
+        description: '扫描出库单二维码，按锁定指引执行 FIFO 拣货。', fields: ['出库单号', '锁定物料'] },
+      { key: 'outbound-pick-no-order', title: '不带单出库', path: '/outbound/pick-no-order',
+        description: '直接扫描看板码出库（强制出库）。', fields: ['看板码'] },
+      { key: 'outbound-locks', title: '锁货管理', path: '/outbound/locks',
+        description: '查看、解锁、重新分配出库锁定记录。', fields: ['出库单号', '锁状态'] },
       { key: 'outbound-history', title: '出库历史', path: '/outbound/history',
         description: '查看已完成和已取消的出库单记录。', fields: ['出库单号', '完成时间'] }
     ]},
   { key: 'inventory', title: '库存监控', icon: DataAnalysis, children: [
+      { key: 'inventory-overview', title: '库存总览', path: '/inventory/overview',
+        description: '库位使用率与物料充足性总览仪表盘。', fields: ['库位容量', '物料库存'] },
       { key: 'inventory-balances', title: '当前库存', path: '/inventory/balances',
         description: '按物料、仓库和库位查看当前库存。', fields: ['物料', '仓库', '库位'] },
       { key: 'inventory-trace', title: '库存追溯', path: '/inventory/trace',

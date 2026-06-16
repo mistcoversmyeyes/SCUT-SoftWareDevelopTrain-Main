@@ -14,6 +14,7 @@ public class StorageLocation {
     private String locationCode;
     private String locationName;
     private String status;
+    private java.math.BigDecimal maxCapacity;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -55,6 +56,14 @@ public class StorageLocation {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public java.math.BigDecimal getMaxCapacity() {
+        return maxCapacity;
+    }
+
+    public void setMaxCapacity(java.math.BigDecimal maxCapacity) {
+        this.maxCapacity = maxCapacity;
     }
 
     public LocalDateTime getCreatedAt() {

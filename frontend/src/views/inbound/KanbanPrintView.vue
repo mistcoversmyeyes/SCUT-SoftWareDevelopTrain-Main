@@ -2,7 +2,12 @@
   <section class="module-shell">
     <div class="toolbar">
       <h2>看板打印</h2>
-      <el-button type="primary" size="default" :loading="loading" @click="printAll">全部打印</el-button>
+      <div class="toolbar-actions">
+        <el-button size="default" :disabled="selectedKanbans.length === 0" @click="printSelected">
+          批量打印选中 ({{ selectedKanbans.length }})
+        </el-button>
+        <el-button type="primary" size="default" :loading="loading" @click="printAll">全部打印</el-button>
+      </div>
     </div>
 
     <el-alert v-if="errorMessage" type="error" :title="errorMessage" show-icon :closable="false" />
@@ -13,8 +18,9 @@
         :key="kanban.kanbanCode"
         class="kanban-row"
       >
+        <el-checkbox v-model="kanban._checked" class="no-print kanban-check" />
         <article
-          :class="['kanban-card', { 'printing-card': printingIndex === i }]"
+          :class="['kanban-card', { 'printing-card': isPrintable(kanban, i) }]"
         >
           <div class="card-left">
             <div class="card-header-row">
@@ -52,6 +58,7 @@
           @click="receiveOne(i, kanban)"
         >一键入库</el-button>
         <el-button size="small" @click="printOne(i)">打印此卡</el-button>
+        <el-button size="small" type="success" @click="saveOne(i, kanban)">保存为图片</el-button>
       </div>
     </div>
     </div>
@@ -59,12 +66,13 @@
 </template>
 
 <script setup>
-import { onBeforeMount, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeMount, onBeforeUnmount, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import QRCode from 'qrcode'
 import { printKanbans } from '../../api/inbound'
 import { scanInbound } from '../../api/inventory'
+import { saveAsImage } from '../../composables/useSaveImage'
 
 const route = useRoute()
 const loading = ref(false)
@@ -72,6 +80,7 @@ const errorMessage = ref('')
 const kanbans = ref([])
 const qrCodes = ref({})
 const printingIndex = ref(-1)
+const printingMode = ref('all')
 const receiving = ref(-1)
 
 function getInboundId() {
@@ -125,9 +134,51 @@ async function receiveOne(i, kanban) {
   }
 }
 
-function printAll() { printingIndex.value = -1; setTimeout(() => window.print(), 100) }
-function printOne(i) { printingIndex.value = i; setTimeout(() => window.print(), 100) }
-function onAfterPrint() { printingIndex.value = -1 }
+const selectedKanbans = computed(() => kanbans.value.filter(k => k._checked))
+
+function isPrintable(kanban, i) {
+  if (printingMode.value === 'all') return true
+  if (printingMode.value === 'selected') return kanban._checked
+  if (printingMode.value === 'single') return printingIndex.value === i
+  return false
+}
+
+function printAll() {
+  printingMode.value = 'all'
+  printingIndex.value = -1
+  setTimeout(() => window.print(), 100)
+}
+
+function printSelected() {
+  if (selectedKanbans.value.length === 0) {
+    ElMessage.warning('请至少勾选一个看板')
+    return
+  }
+  printingMode.value = 'selected'
+  printingIndex.value = -1
+  setTimeout(() => window.print(), 100)
+}
+
+function printOne(i) {
+  printingMode.value = 'single'
+  printingIndex.value = i
+  setTimeout(() => window.print(), 100)
+}
+
+async function saveOne(i, kanban) {
+  const cards = document.querySelectorAll('.kanban-card')
+  const el = cards[i]
+  if (!el) { ElMessage.error('未找到看板卡片'); return }
+  try {
+    await saveAsImage(el, kanban.kanbanCode)
+    ElMessage.success('已保存为图片')
+  } catch { ElMessage.error('保存失败') }
+}
+
+function onAfterPrint() {
+  printingMode.value = 'all'
+  printingIndex.value = -1
+}
 
 onBeforeMount(() => { loadData(); window.addEventListener('afterprint', onAfterPrint) })
 onBeforeUnmount(() => window.removeEventListener('afterprint', onAfterPrint))
@@ -141,13 +192,18 @@ h2 { margin: 0; }
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px; margin-bottom: 20px;
 }
+.toolbar-actions { display: flex; gap: 8px; }
 
 .kanban-list {
   display: flex; flex-direction: column; align-items: center; gap: 20px;
 }
 
 .kanban-row {
-  display: flex; align-items: center; gap: 12px;
+  display: flex; align-items: center; gap: 10px;
+}
+
+.kanban-check {
+  flex-shrink: 0;
 }
 
 .kanban-actions {
@@ -191,9 +247,10 @@ h2 { margin: 0; }
 }
 
 @media print {
-  .toolbar, .el-alert { display: none; }
+  .toolbar, .el-alert, .kanban-check { display: none; }
   .kanban-card { display: none; border: 1px solid #000; }
   .kanban-card.printing-card { display: flex; margin: 0 auto; page-break-after: always; }
+  .kanban-card:last-child.printing-card { page-break-after: auto; }
   .card-right { border-left-color: #000; }
   .kanban-actions { display: none; }
 }

@@ -17,11 +17,11 @@ VALUES
 INSERT IGNORE INTO warehouse (id, warehouse_code, warehouse_name, status)
 VALUES (1, 'WH-JY', '吉耀仓', 'ENABLED');
 
-INSERT IGNORE INTO storage_location (id, warehouse_id, location_code, location_name, status)
+INSERT IGNORE INTO storage_location (id, warehouse_id, location_code, location_name, max_capacity, status)
 VALUES
-  (1, 1, 'A-01', 'A区 01 库位', 'ENABLED'),
-  (2, 1, 'A-02', 'A区 02 库位', 'ENABLED'),
-  (3, 1, 'B-01', 'B区 01 库位', 'ENABLED');
+  (1, 1, 'A-01', 'A区 01 库位', 500, 'ENABLED'),
+  (2, 1, 'A-02', 'A区 02 库位', 500, 'ENABLED'),
+  (3, 1, 'B-01', 'B区 01 库位', 500, 'ENABLED');
 
 INSERT IGNORE INTO inbound_order (id, inbound_no, supplier_id, source_doc_no, status, remark, released_at)
 VALUES

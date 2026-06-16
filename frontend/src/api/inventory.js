@@ -5,6 +5,11 @@ export async function scanInbound(kanbanCode) {
   return response.data
 }
 
+export async function lookupKanbanInbound(kanbanCode) {
+  const response = await http.get('/outbound/kanban-lookup', { params: { kanbanCode } })
+  return response.data
+}
+
 export async function fetchInventoryBalances(params) {
   const response = await http.get('/inventory/balances', { params })
   return response.data

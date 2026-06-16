@@ -9,8 +9,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/outbound")
 public class PickingController {
@@ -25,14 +23,18 @@ public class PickingController {
         return outboundPickingService.lookupKanban(kanbanCode);
     }
 
-    @PostMapping("/scan")
-    public ScanOutboundResponse scanOutbound(@Valid @RequestBody ScanOutboundRequest request) {
-        return outboundPickingService.scanOutbound(request);
+    @PostMapping("/pick-with-order")
+    public ScanOutboundResponse pickWithOrder(@Valid @RequestBody ScanOutboundRequest request) {
+        return outboundPickingService.pickWithOrder(request, false);
     }
 
-    @PostMapping("/recommend")
-    public List<PickRecommendation> recommend(@Valid @RequestBody RecommendRequest request) {
-        return outboundPickingService.recommendPick(
-                request.materialId(), request.warehouseIds(), request.neededQty());
+    @PostMapping("/pick-with-order/force")
+    public ScanOutboundResponse pickWithOrderForce(@Valid @RequestBody ScanOutboundRequest request) {
+        return outboundPickingService.pickWithOrder(request, true);
+    }
+
+    @PostMapping("/pick-no-order")
+    public ScanOutboundResponse pickNoOrder(@Valid @RequestBody ScanOutboundRequest request) {
+        return outboundPickingService.pickNoOrder(request);
     }
 }

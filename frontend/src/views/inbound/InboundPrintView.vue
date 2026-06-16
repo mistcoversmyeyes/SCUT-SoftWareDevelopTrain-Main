@@ -5,6 +5,7 @@
         <div class="toolbar">
           <h2>入库单打印</h2>
           <el-button type="primary" size="default" @click="printNow">打印</el-button>
+          <el-button type="success" size="default" @click="handleSaveImage">保存为图片</el-button>
         </div>
       </template>
 
@@ -40,6 +41,8 @@
 import { computed, onBeforeMount, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { printInboundOrder } from '../../api/inbound'
+import { saveAsImage } from '../../composables/useSaveImage'
+import { ElMessage } from 'element-plus'
 
 const route = useRoute()
 const loading = ref(false)
@@ -102,6 +105,15 @@ async function loadPrintData() {
 
 function printNow() {
   window.print()
+}
+
+async function handleSaveImage() {
+  const el = document.querySelector('.print-area')
+  if (!el) { ElMessage.error('未找到打印内容'); return }
+  try {
+    await saveAsImage(el, documentData.value?.inboundNo || '入库单')
+    ElMessage.success('已保存为图片')
+  } catch { ElMessage.error('保存失败') }
 }
 
 onBeforeMount(() => {

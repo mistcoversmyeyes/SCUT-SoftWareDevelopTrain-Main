@@ -194,4 +194,28 @@
         ORDER BY k.received_at ASC, k.id ASC
     </select>
 
+    <select id="selectFifoCandidatesForLock" resultType="com.scut.wms.outbound.picking.FifoPickCandidate">
+        SELECT kb.id AS kanbanId,
+               kb.kanban_code AS kanbanCode,
+               kb.board_qty AS boardQty,
+               COALESCE(kb.picked_qty, 0) AS pickedQty,
+               kb.received_at AS receivedAt,
+               iol.material_id AS materialId,
+               iol.target_warehouse_id AS warehouseId,
+               iol.target_location_id AS storageLocationId
+        FROM kanban_board kb
+                 JOIN inbound_order_line iol ON kb.inbound_order_line_id = iol.id
+        WHERE kb.status = 'RECEIVED'
+          AND iol.material_id = #{materialId}
+          AND (kb.board_qty - COALESCE(kb.picked_qty, 0)) > 0
+        <if test="warehouseIds != null and warehouseIds.size() > 0">
+          AND iol.target_warehouse_id IN
+          <foreach collection="warehouseIds" item="id" open="(" separator="," close=")">
+              #{id}
+          </foreach>
+        </if>
+        ORDER BY kb.received_at ASC, kb.id ASC
+        FOR UPDATE
+    </select>
+
 </mapper>

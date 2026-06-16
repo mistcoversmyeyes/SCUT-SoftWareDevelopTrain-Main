@@ -191,6 +191,7 @@ public class MasterDataService {
         location.setLocationCode(request.locationCode());
         location.setLocationName(request.locationName());
         location.setStatus(request.status() != null ? request.status() : ENABLED);
+        location.setMaxCapacity(request.maxCapacity());
         storageLocationMapper.insert(location);
         return location;
     }
@@ -214,6 +215,7 @@ public class MasterDataService {
         if (request.status() != null) {
             location.setStatus(request.status());
         }
+        location.setMaxCapacity(request.maxCapacity());
         storageLocationMapper.updateById(location);
         return location;
     }

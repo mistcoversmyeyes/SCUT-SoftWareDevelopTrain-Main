@@ -31,7 +31,11 @@ public record OutboundOrderResponse(
             String materialName,
             SupplierInfo supplier,
             BigDecimal plannedQty,
-            BigDecimal pickedQty
+            BigDecimal pickedQty,
+            Long targetWarehouseId,
+            String warehouseName,
+            Long targetLocationId,
+            String locationName
     ) {
     }
 }

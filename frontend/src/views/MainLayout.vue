@@ -3,7 +3,6 @@
     <el-header class="admin-header">
       <div>
         <strong>汽车物流 WMS</strong>
-        <span>第一周作业演示</span>
       </div>
       <div class="header-user">
         <span>{{ auth.user?.displayName || '系统管理员' }}</span>

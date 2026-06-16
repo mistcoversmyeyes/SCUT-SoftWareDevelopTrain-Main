@@ -109,9 +109,9 @@
                 size="small"
                 text
                 :disabled="!canRelease(row)"
-                @click="handleRelease(row)"
+                @click="handleReleaseAndLock(row)"
               >
-                释放
+                释放并加锁
               </el-button>
               <el-button
                 type="success"
@@ -139,14 +139,6 @@
                   </el-button>
                 </template>
               </el-popconfirm>
-              <el-button
-                type="success"
-                size="small"
-                :disabled="!canStartPicking(row)"
-                @click="handleStartPicking(row)"
-              >
-                开始拣货
-              </el-button>
             </el-space>
           </template>
         </el-table-column>
@@ -173,6 +165,30 @@
       :master-data="masterData"
       :on-save="handleSave"
     />
+
+    <el-dialog v-model="warehouseDialogVisible" title="选择出库仓库" width="500px">
+      <el-form label-position="top">
+        <el-form-item label="请在以下仓库中选择出库目标仓库（多选）：">
+          <el-select
+            v-model="selectedWarehouseIds"
+            multiple
+            placeholder="全部仓库"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="wh in masterData.warehouses"
+              :key="wh.id"
+              :label="wh.warehouseName || wh.name"
+              :value="wh.id"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="warehouseDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmReleaseAndLock">确认释放并加锁</el-button>
+      </template>
+    </el-dialog>
   </section>
 </template>
 
@@ -184,7 +200,7 @@ import {
   cancelOutboundOrder,
   createOutboundOrder,
   fetchOutboundOrders,
-  releaseOutboundOrder,
+  releaseAndLockOrder,
   updateOutboundOrder
 } from '../../api/outbound'
 import { fetchMasterDataOptions } from '../../api/masterData'
@@ -194,7 +210,7 @@ const router = useRouter()
 
 const statusOptions = [
   { value: 'DRAFT', label: '草稿' },
-  { value: 'RELEASED', label: '已释放' },
+  { value: 'LOCKED', label: '已锁定' },
   { value: 'PICKING', label: '拣货中' },
   { value: 'PARTIAL_SHIPPED', label: '部分发货' },
   { value: 'COMPLETED', label: '已完成' },
@@ -202,7 +218,7 @@ const statusOptions = [
 ]
 
 const DRAFT = 'DRAFT'
-const RELEASED = 'RELEASED'
+const LOCKED = 'LOCKED'
 const PICKING = 'PICKING'
 const COMPLETED = 'COMPLETED'
 const PARTIAL_SHIPPED = 'PARTIAL_SHIPPED'
@@ -236,9 +252,13 @@ const paginatedOrders = computed(() => {
   return orders.value.slice(start, start + pageSize.value)
 })
 
+const warehouseDialogVisible = ref(false)
+const releasingOrderId = ref(null)
+const selectedWarehouseIds = ref([])
+
 const statusMap = {
   [DRAFT]: '草稿',
-  [RELEASED]: '已释放',
+  [LOCKED]: '已锁定',
   [PICKING]: '拣货中',
   [PARTIAL_SHIPPED]: '部分发货',
   [COMPLETED]: '已完成',
@@ -247,18 +267,17 @@ const statusMap = {
 
 const statusTagType = {
   [DRAFT]: 'info',
-  [RELEASED]: 'warning',
+  [LOCKED]: '',
   [PICKING]: 'warning',
   [PARTIAL_SHIPPED]: 'success',
   [COMPLETED]: 'success',
   [CANCELLED]: 'danger'
 }
 
-const canEdit = (row) => [DRAFT, RELEASED].includes(row.status)
+const canEdit = (row) => [DRAFT].includes(row.status)
 const canRelease = (row) => row.status === DRAFT
-const canCancel = (row) => [DRAFT, RELEASED, PICKING].includes(row.status)
-const canStartPicking = (row) => row.status === RELEASED || row.status === PICKING
-const canPrint = (row) => [RELEASED, PICKING, PARTIAL_SHIPPED, COMPLETED].includes(row.status)
+const canCancel = (row) => [DRAFT].includes(row.status)
+const canPrint = (row) => [LOCKED, PICKING, PARTIAL_SHIPPED, COMPLETED].includes(row.status)
 
 function statusType(status) {
   return statusTagType[status] || 'info'
@@ -364,13 +383,20 @@ async function handleSave(payload, mode) {
   }
 }
 
-async function handleRelease(row) {
+async function handleReleaseAndLock(row) {
+  releasingOrderId.value = row.id
+  selectedWarehouseIds.value = []
+  warehouseDialogVisible.value = true
+}
+
+async function confirmReleaseAndLock() {
   try {
-    await releaseOutboundOrder(row.id)
-    ElMessage.success('出库单释放成功')
+    await releaseAndLockOrder(releasingOrderId.value, selectedWarehouseIds.value)
+    ElMessage.success('释放并加锁成功')
+    warehouseDialogVisible.value = false
     await loadOrders()
   } catch (error) {
-    ElMessage.error(error.response?.data?.message || '释放失败')
+    ElMessage.error(error.response?.data?.message || '释放并加锁失败')
   }
 }
 
@@ -382,10 +408,6 @@ async function handleCancel(row) {
   } catch (error) {
     ElMessage.error(error.response?.data?.message || '取消失败')
   }
-}
-
-function handleStartPicking(row) {
-  router.push('/outbound/' + row.id + '/picking')
 }
 
 function handlePrintOrder(row) {

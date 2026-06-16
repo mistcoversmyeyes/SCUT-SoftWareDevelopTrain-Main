@@ -1,188 +1,422 @@
 <template>
-  <section class="module-shell outbound-scan">
-    <el-card>
-      <template #header>
+  <section class="scan-page">
+    <!-- ═══════ 顶部上下文栏 ═══════ -->
+    <div class="context-bar">
+      <div class="context-left">
         <h2>出库扫码</h2>
+      </div>
+      <div class="context-right">
+        <el-tag v-if="mode==='force'" type="danger" size="large" effect="dark">强制模式</el-tag>
+        <el-tag v-else-if="mode==='no-order'" type="warning" size="large" effect="dark">不带单模式</el-tag>
+        <el-tag v-else type="primary" size="large" effect="dark">正常模式</el-tag>
+        <span v-if="outboundNo" class="context-order-no">{{ outboundNo }}</span>
+      </div>
+    </div>
+
+    <!-- ═══════ 模式提示 ═══════ -->
+    <el-alert v-if="mode==='force'" type="danger" :closable="false" show-icon
+      title="强制模式：扫描看板将强制执行出库，被锁定的看板会被抢锁并算到本出库单。" style="margin-bottom:20px" />
+    <el-alert v-if="mode==='no-order'" type="warning" :closable="false" show-icon
+      title="不带单模式：直接扫描看板码出库。看板如被锁定将强制抢锁并记录审计日志。" style="margin-bottom:20px" />
+    <el-alert v-if="mode==='normal' && orderId" type="info" :closable="false" show-icon
+      title="只能扫描已锁定给本出库单的看板。" style="margin-bottom:20px" />
+
+    <!-- ═══════ 扫码区（主角） ═══════ -->
+    <el-card class="scan-main" shadow="hover">
+      <!-- 摄像头预览框 -->
+      <div class="camera-wrapper">
+        <div id="qr-reader" class="camera-view" :class="{ active: cameraActive }" v-show="cameraActive"></div>
+        <div class="camera-placeholder" v-show="!cameraActive">
+          <div class="placeholder-icon"><el-icon :size="48"><Camera /></el-icon></div>
+          <div class="placeholder-text">点击下方按钮启动摄像头</div>
+          <div class="placeholder-sub">或选择本地二维码图片文件</div>
+        </div>
+      </div>
+
+      <div class="camera-actions">
+        <el-button type="primary" :icon="Camera" size="large" @click="handleScanner('camera')">
+          {{ cameraActive ? '关闭摄像头' : '启动摄像头' }}
+        </el-button>
+        <el-button size="large" @click="handleScanner('file')">选择文件</el-button>
+      </div>
+
+      <!-- 扫描错误提示 -->
+      <el-alert v-if="scannerError" type="error" :title="scannerError" :closable="true"
+        @close="scannerError=''" style="margin:12px 0" />
+
+      <!-- ═══════ 或 — 手动输入（配角） ═══════ -->
+      <el-divider content-position="center">
+        <span class="divider-label">或手动输入</span>
+      </el-divider>
+
+      <div class="manual-input">
+        <el-input ref="scanInputRef" v-model="kanbanCode" size="large"
+          placeholder="请输入看板码" :disabled="scanning" clearable
+          style="width:240px" @keyup.enter="handleScan">
+          <template #prepend>看板码</template>
+        </el-input>
+        <el-input-number v-model="scanQty" :min="1" :step="1" :precision="0"
+          size="large" placeholder="默认全量" style="width:170px" />
+        <el-button type="primary" size="large" :loading="scanning"
+          style="min-width:120px" @click="handleScan">
+          确认出库
+        </el-button>
+      </div>
+
+      <!-- ═══════ 看板预览（紧凑单行） ═══════ -->
+      <div v-if="kanbanPreview" class="kanban-preview">
+        <div class="preview-row">
+          <span class="preview-material">{{ kanbanPreview.materialCode }} {{ kanbanPreview.materialName }}</span>
+          <span class="preview-sep">·</span>
+          <span class="preview-loc">{{ kanbanPreview.locationName }}</span>
+          <span class="preview-sep">·</span>
+          <el-tag :type="kanbanPreview.kanbanStatus === 'LOCKED' ? 'danger' : 'success'" size="small">
+            {{ kanbanPreview.kanbanStatus === 'LOCKED' ? '已锁定' : '空闲' }}
+          </el-tag>
+          <span class="preview-sep">·</span>
+          <span class="preview-qty">
+            剩余 <strong>{{ kanbanPreview.boardQty - (kanbanPreview.pickedQty || 0) }}</strong>
+            / 总量 {{ kanbanPreview.boardQty }}
+          </span>
+        </div>
+      </div>
+
+      <!-- ═══════ 错误提示 ═══════ -->
+      <el-alert v-if="errorMessage" type="error" :title="errorMessage" show-icon
+        :closable="false" style="margin-top:12px" />
+    </el-card>
+
+    <!-- ═══════ 已扫记录 ═══════ -->
+    <el-card v-if="scanHistory.length" class="history-card" shadow="hover">
+      <template #header>
+        <div class="history-header">
+          <span>已扫记录</span>
+          <el-button size="small" text type="danger" @click="scanHistory=[]">清除记录</el-button>
+        </div>
       </template>
+      <div class="history-list">
+        <div v-for="(item, i) in scanHistory" :key="i" class="history-item">
+          <span class="history-code">{{ item.kanbanCode }}</span>
+          <span class="history-arrow">→</span>
+          <span class="history-material">{{ item.materialCode }} {{ item.materialName }}</span>
+          <span class="history-qty">已出 {{ item.pickedQty }}</span>
+          <span class="history-time">{{ item.time }}</span>
+        </div>
+      </div>
+    </el-card>
 
-      <el-form class="scan-form" @submit.prevent="handleScan">
-        <el-form-item label="看板码">
-          <el-input
-            ref="scanInputRef"
-            v-model="kanbanCode"
-            size="large"
-            placeholder="请扫描或手输看板码后按回车"
-            @keyup.enter="handleScan"
-            :disabled="scanning"
-            clearable
-          />
-        </el-form-item>
-        <el-form-item label="出库数量（留空默认全量）">
-          <el-input-number v-model="scanQty" :min="1" :step="1" :precision="0" />
-        </el-form-item>
-        <el-form-item>
-          <el-button
-            type="primary"
-            size="default"
-            :loading="scanning"
-            @click="handleScan"
-          >
-            触发扫码
-          </el-button>
-        </el-form-item>
-      </el-form>
+    <!-- ═══════ 物料清单表（底部全宽） ═══════ -->
+    <!-- Normal: 锁定物料清单 -->
+    <el-card v-if="mode==='normal' && materialTable.length" class="material-card" shadow="hover">
+      <template #header><h3 style="margin:0">锁定物料清单</h3></template>
+      <el-table :data="materialTable" border stripe size="small">
+        <el-table-column label="看板码" min-width="240">
+          <template #default="{ row }">
+            <code>{{ row.kanbanCode }}</code>
+            <el-button size="small" text type="primary" style="margin-left:6px" @click="copyText(row.kanbanCode)">
+              <el-icon><DocumentCopy /></el-icon>
+            </el-button>
+          </template>
+        </el-table-column>
+        <el-table-column prop="materialCode" label="物料编码" width="150" />
+        <el-table-column prop="materialName" label="物料名称" min-width="160" />
+        <el-table-column prop="locationName" label="库位" width="140" />
+        <el-table-column prop="qty" label="锁定量" width="100" align="right" />
+      </el-table>
+    </el-card>
 
-      <el-alert
-        v-if="errorMessage"
-        type="error"
-        :title="errorMessage"
-        show-icon
-        :closable="false"
-      />
-
-      <el-card v-if="kanbanPreview" class="result-card" shadow="never">
-        <template #header>
-          <span>看板信息</span>
-        </template>
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="看板码">
-            {{ kanbanPreview.kanbanCode }}
-          </el-descriptions-item>
-          <el-descriptions-item label="看板状态">
-            {{ kanbanPreview.kanbanStatus }}
-          </el-descriptions-item>
-          <el-descriptions-item label="物料编码">
-            {{ kanbanPreview.materialCode }}
-          </el-descriptions-item>
-          <el-descriptions-item label="物料名称">
-            {{ kanbanPreview.materialName }}
-          </el-descriptions-item>
-          <el-descriptions-item label="库位">
-            {{ kanbanPreview.locationName }}
-          </el-descriptions-item>
-          <el-descriptions-item label="看板数量">
-            {{ kanbanPreview.boardQty }}
-          </el-descriptions-item>
-          <el-descriptions-item label="已拣数量">
-            {{ kanbanPreview.pickedQty || 0 }}
-          </el-descriptions-item>
-          <el-descriptions-item label="剩余数量">
-            <strong>{{ kanbanPreview.boardQty - (kanbanPreview.pickedQty || 0) }}</strong>
-          </el-descriptions-item>
-        </el-descriptions>
-      </el-card>
-
-      <el-card v-if="scanResult" class="result-card" shadow="never">
-        <template #header>
-          <span>扫码成功</span>
-        </template>
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="看板码">
-            {{ scanResult.kanbanCode }}
-          </el-descriptions-item>
-          <el-descriptions-item label="出库单号">
-            {{ scanResult.outboundNo }}
-          </el-descriptions-item>
-          <el-descriptions-item label="物料编码">
-            {{ scanResult.materialCode }}
-          </el-descriptions-item>
-          <el-descriptions-item label="物料名称">
-            {{ scanResult.materialName }}
-          </el-descriptions-item>
-          <el-descriptions-item label="发货数量">
-            {{ scanResult.shippedQty }}
-          </el-descriptions-item>
-          <el-descriptions-item label="目标库位">
-            {{ scanResult.locationName }}
-          </el-descriptions-item>
-          <el-descriptions-item label="出库单状态">
-            {{ scanResult.orderStatus }}
-          </el-descriptions-item>
-          <el-descriptions-item label="扫码时间">
-            {{ formatDateTime(scanResult.shippedAt) }}
-          </el-descriptions-item>
-        </el-descriptions>
-      </el-card>
+    <!-- Force: 符合条件物料清单 -->
+    <el-card v-if="mode==='force' && forceTable.length" class="material-card" shadow="hover">
+      <template #header><h3 style="margin:0">当前符合条件物料清单</h3></template>
+      <el-table :data="forceTable" border stripe size="small">
+        <el-table-column label="看板码" min-width="240">
+          <template #default="{ row }">
+            <code>{{ row.kanbanCode }}</code>
+            <el-button size="small" text type="primary" style="margin-left:6px" @click="copyText(row.kanbanCode)">
+              <el-icon><DocumentCopy /></el-icon>
+            </el-button>
+          </template>
+        </el-table-column>
+        <el-table-column prop="materialCode" label="物料编码" width="150" />
+        <el-table-column prop="materialName" label="物料名称" min-width="160" />
+        <el-table-column prop="locationName" label="库位" width="140" />
+        <el-table-column prop="qty" label="数量" width="100" align="right" />
+        <el-table-column label="锁状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.locked ? 'danger' : 'success'" size="small">
+              {{ row.locked ? '已锁定' : '空闲' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+      </el-table>
     </el-card>
   </section>
 </template>
 
 <script setup>
-import { nextTick, ref, watch } from 'vue'
-import { scanOutbound, lookupKanban } from '../../api/outbound'
+import { nextTick, ref, watch, computed, onMounted, onBeforeUnmount } from 'vue'
+import { useRoute } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { Camera, DocumentCopy } from '@element-plus/icons-vue'
+import { Html5Qrcode } from 'html5-qrcode'
+import {
+  lookupKanban, pickWithOrder, pickWithOrderForce, pickNoOrder,
+  fetchQrInfo, fetchForceCandidates
+} from '../../api/outbound'
+
+const route = useRoute()
+const mode = computed(() => route.query.mode || 'normal')
+const orderId = computed(() => route.query.orderId ? Number(route.query.orderId) : null)
+const outboundNo = computed(() => route.query.outboundNo || '')
 
 const kanbanCode = ref('')
 const scanQty = ref(undefined)
 const scanning = ref(false)
-const scanResult = ref(null)
 const kanbanPreview = ref(null)
 const errorMessage = ref('')
 const scanInputRef = ref()
 
-let lookupTimer = null
+const cameraActive = ref(false)
+const scannerError = ref('')
+let html5QrCode = null
 
+const scanHistory = ref([])
+const materialTable = ref([])
+const forceTable = ref([])
+
+// Load material tables
+async function loadMaterialTable() {
+  if (mode.value !== 'normal' || !outboundNo.value) return
+  try {
+    const result = await fetchQrInfo(outboundNo.value)
+    materialTable.value = (result.lockedItems || []).map(item => ({
+      kanbanCode: item.kanbanCode, materialCode: item.materialCode,
+      materialName: item.materialName, locationName: item.locationName, qty: item.lockQty
+    }))
+  } catch { materialTable.value = [] }
+}
+
+async function loadForceTable() {
+  if (mode.value !== 'force' || !orderId.value) return
+  try {
+    const result = await fetchForceCandidates(orderId.value)
+    const all = []
+    for (const line of (result.lines || [])) {
+      for (const kb of (line.kanbans || [])) {
+        all.push({
+          kanbanCode: kb.kanbanCode, materialCode: line.materialCode,
+          materialName: line.materialName, locationName: kb.locationName,
+          qty: kb.qty, locked: kb.locked
+        })
+      }
+    }
+    forceTable.value = all
+  } catch { forceTable.value = [] }
+}
+
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); ElMessage.success('已复制') }
+  catch { ElMessage.error('复制失败') }
+}
+
+// Watch kanban code for preview
+let lookupTimer = null
 watch(kanbanCode, (code) => {
   clearTimeout(lookupTimer)
   kanbanPreview.value = null
   const trimmed = code.trim()
   if (!trimmed) return
   lookupTimer = setTimeout(async () => {
-    try {
-      kanbanPreview.value = await lookupKanban(trimmed)
-    } catch {
-      kanbanPreview.value = null
-    }
+    try { kanbanPreview.value = await lookupKanban(trimmed) } catch { kanbanPreview.value = null }
   }, 400)
 })
 
+// QR Scanner
+async function handleScanner(command) {
+  scannerError.value = ''
+  if (command === 'camera') await startCamera()
+  else if (command === 'file') openFilePicker()
+}
+
+async function startCamera() {
+  if (cameraActive.value) { stopCamera(); return }
+  try {
+    html5QrCode = new Html5Qrcode('qr-reader')
+    cameraActive.value = true
+    await nextTick()
+    await html5QrCode.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      (decodedText) => {
+        kanbanCode.value = decodedText
+        ElMessage.success('扫描成功: ' + decodedText)
+        stopCamera()
+      },
+      () => {}
+    )
+  } catch (err) {
+    scannerError.value = '摄像头启动失败: ' + (err.message || err)
+    cameraActive.value = false
+  }
+}
+
+function stopCamera() {
+  if (html5QrCode) {
+    try { html5QrCode.stop().then(() => {}).catch(() => {}) } catch {}
+  }
+  cameraActive.value = false
+}
+
+function openFilePicker() {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = 'image/*'
+  input.onchange = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const tmp = document.createElement('div')
+      tmp.id = 'qr-reader-tmp'; tmp.style.display = 'none'
+      document.body.appendChild(tmp)
+      const h5 = new Html5Qrcode('qr-reader-tmp')
+      const result = await h5.scanFile(file, true)
+      document.body.removeChild(tmp)
+      if (result) { kanbanCode.value = result; ElMessage.success('识别成功: ' + result) }
+    } catch (err) {
+      scannerError.value = '二维码识别失败: ' + (err.message || err)
+    }
+  }
+  input.click()
+}
+
 async function handleScan() {
   const code = kanbanCode.value.trim()
-  if (!code) {
-    errorMessage.value = '请先输入看板码'
-    scanResult.value = null
-    return
-  }
-
-  scanning.value = true
-  errorMessage.value = ''
-  scanResult.value = null
-
+  if (!code) { errorMessage.value = '请先输入看板码'; return }
+  scanning.value = true; errorMessage.value = ''
   try {
-    scanResult.value = await scanOutbound({
-      kanbanCode: code,
-      qty: scanQty.value || undefined
+    const payload = { kanbanCode: code, qty: scanQty.value || undefined, outboundOrderId: orderId.value || undefined }
+    let result
+    if (mode.value === 'no-order') result = await pickNoOrder(payload)
+    else if (mode.value === 'force') result = await pickWithOrderForce(payload)
+    else result = await pickWithOrder(payload)
+
+    // Add to history
+    scanHistory.value.unshift({
+      kanbanCode: result.kanbanCode,
+      materialCode: result.materialCode,
+      materialName: result.materialName,
+      pickedQty: result.pickedQty,
+      time: formatDateTime(result.occurredAt)
     })
-    kanbanCode.value = ''
-    scanQty.value = undefined
-    kanbanPreview.value = null
+    kanbanCode.value = ''; scanQty.value = undefined; kanbanPreview.value = null
+    loadMaterialTable(); loadForceTable()
   } catch (error) {
-    errorMessage.value =
-      error.response?.data?.message ||
-      error.message ||
-      '扫码失败，请检查网络或后端服务'
+    errorMessage.value = error.response?.data?.message || error.message || '扫码失败'
   } finally {
     scanning.value = false
-    nextTick(() => {
-      scanInputRef.value?.focus()
-    })
+    nextTick(() => scanInputRef.value?.focus())
   }
 }
 
 function formatDateTime(value) {
   if (!value) return '-'
   const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return value
-  return parsed.toLocaleString('zh-CN')
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString('zh-CN')
 }
 
-nextTick(() => {
-  scanInputRef.value?.focus()
+onMounted(() => {
+  nextTick(() => scanInputRef.value?.focus())
+  loadMaterialTable()
+  loadForceTable()
 })
+onBeforeUnmount(() => { stopCamera(); clearTimeout(lookupTimer) })
 </script>
 
 <style scoped>
-.module-shell { min-height: 360px; }
-.scan-form { margin-bottom: 16px; }
-h2 { margin: 0; }
-.result-card { margin-top: 16px; }
+.scan-page { max-width: 960px; margin: 0 auto; }
+
+/* ---- 上下文栏 ---- */
+.context-bar {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 16px; padding: 16px 20px;
+  background: var(--el-fill-color-light); border-radius: 8px;
+}
+.context-bar h2 { margin: 0; font-size: 1.3rem; }
+.context-right { display: flex; align-items: center; gap: 12px; }
+.context-order-no {
+  font-family: 'Courier New', monospace; font-size: 0.95rem;
+  color: var(--el-text-color-secondary);
+}
+
+/* ---- 扫码主卡片 ---- */
+.scan-main { margin-bottom: 20px; }
+
+/* ---- 摄像头区 ---- */
+.camera-wrapper { display: flex; justify-content: center; margin-bottom: 16px; }
+.camera-view {
+  width: 400px; height: 350px; border-radius: 12px; overflow: hidden;
+  border: 2px dashed var(--el-border-color);
+}
+.camera-view.active { border-color: var(--el-color-primary); }
+.camera-placeholder {
+  width: 400px; height: 350px; border-radius: 12px;
+  border: 2px dashed var(--el-border-color-darker);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--el-fill-color-lighter);
+  color: var(--el-text-color-secondary);
+}
+.placeholder-icon { font-size: 3rem; margin-bottom: 12px; }
+.placeholder-text { font-size: 1rem; margin-bottom: 4px; }
+.placeholder-sub { font-size: 0.85rem; opacity: 0.7; }
+
+.camera-actions {
+  display: flex; justify-content: center; gap: 12px; margin-bottom: 8px;
+}
+
+/* ---- 分隔线 ---- */
+.divider-label { color: var(--el-text-color-secondary); font-size: 0.85rem; }
+
+/* ---- 手动输入 ---- */
+.manual-input {
+  display: flex; align-items: center; gap: 12px;
+  justify-content: center; flex-wrap: wrap; margin-bottom: 12px;
+}
+
+/* ---- 看板预览 ---- */
+.kanban-preview {
+  background: var(--el-color-primary-light-9); border-radius: 8px;
+  padding: 10px 16px; margin: 0 0 8px;
+}
+.preview-row {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: 0.9rem;
+}
+.preview-material { font-weight: 600; }
+.preview-sep { color: var(--el-text-color-placeholder); }
+.preview-loc { color: var(--el-text-color-secondary); }
+.preview-qty { color: var(--el-text-color-secondary); }
+
+/* ---- 已扫记录 ---- */
+.history-card { margin-bottom: 20px; }
+.history-header { display: flex; justify-content: space-between; align-items: center; }
+.history-list { max-height: 200px; overflow-y: auto; }
+.history-item {
+  display: flex; align-items: center; gap: 10px; padding: 6px 0;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  font-size: 0.85rem;
+}
+.history-item:last-child { border-bottom: none; }
+.history-code {
+  font-family: 'Courier New', monospace; font-weight: 600;
+  color: var(--el-color-primary);
+}
+.history-arrow { color: var(--el-text-color-placeholder); }
+.history-material { flex: 1; }
+.history-qty { color: var(--el-color-success); font-weight: 600; }
+.history-time { color: var(--el-text-color-placeholder); font-size: 0.8rem; }
+
+/* ---- 物料表 ---- */
+.material-card code {
+  font-family: 'Courier New', monospace; font-size: 0.82rem;
+}
 </style>
