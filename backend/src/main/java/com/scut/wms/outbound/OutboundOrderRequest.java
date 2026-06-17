@@ -32,7 +32,9 @@ public record OutboundOrderRequest(
 
             Long targetWarehouseId,
 
-            Long targetLocationId
+            Long targetLocationId,
+
+            Long containerTypeId
     ) {
     }
 }

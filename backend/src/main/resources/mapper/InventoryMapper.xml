@@ -216,6 +216,9 @@
         WHERE kb.status = 'RECEIVED'
           AND iol.material_id = #{materialId}
           AND (kb.board_qty - COALESCE(kb.picked_qty, 0)) > 0
+        <if test="containerTypeId != null">
+          AND kb.container_type_id = #{containerTypeId}
+        </if>
         <if test="warehouseIds != null and warehouseIds.size() > 0">
           AND iol.target_warehouse_id IN
           <foreach collection="warehouseIds" item="id" open="(" separator="," close=")">

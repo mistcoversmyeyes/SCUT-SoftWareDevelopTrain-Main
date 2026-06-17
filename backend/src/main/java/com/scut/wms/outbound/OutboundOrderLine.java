@@ -19,6 +19,7 @@ public class OutboundOrderLine {
     private BigDecimal pickedQty;
     private Long targetWarehouseId;
     private Long targetLocationId;
+    private Long containerTypeId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -40,6 +41,8 @@ public class OutboundOrderLine {
     public void setTargetWarehouseId(Long targetWarehouseId) { this.targetWarehouseId = targetWarehouseId; }
     public Long getTargetLocationId() { return targetLocationId; }
     public void setTargetLocationId(Long targetLocationId) { this.targetLocationId = targetLocationId; }
+    public Long getContainerTypeId() { return containerTypeId; }
+    public void setContainerTypeId(Long containerTypeId) { this.containerTypeId = containerTypeId; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

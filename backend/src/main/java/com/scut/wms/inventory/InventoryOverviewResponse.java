@@ -20,7 +20,8 @@ public record InventoryOverviewResponse(
             String code,
             String name,
             BigDecimal maxCapacity,
-            BigDecimal usedQty
+            int usedBoxes,
+            BigDecimal totalPieces
     ) {}
 
     public record SupplierMaterialOverview(

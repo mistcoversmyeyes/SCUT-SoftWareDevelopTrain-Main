@@ -76,6 +76,11 @@ export async function reassignOrder(id) {
   return response.data
 }
 
+export async function fetchKanbanLocks(params) {
+  const response = await http.get('/locks/kanbans', { params })
+  return response.data
+}
+
 export async function fetchForceLogs(params) {
   const response = await http.get('/locks/force-logs', { params })
   return response.data

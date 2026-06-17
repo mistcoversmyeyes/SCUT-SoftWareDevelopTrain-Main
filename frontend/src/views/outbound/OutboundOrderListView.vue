@@ -73,19 +73,19 @@
         <el-table-column prop="lineCount" label="明细行数" width="100" />
         <el-table-column
           prop="plannedQty"
-          label="计划数量"
-          width="120"
+          label="总件数"
+          width="100"
           align="right"
         >
           <template #default="{ row }">{{ formatQty(row.plannedQty) }}</template>
         </el-table-column>
         <el-table-column
-          prop="shippedQty"
-          label="已发数量"
-          width="120"
+          prop="pickedQty"
+          label="已拣件数"
+          width="100"
           align="right"
         >
-          <template #default="{ row }">{{ formatQty(row.shippedQty) }}</template>
+          <template #default="{ row }">{{ formatQty(row.pickedQty) }}</template>
         </el-table-column>
         <el-table-column prop="createdAt" label="创建时间" width="180">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
@@ -359,7 +359,8 @@ function openEditDrawer(row) {
     lines: (row.lines || []).map((line) => ({
       materialId: line.materialId,
       supplierId: line.supplier?.id,
-      plannedQty: line.plannedQty
+      plannedQty: line.plannedQty,
+      containerTypeId: line.containerTypeId
     }))
   }
   formMode.value = 'edit'

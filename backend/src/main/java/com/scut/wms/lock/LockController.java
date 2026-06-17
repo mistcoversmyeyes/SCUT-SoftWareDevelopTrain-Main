@@ -80,6 +80,18 @@ public class LockController {
     }
 
     /**
+     * 看板锁列表（直列，不看板分组）。
+     */
+    @GetMapping("/api/locks/kanbans")
+    public List<KanbanLockView> kanbanLocks(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String materialCode,
+            @RequestParam(required = false) String outboundNo
+    ) {
+        return lockService.listKanbanLocks(status, materialCode, outboundNo);
+    }
+
+    /**
      * 强制出库审计日志。
      */
     @GetMapping("/api/locks/force-logs")

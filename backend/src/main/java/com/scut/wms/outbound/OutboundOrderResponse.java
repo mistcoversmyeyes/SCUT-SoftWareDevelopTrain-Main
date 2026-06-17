@@ -35,7 +35,10 @@ public record OutboundOrderResponse(
             Long targetWarehouseId,
             String warehouseName,
             Long targetLocationId,
-            String locationName
+            String locationName,
+            Long containerTypeId,
+            String containerTypeName,
+            BigDecimal capacityQty
     ) {
     }
 }

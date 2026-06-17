@@ -35,18 +35,22 @@
     </select>
 
     <select id="selectKanbanPrints" resultType="com.scut.wms.inbound.KanbanPrintResponse">
-        SELECT o.id AS inbound_order_id,
+        SELECT kb.id AS kanban_id,
+               o.id AS inbound_order_id,
                kb.kanban_code,
                o.inbound_no,
+               l.line_no,
                s.supplier_code,
                s.supplier_name,
                m.material_code,
                m.material_name,
+               kb.location_id,
                sl.location_name,
                kb.board_qty AS qty,
                kb.status,
                kb.printed_at,
-               ct.container_name AS container_type_name
+               ct.container_name AS container_type_name,
+               ct.capacity_qty AS capacity_qty
         FROM kanban_board kb
                  JOIN inbound_order o ON o.id = kb.inbound_order_id
                  JOIN supplier s ON s.id = o.supplier_id
@@ -55,22 +59,26 @@
                  JOIN storage_location sl ON sl.id = kb.location_id
                  JOIN container_type ct ON ct.id = kb.container_type_id
         WHERE kb.inbound_order_id = #{id}
-        ORDER BY kb.id ASC
+        ORDER BY kb.location_id ASC, kb.id ASC
     </select>
 
     <select id="selectKanbanPrintsByFilter" resultType="com.scut.wms.inbound.KanbanPrintResponse">
-        SELECT o.id AS inbound_order_id,
+        SELECT kb.id AS kanban_id,
+               o.id AS inbound_order_id,
                kb.kanban_code,
                o.inbound_no,
+               l.line_no,
                s.supplier_code,
                s.supplier_name,
                m.material_code,
                m.material_name,
+               kb.location_id,
                sl.location_name,
                kb.board_qty AS qty,
                kb.status,
                kb.printed_at,
-               ct.container_name AS container_type_name
+               ct.container_name AS container_type_name,
+               ct.capacity_qty AS capacity_qty
         FROM kanban_board kb
                  JOIN inbound_order o ON o.id = kb.inbound_order_id
                  JOIN supplier s ON s.id = o.supplier_id
@@ -81,7 +89,7 @@
         WHERE (#{status} IS NULL OR kb.status = #{status})
           AND (#{inboundNo} IS NULL OR o.inbound_no LIKE CONCAT('%', #{inboundNo}, '%'))
           AND (#{materialCode} IS NULL OR m.material_code = #{materialCode})
-        ORDER BY kb.id ASC
+        ORDER BY kb.location_id ASC, kb.id ASC
     </select>
 
 </mapper>

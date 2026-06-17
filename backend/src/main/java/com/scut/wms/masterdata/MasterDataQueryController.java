@@ -5,7 +5,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 public class MasterDataQueryController {
@@ -42,7 +43,8 @@ public class MasterDataQueryController {
     @GetMapping("/api/materials")
     public List<Material> listMaterials(
             @RequestParam(required = false) String materialCode,
-            @RequestParam(required = false) String materialName
+            @RequestParam(required = false) String materialName,
+            @RequestParam(required = false) Long supplierId
     ) {
         var query = Wrappers.<Material>lambdaQuery().orderByAsc(Material::getMaterialCode);
         if (materialCode != null && !materialCode.isBlank()) {
@@ -51,7 +53,25 @@ public class MasterDataQueryController {
         if (materialName != null && !materialName.isBlank()) {
             query.like(Material::getMaterialName, materialName);
         }
-        return materialMapper.selectList(query);
+        if (supplierId != null) {
+            query.eq(Material::getSupplierId, supplierId);
+        }
+        List<Material> materials = materialMapper.selectList(query);
+
+        // Populate supplier info (batch load to avoid N+1)
+        Set<Long> supplierIds = materials.stream()
+                .map(Material::getSupplierId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (!supplierIds.isEmpty()) {
+            Map<Long, Supplier> supplierMap = supplierMapper.selectBatchIds(supplierIds).stream()
+                    .collect(Collectors.toMap(Supplier::getId, s -> s));
+            for (Material m : materials) {
+                m.setSupplier(supplierMap.get(m.getSupplierId()));
+            }
+        }
+
+        return materials;
     }
 
     @GetMapping("/api/warehouses")

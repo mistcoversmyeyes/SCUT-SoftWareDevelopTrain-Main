@@ -43,7 +43,7 @@
           style="flex:1; max-width:380px" @keyup.enter="loadQrInfo">
           <template #prepend>出库单号</template>
         </el-input>
-        <el-button type="primary" size="large" :loading="loadingQr" @click="loadQrInfo">开始拣货</el-button>
+        <el-button type="primary" size="large" :loading="loadingQr" :disabled="!!orderInfo" @click="loadQrInfo">开始拣货</el-button>
       </div>
 
       <el-alert v-if="errorMsg" type="error" :title="errorMsg" show-icon :closable="false" style="margin-top:12px" />
@@ -108,9 +108,11 @@
           <el-table-column prop="materialName" label="物料名称" min-width="150" />
           <el-table-column prop="locationName" label="库位" width="130" />
           <el-table-column prop="lockQty" label="锁定量" width="100" align="right" />
-          <el-table-column label="状态" width="100">
+          <el-table-column label="看板状态" width="100">
             <template #default="{ row }">
-              <el-tag :type="row.lockStatus==='LOCKED'?'warning':'info'" size="small">{{ row.lockStatus }}</el-tag>
+              <el-tag :type="row.lockStatus==='LOCKED'?'warning':'success'" size="small">
+                {{ row.lockStatus==='LOCKED'?'待拣货':'已出库' }}
+              </el-tag>
             </template>
           </el-table-column>
         </el-table>

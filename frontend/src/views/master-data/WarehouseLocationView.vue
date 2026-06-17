@@ -117,7 +117,7 @@
           <el-input v-model="locationForm.locationName" placeholder="请输入库位名称" />
         </el-form-item>
         <el-form-item label="库位容量">
-          <el-input-number v-model="locationForm.maxCapacity" :min="0" :precision="0" :step="10" placeholder="请输入库位容量" style="width: 100%" />
+          <el-input-number v-model="locationForm.maxCapacity" :min="0" :precision="0" :step="1" placeholder="请输入库位容量" style="width: 100%" />
         </el-form-item>
         <el-form-item label="所属仓库" prop="warehouseId">
           <el-select v-model="locationForm.warehouseId" placeholder="请选择仓库" disabled>

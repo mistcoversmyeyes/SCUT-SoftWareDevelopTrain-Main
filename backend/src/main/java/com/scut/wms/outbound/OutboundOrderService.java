@@ -3,7 +3,12 @@ package com.scut.wms.outbound;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.scut.wms.common.BusinessException;
+import com.scut.wms.container.ContainerType;
+import com.scut.wms.container.ContainerTypeMapper;
+import com.scut.wms.lock.LockService;
 import com.scut.wms.masterdata.Material;
+import com.scut.wms.masterdata.MaterialContainerType;
+import com.scut.wms.masterdata.MaterialContainerTypeMapper;
 import com.scut.wms.masterdata.MaterialMapper;
 import com.scut.wms.masterdata.StorageLocation;
 import com.scut.wms.masterdata.StorageLocationMapper;
@@ -46,6 +51,9 @@ public class OutboundOrderService {
     private final MaterialMapper materialMapper;
     private final WarehouseMapper warehouseMapper;
     private final StorageLocationMapper storageLocationMapper;
+    private final ContainerTypeMapper containerTypeMapper;
+    private final MaterialContainerTypeMapper materialContainerTypeMapper;
+    private final LockService lockService;
 
     public OutboundOrderService(
             OutboundOrderMapper outboundOrderMapper,
@@ -53,7 +61,10 @@ public class OutboundOrderService {
             SupplierMapper supplierMapper,
             MaterialMapper materialMapper,
             WarehouseMapper warehouseMapper,
-            StorageLocationMapper storageLocationMapper
+            StorageLocationMapper storageLocationMapper,
+            ContainerTypeMapper containerTypeMapper,
+            MaterialContainerTypeMapper materialContainerTypeMapper,
+            LockService lockService
     ) {
         this.outboundOrderMapper = outboundOrderMapper;
         this.outboundOrderLineMapper = outboundOrderLineMapper;
@@ -61,6 +72,9 @@ public class OutboundOrderService {
         this.materialMapper = materialMapper;
         this.warehouseMapper = warehouseMapper;
         this.storageLocationMapper = storageLocationMapper;
+        this.containerTypeMapper = containerTypeMapper;
+        this.materialContainerTypeMapper = materialContainerTypeMapper;
+        this.lockService = lockService;
     }
 
     public List<OutboundOrderResponse> list(String status, String outboundNo, Long supplierId) {
@@ -214,6 +228,8 @@ public class OutboundOrderService {
             order.setStatus(COMPLETED);
             order.setCompletedAt(LocalDateTime.now());
             outboundOrderMapper.updateById(order);
+            // Release all remaining locked kanbans — order is done, none needed anymore
+            lockService.releaseOrderLocks(orderId);
         }
     }
 
@@ -269,6 +285,14 @@ public class OutboundOrderService {
         for (OutboundOrderRequest.LineItem line : request.lines()) {
             requireEnabledSupplier(line.supplierId());
             requireEnabledMaterial(line.materialId());
+            if (line.containerTypeId() != null) {
+                var mctCount = materialContainerTypeMapper.selectCount(Wrappers.<MaterialContainerType>lambdaQuery()
+                        .eq(MaterialContainerType::getMaterialId, line.materialId())
+                        .eq(MaterialContainerType::getContainerTypeId, line.containerTypeId()));
+                if (mctCount == 0) {
+                    throw new BusinessException("所选容器类型不适用于该物料");
+                }
+            }
         }
     }
 
@@ -300,6 +324,7 @@ public class OutboundOrderService {
             line.setPickedQty(BigDecimal.ZERO);
             line.setTargetWarehouseId(requestLine.targetWarehouseId());
             line.setTargetLocationId(requestLine.targetLocationId());
+            line.setContainerTypeId(requestLine.containerTypeId());
             outboundOrderLineMapper.insert(line);
         }
     }
@@ -371,6 +396,7 @@ public class OutboundOrderService {
         Supplier supplier = line.getSupplierId() == null ? null : supplierMapper.selectById(line.getSupplierId());
         Warehouse warehouse = line.getTargetWarehouseId() == null ? null : warehouseMapper.selectById(line.getTargetWarehouseId());
         StorageLocation location = line.getTargetLocationId() == null ? null : storageLocationMapper.selectById(line.getTargetLocationId());
+        ContainerType ct = line.getContainerTypeId() == null ? null : containerTypeMapper.selectById(line.getContainerTypeId());
 
         return new OutboundOrderResponse.LineDisplay(
                 line.getId(),
@@ -387,7 +413,10 @@ public class OutboundOrderService {
                 line.getTargetWarehouseId(),
                 warehouse == null ? null : warehouse.getWarehouseName(),
                 line.getTargetLocationId(),
-                location == null ? null : location.getLocationName()
+                location == null ? null : location.getLocationName(),
+                line.getContainerTypeId(),
+                ct == null ? null : ct.getContainerName(),
+                ct == null ? null : ct.getCapacityQty()
         );
     }
 

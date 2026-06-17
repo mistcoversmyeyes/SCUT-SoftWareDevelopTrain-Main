@@ -17,7 +17,8 @@ public record InboundOrderResponse(
         int lineCount,
         BigDecimal plannedQty,
         BigDecimal receivedQty,
-        List<LineDisplay> lines
+        List<LineDisplay> lines,
+        int kanbanCount
 ) {
     public record SupplierDisplay(Long id, String code, String name) {
     }

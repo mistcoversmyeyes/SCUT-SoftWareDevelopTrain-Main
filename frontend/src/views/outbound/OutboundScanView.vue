@@ -52,11 +52,9 @@
       <div class="manual-input">
         <el-input ref="scanInputRef" v-model="kanbanCode" size="large"
           placeholder="请输入看板码" :disabled="scanning" clearable
-          style="width:240px" @keyup.enter="handleScan">
+          style="width:360px" @keyup.enter="handleScan">
           <template #prepend>看板码</template>
         </el-input>
-        <el-input-number v-model="scanQty" :min="1" :step="1" :precision="0"
-          size="large" placeholder="默认全量" style="width:170px" />
         <el-button type="primary" size="large" :loading="scanning"
           style="min-width:120px" @click="handleScan">
           确认出库
@@ -108,8 +106,20 @@
     <!-- ═══════ 物料清单表（底部全宽） ═══════ -->
     <!-- Normal: 锁定物料清单 -->
     <el-card v-if="mode==='normal' && materialTable.length" class="material-card" shadow="hover">
-      <template #header><h3 style="margin:0">锁定物料清单</h3></template>
+      <template #header>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h3 style="margin:0">锁定物料清单</h3>
+          <span style="font-size:13px;color:#909399">{{ pickedCount }}/{{ materialTable.length }} 已出</span>
+        </div>
+      </template>
       <el-table :data="materialTable" border stripe size="small">
+        <el-table-column label="出库状态" width="90">
+          <template #default="{ row }">
+            <el-tag :type="row._picked ? 'success' : 'info'" size="small">
+              {{ row._picked ? '已出库' : '未出库' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="看板码" min-width="240">
           <template #default="{ row }">
             <code>{{ row.kanbanCode }}</code>
@@ -127,8 +137,20 @@
 
     <!-- Force: 符合条件物料清单 -->
     <el-card v-if="mode==='force' && forceTable.length" class="material-card" shadow="hover">
-      <template #header><h3 style="margin:0">当前符合条件物料清单</h3></template>
+      <template #header>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h3 style="margin:0">当前符合条件物料清单</h3>
+          <span style="font-size:13px;color:#909399">{{ forcePickedCount }}/{{ forceTable.length }} 已出</span>
+        </div>
+      </template>
       <el-table :data="forceTable" border stripe size="small">
+        <el-table-column label="出库状态" width="90">
+          <template #default="{ row }">
+            <el-tag :type="row._picked ? 'success' : 'info'" size="small">
+              {{ row._picked ? '已出库' : '未出库' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="看板码" min-width="240">
           <template #default="{ row }">
             <code>{{ row.kanbanCode }}</code>
@@ -141,10 +163,11 @@
         <el-table-column prop="materialName" label="物料名称" min-width="160" />
         <el-table-column prop="locationName" label="库位" width="140" />
         <el-table-column prop="qty" label="数量" width="100" align="right" />
-        <el-table-column label="锁状态" width="100">
+        <el-table-column label="锁状态" width="170">
           <template #default="{ row }">
-            <el-tag :type="row.locked ? 'danger' : 'success'" size="small">
-              {{ row.locked ? '已锁定' : '空闲' }}
+            <el-tag v-if="!row.locked" type="success" size="small">空闲</el-tag>
+            <el-tag v-else type="danger" size="small">
+              {{ row.lockedByOutboundNo ? '已锁定(' + row.lockedByOutboundNo + ')' : '已锁定' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -155,8 +178,8 @@
 
 <script setup>
 import { nextTick, ref, watch, computed, onMounted, onBeforeUnmount } from 'vue'
-import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Camera, DocumentCopy } from '@element-plus/icons-vue'
 import { Html5Qrcode } from 'html5-qrcode'
 import {
@@ -165,12 +188,12 @@ import {
 } from '../../api/outbound'
 
 const route = useRoute()
+const router = useRouter()
 const mode = computed(() => route.query.mode || 'normal')
 const orderId = computed(() => route.query.orderId ? Number(route.query.orderId) : null)
 const outboundNo = computed(() => route.query.outboundNo || '')
 
 const kanbanCode = ref('')
-const scanQty = ref(undefined)
 const scanning = ref(false)
 const kanbanPreview = ref(null)
 const errorMessage = ref('')
@@ -184,6 +207,30 @@ const scanHistory = ref([])
 const materialTable = ref([])
 const forceTable = ref([])
 
+const pickedCount = computed(() => materialTable.value.filter(r => r._picked).length)
+const forcePickedCount = computed(() => forceTable.value.filter(r => r._picked).length)
+
+const pickedKanbanCodes = ref(new Set())
+
+function markPicked(code) {
+  pickedKanbanCodes.value = new Set([...pickedKanbanCodes.value, code])
+}
+
+function applyPickedStatus(table) {
+  for (const row of table) {
+    row._picked = pickedKanbanCodes.value.has(row.kanbanCode)
+  }
+}
+
+function checkAllDone() {
+  const table = mode.value === 'force' ? forceTable.value : materialTable.value
+  if (!table.length) return
+  if (table.every(r => r._picked)) {
+    ElMessage.success('本单全部看板已出库完成！')
+    setTimeout(() => router.push('/outbound/orders'), 1500)
+  }
+}
+
 // Load material tables
 async function loadMaterialTable() {
   if (mode.value !== 'normal' || !outboundNo.value) return
@@ -191,8 +238,11 @@ async function loadMaterialTable() {
     const result = await fetchQrInfo(outboundNo.value)
     materialTable.value = (result.lockedItems || []).map(item => ({
       kanbanCode: item.kanbanCode, materialCode: item.materialCode,
-      materialName: item.materialName, locationName: item.locationName, qty: item.lockQty
+      materialName: item.materialName, locationName: item.locationName, qty: item.lockQty,
+      _picked: false
     }))
+    applyPickedStatus(materialTable.value)
+    checkAllDone()
   } catch { materialTable.value = [] }
 }
 
@@ -206,11 +256,13 @@ async function loadForceTable() {
         all.push({
           kanbanCode: kb.kanbanCode, materialCode: line.materialCode,
           materialName: line.materialName, locationName: kb.locationName,
-          qty: kb.qty, locked: kb.locked
+          qty: kb.qty, locked: kb.locked, _picked: false
         })
       }
     }
     forceTable.value = all
+    applyPickedStatus(forceTable.value)
+    checkAllDone()
   } catch { forceTable.value = [] }
 }
 
@@ -294,7 +346,7 @@ async function handleScan() {
   if (!code) { errorMessage.value = '请先输入看板码'; return }
   scanning.value = true; errorMessage.value = ''
   try {
-    const payload = { kanbanCode: code, qty: scanQty.value || undefined, outboundOrderId: orderId.value || undefined }
+    const payload = { kanbanCode: code, outboundOrderId: orderId.value || undefined }
     let result
     if (mode.value === 'no-order') result = await pickNoOrder(payload)
     else if (mode.value === 'force') result = await pickWithOrderForce(payload)
@@ -308,7 +360,8 @@ async function handleScan() {
       pickedQty: result.pickedQty,
       time: formatDateTime(result.occurredAt)
     })
-    kanbanCode.value = ''; scanQty.value = undefined; kanbanPreview.value = null
+    markPicked(result.kanbanCode)
+    kanbanCode.value = ''; kanbanPreview.value = null
     loadMaterialTable(); loadForceTable()
   } catch (error) {
     errorMessage.value = error.response?.data?.message || error.message || '扫码失败'

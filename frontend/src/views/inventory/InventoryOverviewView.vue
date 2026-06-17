@@ -53,17 +53,18 @@
                 <div class="bar-track">
                   <div
                     class="bar-fill"
-                    :class="{ 'bar-over': isOver(loc.usedQty, loc.maxCapacity) }"
-                    :style="{ width: barWidth(loc.usedQty, loc.maxCapacity) + '%' }"
+                    :class="{ 'bar-over': isOver(loc.usedBoxes, loc.maxCapacity) }"
+                    :style="{ width: barWidth(loc.usedBoxes, loc.maxCapacity) + '%' }"
                   />
                 </div>
                 <span class="bar-nums">
-                  <span :class="isOver(loc.usedQty, loc.maxCapacity) ? 'num-red' : ''">
-                    {{ fmt(loc.usedQty) }}
+                  <span :class="isOver(loc.usedBoxes, loc.maxCapacity) ? 'num-red' : ''">
+                    {{ loc.usedBoxes }} 箱
                   </span>
-                  / {{ fmt(loc.maxCapacity) || '未设置' }}
-                  <span v-if="isOver(loc.usedQty, loc.maxCapacity)" class="warn-badge">超容</span>
-                  <span v-else-if="isNearFull(loc.usedQty, loc.maxCapacity)" class="warn-badge warn-yellow">快满</span>
+                  / {{ fmt(loc.maxCapacity) || '未设置' }} 箱
+                  <span v-if="loc.totalPieces > 0" style="color:#909399; margin-left:4px">({{ loc.totalPieces }} 件)</span>
+                  <span v-if="isOver(loc.usedBoxes, loc.maxCapacity)" class="warn-badge">超容</span>
+                  <span v-else-if="isNearFull(loc.usedBoxes, loc.maxCapacity)" class="warn-badge warn-yellow">快满</span>
                 </span>
               </div>
             </div>
@@ -201,7 +202,7 @@ function stockColorClass(mat) {
   return 'num-green'
 }
 
-function totalUsed(wh) { return wh.locations.reduce((s, l) => s + (Number(l.usedQty) || 0), 0) }
+function totalUsed(wh) { return wh.locations.reduce((s, l) => s + (Number(l.usedBoxes) || 0), 0) }
 function totalMax(wh) { return wh.locations.reduce((s, l) => s + (Number(l.maxCapacity) || 0), 0) }
 
 function usagePercent(wh) {

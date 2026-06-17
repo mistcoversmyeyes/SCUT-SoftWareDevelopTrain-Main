@@ -82,15 +82,16 @@ public class OutboundPickingService {
                 throw new BusinessException("该看板未锁定给本出库单");
             }
         } else {
-            // Force: if locked by another order, steal it
+            // Force: if locked by another order, steal it; always create audit
             KanbanBoard board = kanbanBoardMapper.selectById(ctx.getKanbanId());
             if (board != null && LOCKED.equals(board.getStatus())
                     && !request.outboundOrderId().equals(board.getLockedByOrderId())) {
                 lockService.stealLockForOrder(request.outboundOrderId(), ctx.getKanbanId());
             }
+            lockService.createForceAudit(request.outboundOrderId(), ctx);
         }
 
-        return executePick(ctx, request);
+        return executePick(ctx, request, force);
     }
 
     /**
@@ -107,11 +108,13 @@ public class OutboundPickingService {
         if (LOCKED.equals(ctx.getKanbanStatus())) {
             lockService.markForceStolen(ctx.getKanbanId());
         }
+        // No-order pick is always force
+        lockService.createForceAudit(null, ctx);
 
-        return executePick(ctx, request);
+        return executePick(ctx, request, true);
     }
 
-    private ScanOutboundResponse executePick(ScanKanbanContext ctx, ScanOutboundRequest request) {
+    private ScanOutboundResponse executePick(ScanKanbanContext ctx, ScanOutboundRequest request, boolean forceOutbound) {
         LocalDateTime now = LocalDateTime.now();
 
         // Resolve outbound order line from kanban's lock if not explicitly provided
@@ -124,7 +127,7 @@ public class OutboundPickingService {
             }
         }
 
-        // Determine pick quantity
+        // Determine pick quantity — always full kanban (whole-box) by default
         BigDecimal pickQty = request.qty();
         if (pickQty == null || pickQty.compareTo(BigDecimal.ZERO) <= 0) {
             BigDecimal boardPicked = ctx.getPickedQty() == null ? BigDecimal.ZERO : ctx.getPickedQty();
@@ -165,7 +168,7 @@ public class OutboundPickingService {
         movement.setOperatorName("web");
         movement.setOutboundOrderId(request.outboundOrderId());
         movement.setOutboundOrderLineId(request.outboundOrderLineId());
-        movement.setForceOutbound(false);
+        movement.setForceOutbound(forceOutbound);
         inventoryMovementMapper.insert(movement);
 
         // Subtract balance
@@ -223,12 +226,8 @@ public class OutboundPickingService {
 
     public ScanKanbanContext lookupKanban(String kanbanCode) {
         ScanKanbanContext ctx = inventoryTransactionMapper.selectKanbanContext(kanbanCode);
-        // Also include lock info
         if (ctx != null) {
             KanbanBoard board = kanbanBoardMapper.selectById(ctx.getKanbanId());
-            if (board != null && LOCKED.equals(board.getStatus())) {
-                // Prefix status with lock info for display
-            }
         }
         return ctx;
     }

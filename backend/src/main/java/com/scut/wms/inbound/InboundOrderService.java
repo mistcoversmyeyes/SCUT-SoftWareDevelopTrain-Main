@@ -376,6 +376,7 @@ public class InboundOrderService {
         List<InboundOrderLine> lines = linesOf(order.getId());
         BigDecimal plannedQty = sum(lines, InboundOrderLine::getPlannedQty);
         BigDecimal receivedQty = sum(lines, InboundOrderLine::getReceivedQty);
+        int kanbanCount = kanbansOf(order.getId()).size();
 
         return new InboundOrderResponse(
                 order.getId(),
@@ -410,7 +411,8 @@ public class InboundOrderService {
                                 line.getTargetLocationId(),
                                 line.getContainerTypeId());
                         })
-                        .toList()
+                        .toList(),
+                kanbanCount
         );
     }
 

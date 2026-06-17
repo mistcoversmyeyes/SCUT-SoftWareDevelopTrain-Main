@@ -1,5 +1,8 @@
 package com.scut.wms.inventory;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.scut.wms.inbound.KanbanBoard;
+import com.scut.wms.inbound.KanbanBoardMapper;
 import com.scut.wms.masterdata.*;
 import org.springframework.stereotype.Service;
 
@@ -14,19 +17,22 @@ public class InventoryOverviewService {
     private final SupplierMapper supplierMapper;
     private final MaterialMapper materialMapper;
     private final InventoryBalanceMapper inventoryBalanceMapper;
+    private final KanbanBoardMapper kanbanBoardMapper;
 
     public InventoryOverviewService(
             WarehouseMapper warehouseMapper,
             StorageLocationMapper storageLocationMapper,
             SupplierMapper supplierMapper,
             MaterialMapper materialMapper,
-            InventoryBalanceMapper inventoryBalanceMapper
+            InventoryBalanceMapper inventoryBalanceMapper,
+            KanbanBoardMapper kanbanBoardMapper
     ) {
         this.warehouseMapper = warehouseMapper;
         this.storageLocationMapper = storageLocationMapper;
         this.supplierMapper = supplierMapper;
         this.materialMapper = materialMapper;
         this.inventoryBalanceMapper = inventoryBalanceMapper;
+        this.kanbanBoardMapper = kanbanBoardMapper;
     }
 
     public InventoryOverviewResponse overview() {
@@ -37,23 +43,36 @@ public class InventoryOverviewService {
     }
 
     private List<InventoryOverviewResponse.WarehouseOverview> buildWarehouseOverviews() {
+        // Load all RECEIVED/LOCKED kanbans once, group by location_id
+        List<KanbanBoard> activeKanbans = kanbanBoardMapper.selectList(
+                new LambdaQueryWrapper<KanbanBoard>()
+                        .in(KanbanBoard::getStatus, "RECEIVED", "LOCKED")
+                        .gt(KanbanBoard::getLocationId, 0L)
+        );
+
+        Map<Long, Integer> boxCount = new HashMap<>();
+        Map<Long, BigDecimal> pieceSum = new HashMap<>();
+        for (KanbanBoard kb : activeKanbans) {
+            Long locId = kb.getLocationId();
+            boxCount.merge(locId, 1, Integer::sum);
+            pieceSum.merge(locId,
+                    kb.getBoardQty() != null ? kb.getBoardQty() : BigDecimal.ZERO,
+                    BigDecimal::add);
+        }
+
         List<InventoryOverviewResponse.WarehouseOverview> result = new ArrayList<>();
         List<Warehouse> warehouses = warehouseMapper.selectList(null);
-        List<InventoryBalance> balances = inventoryBalanceMapper.selectList(null);
 
         for (Warehouse wh : warehouses) {
             List<StorageLocation> locations = storageLocationMapper.selectList(
-                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<StorageLocation>()
+                    new LambdaQueryWrapper<StorageLocation>()
                             .eq(StorageLocation::getWarehouseId, wh.getId())
             );
 
             List<InventoryOverviewResponse.LocationSlot> slots = new ArrayList<>();
             for (StorageLocation loc : locations) {
-                BigDecimal used = balances.stream()
-                        .filter(b -> Objects.equals(b.getStorageLocationId(), loc.getId()))
-                        .map(InventoryBalance::getOnHandQty)
-                        .filter(Objects::nonNull)
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                int usedBoxes = boxCount.getOrDefault(loc.getId(), 0);
+                BigDecimal totalPieces = pieceSum.getOrDefault(loc.getId(), BigDecimal.ZERO);
 
                 slots.add(new InventoryOverviewResponse.LocationSlot(
                         loc.getId(),
@@ -61,7 +80,8 @@ public class InventoryOverviewService {
                         loc.getLocationCode(),
                         loc.getLocationName(),
                         loc.getMaxCapacity(),
-                        used
+                        usedBoxes,
+                        totalPieces
                 ));
             }
 

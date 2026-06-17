@@ -70,19 +70,29 @@
             <el-tag :type="statusType(row.status)" effect="light">{{ statusLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="lineCount" label="明细行数" width="100" />
+        <el-table-column prop="lineCount" label="明细行数" width="90" />
+        <el-table-column
+          prop="kanbanCount"
+          label="看板数"
+          width="80"
+          align="right"
+        >
+          <template #default="{ row }">
+            {{ row.kanbanCount > 0 ? row.kanbanCount : '—' }}
+          </template>
+        </el-table-column>
         <el-table-column
           prop="plannedQty"
-          label="计划数量"
-          width="120"
+          label="总件数"
+          width="100"
           align="right"
         >
           <template #default="{ row }">{{ formatQty(row.plannedQty) }}</template>
         </el-table-column>
         <el-table-column
           prop="receivedQty"
-          label="已收数量"
-          width="120"
+          label="已收件数"
+          width="100"
           align="right"
         >
           <template #default="{ row }">{{ formatQty(row.receivedQty) }}</template>
@@ -406,7 +416,8 @@ function openEditDrawer(row) {
       supplierId: line.supplier?.id,
       plannedQty: line.plannedQty,
       targetWarehouseId: line.targetWarehouseId,
-      targetLocationId: line.targetLocationId
+      targetLocationId: line.targetLocationId,
+      containerTypeId: line.containerTypeId
     }))
   }
   formMode.value = 'edit'
@@ -434,7 +445,12 @@ async function handleRelease(row) {
   try {
     const result = await releaseInboundOrder(row.id)
     if (result.kanbanCount) {
-      ElMessage.success(`已生成 ${result.kanbanCount} 个看板: ${(result.kanbanCodes || []).join(', ')}`)
+      const totalQty = (result.kanbanCodes || []).length > 0 && result.order
+        ? result.order.plannedQty || 0 : 0
+      const msg = `已生成 ${result.kanbanCount} 个看板`
+        + (totalQty ? `（共 ${totalQty} 件）` : '')
+        + `: ${(result.kanbanCodes || []).join(', ')}`
+      ElMessage({ message: msg, type: 'success', duration: 6000 })
     } else {
       ElMessage.success('入库单释放成功')
     }
@@ -482,7 +498,7 @@ async function openPartialCancelDialog(row) {
 function onPartialCancelSelectionChange(selection) {
   partialCancelSelectedIds.value = selection
     .filter((k) => !k._disabled)
-    .map((k) => k.id)
+    .map((k) => k.kanbanId)
 }
 
 async function confirmPartialCancel() {

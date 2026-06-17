@@ -48,6 +48,7 @@ public interface InventoryTransactionMapper {
 
     List<FifoPickCandidate> selectFifoCandidatesForLock(
             @Param("materialId") Long materialId,
-            @Param("warehouseIds") List<Long> warehouseIds
+            @Param("warehouseIds") List<Long> warehouseIds,
+            @Param("containerTypeId") Long containerTypeId
     );
 }
