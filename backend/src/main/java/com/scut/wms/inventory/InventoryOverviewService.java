@@ -55,9 +55,10 @@ public class InventoryOverviewService {
         for (KanbanBoard kb : activeKanbans) {
             Long locId = kb.getLocationId();
             boxCount.merge(locId, 1, Integer::sum);
-            pieceSum.merge(locId,
-                    kb.getBoardQty() != null ? kb.getBoardQty() : BigDecimal.ZERO,
-                    BigDecimal::add);
+            BigDecimal boardQty = kb.getBoardQty() != null ? kb.getBoardQty() : BigDecimal.ZERO;
+            BigDecimal pickedQty = kb.getPickedQty() != null ? kb.getPickedQty() : BigDecimal.ZERO;
+            BigDecimal remaining = boardQty.subtract(pickedQty);
+            pieceSum.merge(locId, remaining.compareTo(BigDecimal.ZERO) > 0 ? remaining : BigDecimal.ZERO, BigDecimal::add);
         }
 
         List<InventoryOverviewResponse.WarehouseOverview> result = new ArrayList<>();

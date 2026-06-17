@@ -53,17 +53,18 @@
                 <div class="bar-track">
                   <div
                     class="bar-fill"
-                    :class="{ 'bar-over': isOver(loc.usedBoxes, loc.maxCapacity) }"
+                    :class="{ 'bar-over': isOver(loc.usedBoxes, loc.maxCapacity), 'bar-full': !isOver(loc.usedBoxes, loc.maxCapacity) && isFull(loc.usedBoxes, loc.maxCapacity) }"
                     :style="{ width: barWidth(loc.usedBoxes, loc.maxCapacity) + '%' }"
                   />
                 </div>
                 <span class="bar-nums">
-                  <span :class="isOver(loc.usedBoxes, loc.maxCapacity) ? 'num-red' : ''">
+                  <span :class="isOver(loc.usedBoxes, loc.maxCapacity) ? 'num-red' : isFull(loc.usedBoxes, loc.maxCapacity) ? 'num-orange' : ''">
                     {{ loc.usedBoxes }} 箱
                   </span>
                   / {{ fmt(loc.maxCapacity) || '未设置' }} 箱
                   <span v-if="loc.totalPieces > 0" style="color:#909399; margin-left:4px">({{ loc.totalPieces }} 件)</span>
                   <span v-if="isOver(loc.usedBoxes, loc.maxCapacity)" class="warn-badge">超容</span>
+                  <span v-else-if="isFull(loc.usedBoxes, loc.maxCapacity)" class="warn-badge warn-full">已满</span>
                   <span v-else-if="isNearFull(loc.usedBoxes, loc.maxCapacity)" class="warn-badge warn-yellow">快满</span>
                 </span>
               </div>
@@ -182,10 +183,16 @@ function isOver(used, max) {
   return m > 0 && u > m
 }
 
+function isFull(used, max) {
+  const u = Number(used) || 0
+  const m = Number(max) || 0
+  return m > 0 && u >= m
+}
+
 function isNearFull(used, max) {
   const u = Number(used) || 0
   const m = Number(max) || 0
-  return m > 0 && u >= m * 0.85 && u <= m
+  return m > 0 && u >= m * 0.85 && u < m
 }
 
 function isUnder(current, baseline) {
@@ -266,6 +273,7 @@ loadData()
   transition: width .3s ease; min-width: 0;
 }
 .bar-fill.bar-over { background: #f56c6c; }
+.bar-fill.bar-full { background: #e6a23c; }
 .bar-fill.bar-under { background: #e6a23c; }
 
 .bar-nums { font-size: 13px; white-space: nowrap; color: #606266; min-width: 150px; }
@@ -278,6 +286,7 @@ loadData()
 
 .warn-badge { font-size: 12px; margin-left: 6px; color: #f56c6c; font-weight: 600; }
 .warn-badge.warn-yellow { color: #e6a23c; }
+.warn-badge.warn-full { color: #e6a23c; }
 
 .num-blue { color: #409eff; }
 .num-green { color: #67c23a; }

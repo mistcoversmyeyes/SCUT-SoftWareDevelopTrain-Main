@@ -243,6 +243,23 @@ public class InboundOrderService {
             if (mctCount == 0) {
                 throw new BusinessException("所选容器类型不适用于该物料");
             }
+            // D22+D28: 库位空间校验——不让超容
+            ContainerType ct = containerTypeMapper.selectById(line.containerTypeId());
+            if (ct != null && ct.getCapacityQty() != null && ct.getCapacityQty().compareTo(BigDecimal.ZERO) > 0
+                    && line.plannedQty() != null && line.plannedQty().compareTo(BigDecimal.ZERO) > 0
+                    && location.getMaxCapacity() != null) {
+                int capacity = ct.getCapacityQty().intValue();
+                int planned = line.plannedQty().intValue();
+                int newKanbans = planned / capacity + (planned % capacity > 0 ? 1 : 0);
+                long currentBoxes = kanbanBoardMapper.selectCount(Wrappers.<KanbanBoard>lambdaQuery()
+                        .eq(KanbanBoard::getLocationId, location.getId())
+                        .in(KanbanBoard::getStatus, "RECEIVED", "LOCKED"));
+                if (currentBoxes + newKanbans > location.getMaxCapacity().longValue()) {
+                    throw new BusinessException(String.format(
+                            "库位 %s 放不下！当前占用 %d 箱，本次入库 %d 箱，最大容量 %d 箱",
+                            location.getLocationName(), currentBoxes, newKanbans, location.getMaxCapacity().longValue()));
+                }
+            }
         }
     }
 
