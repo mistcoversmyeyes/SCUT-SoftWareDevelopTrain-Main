@@ -7,48 +7,41 @@
 - 后端: Spring Boot 3 + MyBatis-Plus + MySQL 8.0
 - 前端: Vue 3 + Vite + Element Plus
 
-## 快速启动
+## 前置条件
 
-### 1. 启动 MySQL
+- Java 17+, Maven 3.9+, Node.js 20+
+- Docker 或 MySQL 8.0
+- Ubuntu 20.04+ 或 Windows (Git Bash)
+
+## 快速启动（一键）
 
 ```bash
+# 1. 启动 MySQL（仅首次）
 docker-compose up -d mysql
+
+# 2. 一键启动
+bash scripts/start.sh
 ```
 
-或手动安装 MySQL 8.0，确保 `root/root` 可连接 `127.0.0.1:3306`。
+启动完成后访问 `http://localhost:5173`，用户名 `admin`，密码 `123456`。
 
-### 2. 初始化数据库（仅首次）
+`start.sh` 会自动完成：MySQL 就绪检测 → 首次导入种子数据 → 启动后端 → 启动前端。数据库表结构由 `DatabaseMigration` 启动时自动创建，无需手动执行 `schema.sql`。
+
+## 手动启动
 
 ```bash
-# 建表
-mysql -u root -proot -h 127.0.0.1 < backend/src/main/resources/schema.sql
+# 1. MySQL
+docker-compose up -d mysql
 
-# 导入种子数据（含供应商、物料、容器类型、库位、真实库存）
+# 2. 种子数据（仅首次）
 mysql -u root -proot -h 127.0.0.1 scut_wms < scripts/seed-data.sql
+
+# 3. 后端
+cd backend && mvn spring-boot:run -DskipTests
+
+# 4. 前端
+cd frontend && npm install && npm run dev
 ```
-
-### 3. 启动后端
-
-```bash
-cd backend
-mvn spring-boot:run -DskipTests
-```
-
-后端运行在 `http://localhost:8080`。
-
-### 4. 启动前端
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-前端运行在 `http://localhost:5173`。
-
-### 5. 登录
-
-用户名 `admin`，密码 `123456`。
 
 ## 架构
 
