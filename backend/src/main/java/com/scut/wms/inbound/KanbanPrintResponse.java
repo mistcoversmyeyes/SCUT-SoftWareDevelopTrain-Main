@@ -1,0 +1,24 @@
+package com.scut.wms.inbound;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+public record KanbanPrintResponse(
+        Long kanbanId,
+        Long inboundOrderId,
+        String kanbanCode,
+        String inboundNo,
+        Integer lineNo,
+        String supplierCode,
+        String supplierName,
+        String materialCode,
+        String materialName,
+        Long locationId,
+        String locationName,
+        BigDecimal qty,
+        String status,
+        LocalDateTime printedAt,
+        String containerTypeName,
+        BigDecimal capacityQty
+) {
+}

@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scut.wms.inventory.InventoryTransactionMapper">
+
+    <select id="selectScanKanbanForUpdate" resultType="com.scut.wms.inventory.ScanKanbanContext">
+        SELECT kb.id AS kanban_id,
+               kb.kanban_code,
+               kb.status AS kanban_status,
+               kb.board_qty,
+               COALESCE(kb.picked_qty, 0) AS picked_qty,
+               kb.received_at,
+               o.id AS order_id,
+               o.inbound_no,
+               o.status AS order_status,
+               l.id AS line_id,
+               l.line_no,
+               l.planned_qty,
+               l.received_qty AS line_received_qty,
+               l.material_id,
+               m.material_code,
+               m.material_name,
+               l.target_warehouse_id,
+               l.target_location_id,
+               l.target_location_id AS planned_location_id,
+               kb.container_type_id,
+               sl.warehouse_id AS location_warehouse_id,
+               sl.location_name
+        FROM kanban_board kb
+                 JOIN inbound_order o ON o.id = kb.inbound_order_id
+                 JOIN inbound_order_line l ON l.id = kb.inbound_order_line_id
+                 JOIN material m ON m.id = l.material_id
+                 JOIN storage_location sl ON sl.id = kb.location_id
+        WHERE kb.kanban_code = #{kanbanCode}
+        FOR UPDATE
+    </select>
+
+    <select id="selectKanbanContext" resultType="com.scut.wms.inventory.ScanKanbanContext">
+        SELECT kb.id AS kanban_id,
+               kb.kanban_code,
+               kb.status AS kanban_status,
+               kb.board_qty,
+               COALESCE(kb.picked_qty, 0) AS picked_qty,
+               kb.received_at,
+               o.id AS order_id,
+               o.inbound_no,
+               o.status AS order_status,
+               l.id AS line_id,
+               l.line_no,
+               l.planned_qty,
+               l.received_qty AS line_received_qty,
+               l.material_id,
+               m.material_code,
+               m.material_name,
+               l.target_warehouse_id,
+               l.target_location_id,
+               l.target_location_id AS planned_location_id,
+               kb.container_type_id,
+               sl.warehouse_id AS location_warehouse_id,
+               sl.location_name
+        FROM kanban_board kb
+                 JOIN inbound_order o ON o.id = kb.inbound_order_id
+                 JOIN inbound_order_line l ON l.id = kb.inbound_order_line_id
+                 JOIN material m ON m.id = l.material_id
+                 JOIN storage_location sl ON sl.id = kb.location_id
+        WHERE kb.kanban_code = #{kanbanCode}
+    </select>
+
+    <select id="selectBalanceForUpdate" resultType="com.scut.wms.inventory.InventoryBalance">
+        SELECT id,
+               material_id,
+               warehouse_id,
+               storage_location_id,
+               on_hand_qty,
+               updated_at
+        FROM inventory_balance
+        WHERE material_id = #{materialId}
+          AND warehouse_id = #{warehouseId}
+          AND storage_location_id = #{storageLocationId}
+        FOR UPDATE
+    </select>
+
+    <select id="selectInventoryBalances" resultType="com.scut.wms.inventory.InventoryBalanceView">
+        SELECT m.material_code,
+               m.material_name,
+               w.warehouse_code,
+               w.warehouse_name,
+               sl.location_code,
+               sl.location_name,
+               ib.on_hand_qty,
+               ib.updated_at
+        FROM inventory_balance ib
+                 JOIN material m ON m.id = ib.material_id
+                 JOIN warehouse w ON w.id = ib.warehouse_id
+                 JOIN storage_location sl ON sl.id = ib.storage_location_id
+        WHERE (#{materialCode} IS NULL OR m.material_code = #{materialCode})
+          AND (#{warehouseCode} IS NULL OR w.warehouse_code = #{warehouseCode})
+          AND (#{locationCode} IS NULL OR sl.location_code = #{locationCode})
+        ORDER BY ib.id ASC
+    </select>
+
+    <select id="selectInventoryMovements" resultType="com.scut.wms.inventory.InventoryMovementView">
+        SELECT im.movement_no,
+               im.movement_type,
+               m.material_code,
+               m.material_name,
+               w.warehouse_code,
+               w.warehouse_name,
+               sl.location_code,
+               sl.location_name,
+               pl.location_code AS planned_location_code,
+               pl.location_name AS planned_location_name,
+               im.qty,
+               kb.kanban_code,
+               io.inbound_no,
+               im.occurred_at
+        FROM inventory_movement im
+                 JOIN material m ON m.id = im.material_id
+                 JOIN warehouse w ON w.id = im.warehouse_id
+                 JOIN storage_location sl ON sl.id = im.storage_location_id
+                 LEFT JOIN storage_location pl ON pl.id = im.planned_location_id
+                 LEFT JOIN kanban_board kb ON kb.id = im.kanban_board_id
+                 LEFT JOIN inbound_order io ON io.id = kb.inbound_order_id
+        WHERE (#{materialCode} IS NULL OR m.material_code = #{materialCode})
+          AND (#{warehouseCode} IS NULL OR w.warehouse_code = #{warehouseCode})
+          AND (#{locationCode} IS NULL OR sl.location_code = #{locationCode})
+          AND (#{inboundNo} IS NULL OR io.inbound_no = #{inboundNo})
+          AND (#{kanbanCode} IS NULL OR kb.kanban_code = #{kanbanCode})
+        ORDER BY im.occurred_at DESC, im.id DESC
+    </select>
+
+    <select id="selectKanbanTrace" resultType="com.scut.wms.inventory.KanbanTraceView">
+        SELECT kb.kanban_code,
+               kb.status AS kanban_status,
+               io.inbound_no,
+               m.material_code,
+               m.material_name,
+               sl.location_code,
+               sl.location_name,
+               COALESCE(DATE_FORMAT(kb.received_at, '%Y-%m-%dT%H:%i:%s'), '') AS scanned_at,
+               COALESCE(im.movement_no, '') AS movement_no
+        FROM kanban_board kb
+                 JOIN inbound_order io ON io.id = kb.inbound_order_id
+                 JOIN inbound_order_line iol ON iol.id = kb.inbound_order_line_id
+                 JOIN material m ON m.id = iol.material_id
+                 JOIN storage_location sl ON sl.id = kb.location_id
+                 LEFT JOIN inventory_movement im ON im.kanban_board_id = kb.id
+        WHERE kb.kanban_code = #{kanbanCode}
+        ORDER BY im.occurred_at DESC, im.id DESC
+        LIMIT 1
+    </select>
+
+    <resultMap id="pickRecommendationMap" type="com.scut.wms.outbound.picking.PickRecommendation">
+        <constructor>
+            <arg column="kanban_code" javaType="String"/>
+            <arg column="warehouse_name" javaType="String"/>
+            <arg column="location_name" javaType="String"/>
+            <arg column="available_qty" javaType="java.math.BigDecimal"/>
+            <arg column="received_at" javaType="java.time.LocalDateTime"/>
+        </constructor>
+    </resultMap>
+
+    <select id="selectFifoCandidateForUpdate" resultType="com.scut.wms.outbound.picking.FifoPickCandidate">
+        SELECT kb.id AS kanbanId,
+               kb.kanban_code AS kanbanCode,
+               kb.board_qty AS boardQty,
+               COALESCE(kb.picked_qty, 0) AS pickedQty,
+               kb.received_at AS receivedAt,
+               iol.material_id AS materialId,
+               sl.warehouse_id AS warehouseId,
+               sl.id AS storageLocationId
+        FROM kanban_board kb
+        JOIN inbound_order_line iol ON kb.inbound_order_line_id = iol.id
+        JOIN storage_location sl ON sl.id = kb.location_id
+        WHERE kb.status = 'RECEIVED'
+          AND iol.material_id = #{materialId}
+          AND sl.warehouse_id = #{warehouseId}
+          AND sl.id = #{storageLocationId}
+          AND (kb.board_qty - COALESCE(kb.picked_qty, 0)) > 0
+        ORDER BY kb.received_at ASC, kb.id ASC
+        FOR UPDATE
+    </select>
+
+    <select id="selectFifoRecommendations" resultMap="pickRecommendationMap">
+        SELECT k.kanban_code,
+               w.warehouse_name,
+               sl.location_name,
+               (k.board_qty - COALESCE(k.picked_qty, 0)) AS available_qty,
+               k.received_at
+        FROM kanban_board k
+                 JOIN inbound_order_line iol ON iol.id = k.inbound_order_line_id
+                 JOIN storage_location sl ON sl.id = k.location_id
+                 JOIN warehouse w ON w.id = sl.warehouse_id
+        WHERE k.status = 'RECEIVED'
+          AND (k.board_qty - COALESCE(k.picked_qty, 0)) > 0
+          AND iol.material_id = #{materialId}
+          AND sl.warehouse_id IN
+        <foreach collection="warehouseIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        ORDER BY k.received_at ASC, k.id ASC
+    </select>
+
+    <select id="selectFifoCandidatesForLock" resultType="com.scut.wms.outbound.picking.FifoPickCandidate">
+        SELECT kb.id AS kanbanId,
+               kb.kanban_code AS kanbanCode,
+               kb.board_qty AS boardQty,
+               COALESCE(kb.picked_qty, 0) AS pickedQty,
+               kb.received_at AS receivedAt,
+               iol.material_id AS materialId,
+               iol.target_warehouse_id AS warehouseId,
+               iol.target_location_id AS storageLocationId
+        FROM kanban_board kb
+                 JOIN inbound_order_line iol ON kb.inbound_order_line_id = iol.id
+        WHERE kb.status = 'RECEIVED'
+          AND iol.material_id = #{materialId}
+          AND (kb.board_qty - COALESCE(kb.picked_qty, 0)) > 0
+        <if test="containerTypeId != null">
+          AND kb.container_type_id = #{containerTypeId}
+        </if>
+        <if test="warehouseIds != null and warehouseIds.size() > 0">
+          AND iol.target_warehouse_id IN
+          <foreach collection="warehouseIds" item="id" open="(" separator="," close=")">
+              #{id}
+          </foreach>
+        </if>
+        ORDER BY kb.received_at ASC, kb.id ASC
+        FOR UPDATE
+    </select>
+
+</mapper>
