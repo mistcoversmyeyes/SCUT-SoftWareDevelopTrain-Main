@@ -26,6 +26,7 @@ import OutboundLockView from '../views/outbound/OutboundLockView.vue'
 import InventoryBalanceView from '../views/inventory/InventoryBalanceView.vue'
 import InventoryTraceView from '../views/inventory/InventoryTraceView.vue'
 import InventoryOverviewView from '../views/inventory/InventoryOverviewView.vue'
+import InventoryAiImportView from '../views/inventory/InventoryAiImportView.vue'
 import KanbanListView from '../views/kanban/KanbanListView.vue'
 import KanbanTraceView from '../views/kanban/KanbanTraceView.vue'
 import PlaceholderPage from '../views/PlaceholderPage.vue'
@@ -49,6 +50,7 @@ const pageByKey = {
   'inventory-balances': InventoryBalanceView,
   'inventory-trace': InventoryTraceView,
   'inventory-overview': InventoryOverviewView,
+  'inventory-ai-import': InventoryAiImportView,
   'kanbans-list': KanbanListView,
   'kanbans-trace': KanbanTraceView
 }

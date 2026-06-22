@@ -37,6 +37,8 @@ export const menuItems = [
   { key: 'inventory', title: '库存监控', icon: DataAnalysis, children: [
       { key: 'inventory-overview', title: '库存总览', path: '/inventory/overview',
         description: '库位使用率与物料充足性总览仪表盘。', fields: ['库位容量', '物料库存'] },
+      { key: 'inventory-ai-import', title: 'AI 数据导入', path: '/inventory/ai-import',
+        description: '导入 inventory_flow_history 样例流水，供后续预警演示读取。', fields: ['业务日期', '流水类型', '质量状态'] },
       { key: 'inventory-balances', title: '当前库存', path: '/inventory/balances',
         description: '按物料、仓库和库位查看当前库存。', fields: ['物料', '仓库', '库位'] },
       { key: 'inventory-trace', title: '库存追溯', path: '/inventory/trace',

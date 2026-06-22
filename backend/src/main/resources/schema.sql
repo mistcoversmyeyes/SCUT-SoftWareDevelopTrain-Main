@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS ai_inventory_flow_history;
+DROP TABLE IF EXISTS ai_import_batch;
 DROP TABLE IF EXISTS inventory_lock;
 DROP TABLE IF EXISTS inventory_balance;
 DROP TABLE IF EXISTS inventory_movement;
@@ -232,4 +234,36 @@ CREATE TABLE inventory_lock (
   INDEX idx_lock_order (outbound_order_id),
   INDEX idx_lock_kanban (kanban_board_id),
   INDEX idx_lock_status (status)
+);
+
+CREATE TABLE ai_import_batch (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  import_type VARCHAR(64) NOT NULL,
+  file_name VARCHAR(255) NOT NULL,
+  template_version VARCHAR(64) NOT NULL,
+  total_rows INT NOT NULL DEFAULT 0,
+  success_rows INT NOT NULL DEFAULT 0,
+  failed_rows INT NOT NULL DEFAULT 0,
+  imported_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_ai_import_type_time (import_type, imported_at)
+);
+
+CREATE TABLE ai_inventory_flow_history (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  batch_id BIGINT NOT NULL,
+  import_row_no INT NOT NULL,
+  business_date DATE NOT NULL,
+  material_code VARCHAR(64) NOT NULL,
+  warehouse_code VARCHAR(64) NOT NULL,
+  location_code VARCHAR(64) NOT NULL,
+  board_code VARCHAR(128) NOT NULL,
+  movement_type VARCHAR(32) NOT NULL,
+  quantity DECIMAL(18, 3) NOT NULL,
+  source_order_no VARCHAR(64) NOT NULL,
+  quality_status VARCHAR(32),
+  imported_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_ai_flow_batch FOREIGN KEY (batch_id) REFERENCES ai_import_batch(id),
+  INDEX idx_ai_flow_batch_row (batch_id, import_row_no),
+  INDEX idx_ai_flow_material_date (material_code, business_date),
+  INDEX idx_ai_flow_movement_date (movement_type, business_date)
 );
