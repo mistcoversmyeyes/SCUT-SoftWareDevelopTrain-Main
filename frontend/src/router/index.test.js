@@ -14,6 +14,9 @@ import InventoryBalanceView from '../views/inventory/InventoryBalanceView.vue'
 import InventoryAiImportView from '../views/inventory/InventoryAiImportView.vue'
 import InventoryTraceView from '../views/inventory/InventoryTraceView.vue'
 import KanbanTraceView from '../views/kanban/KanbanTraceView.vue'
+import MobileInboundView from '../views/mobile/MobileInboundView.vue'
+import MobileKanbanQueryView from '../views/mobile/MobileKanbanQueryView.vue'
+import MobileOutboundView from '../views/mobile/MobileOutboundView.vue'
 
 vi.mock('../api/auth', () => ({
   login: vi.fn(),
@@ -130,6 +133,21 @@ describe('router auth guard', () => {
         path: '/inbound/10/kanbans/print',
         name: 'kanban-print',
         component: KanbanPrintView
+      },
+      {
+        path: '/mobile/inbound',
+        name: 'mobile-inbound',
+        component: MobileInboundView
+      },
+      {
+        path: '/mobile/outbound',
+        name: 'mobile-outbound',
+        component: MobileOutboundView
+      },
+      {
+        path: '/mobile/kanban',
+        name: 'mobile-kanban',
+        component: MobileKanbanQueryView
       }
     ]
 
@@ -150,5 +168,18 @@ describe('router auth guard', () => {
     await router.push('/dashboard')
 
     expect(router.currentRoute.value.matched.at(-1).components.default).toBe(DashboardView)
+  })
+
+  it('redirects /mobile to the default mobile inbound route', async () => {
+    localStorage.setItem('wms-token', 'valid-token')
+    authApi.fetchMe.mockResolvedValue({
+      username: 'admin',
+      displayName: '系统管理员'
+    })
+
+    await router.push('/mobile')
+
+    expect(router.currentRoute.value.name).toBe('mobile-inbound')
+    expect(router.currentRoute.value.path).toBe('/mobile/inbound')
   })
 })
