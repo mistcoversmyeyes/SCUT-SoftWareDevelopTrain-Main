@@ -26,12 +26,16 @@
                l.target_location_id AS planned_location_id,
                kb.container_type_id,
                sl.warehouse_id AS location_warehouse_id,
-               sl.location_name
+               sl.location_name,
+               ih.hold_type AS active_hold_type,
+               ih.reason AS active_hold_reason,
+               ih.remark AS active_hold_remark
         FROM kanban_board kb
                  JOIN inbound_order o ON o.id = kb.inbound_order_id
                  JOIN inbound_order_line l ON l.id = kb.inbound_order_line_id
                  JOIN material m ON m.id = l.material_id
                  JOIN storage_location sl ON sl.id = kb.location_id
+                 LEFT JOIN inventory_hold ih ON ih.kanban_board_id = kb.id AND ih.status = 'ACTIVE'
         WHERE kb.kanban_code = #{kanbanCode}
         FOR UPDATE
     </select>
@@ -58,12 +62,16 @@
                l.target_location_id AS planned_location_id,
                kb.container_type_id,
                sl.warehouse_id AS location_warehouse_id,
-               sl.location_name
+               sl.location_name,
+               ih.hold_type AS active_hold_type,
+               ih.reason AS active_hold_reason,
+               ih.remark AS active_hold_remark
         FROM kanban_board kb
                  JOIN inbound_order o ON o.id = kb.inbound_order_id
                  JOIN inbound_order_line l ON l.id = kb.inbound_order_line_id
                  JOIN material m ON m.id = l.material_id
                  JOIN storage_location sl ON sl.id = kb.location_id
+                 LEFT JOIN inventory_hold ih ON ih.kanban_board_id = kb.id AND ih.status = 'ACTIVE'
         WHERE kb.kanban_code = #{kanbanCode}
     </select>
 
@@ -89,6 +97,50 @@
                sl.location_code,
                sl.location_name,
                ib.on_hand_qty,
+               (
+                   SELECT COALESCE(SUM(GREATEST(kb.board_qty - COALESCE(kb.picked_qty, 0), 0)), 0)
+                   FROM kanban_board kb
+                            JOIN inbound_order_line iol ON iol.id = kb.inbound_order_line_id
+                            LEFT JOIN inventory_hold ih ON ih.kanban_board_id = kb.id AND ih.status = 'ACTIVE'
+                   WHERE iol.material_id = ib.material_id
+                     AND kb.location_id = ib.storage_location_id
+                     AND kb.status = 'RECEIVED'
+                     AND ih.id IS NULL
+               ) AS available_qty,
+               (
+                   SELECT COALESCE(SUM(GREATEST(kb.board_qty - COALESCE(kb.picked_qty, 0), 0)), 0)
+                   FROM kanban_board kb
+                            JOIN inbound_order_line iol ON iol.id = kb.inbound_order_line_id
+                   WHERE iol.material_id = ib.material_id
+                     AND kb.location_id = ib.storage_location_id
+                     AND kb.status = 'LOCKED'
+               ) AS outbound_locked_qty,
+               (
+                   SELECT COALESCE(SUM(GREATEST(kb.board_qty - COALESCE(kb.picked_qty, 0), 0)), 0)
+                   FROM kanban_board kb
+                            JOIN inbound_order_line iol ON iol.id = kb.inbound_order_line_id
+                   WHERE iol.material_id = ib.material_id
+                     AND kb.location_id = ib.storage_location_id
+                     AND kb.status = 'SEALED'
+               ) AS sealed_qty,
+               (
+                   SELECT COALESCE(SUM(GREATEST(kb.board_qty - COALESCE(kb.picked_qty, 0), 0)), 0)
+                   FROM kanban_board kb
+                            JOIN inbound_order_line iol ON iol.id = kb.inbound_order_line_id
+                            JOIN inventory_hold ih ON ih.kanban_board_id = kb.id AND ih.status = 'ACTIVE' AND ih.hold_type = 'MANUAL_LOCK'
+                   WHERE iol.material_id = ib.material_id
+                     AND kb.location_id = ib.storage_location_id
+                     AND kb.status = 'RECEIVED'
+               ) AS manual_locked_qty,
+               (
+                   SELECT COALESCE(SUM(GREATEST(kb.board_qty - COALESCE(kb.picked_qty, 0), 0)), 0)
+                   FROM kanban_board kb
+                            JOIN inbound_order_line iol ON iol.id = kb.inbound_order_line_id
+                   WHERE iol.material_id = ib.material_id
+                     AND kb.location_id = ib.storage_location_id
+                     AND GREATEST(kb.board_qty - COALESCE(kb.picked_qty, 0), 0) > 0
+                     AND GREATEST(kb.board_qty - COALESCE(kb.picked_qty, 0), 0) &lt; kb.board_qty
+               ) AS loose_qty,
                ib.updated_at
         FROM inventory_balance ib
                  JOIN material m ON m.id = ib.material_id
@@ -138,7 +190,7 @@
                m.material_name,
                sl.location_code,
                sl.location_name,
-               COALESCE(DATE_FORMAT(kb.received_at, '%Y-%m-%dT%H:%i:%s'), '') AS scanned_at,
+               COALESCE(CAST(kb.received_at AS CHAR), '') AS scanned_at,
                COALESCE(im.movement_no, '') AS movement_no
         FROM kanban_board kb
                  JOIN inbound_order io ON io.id = kb.inbound_order_id
@@ -178,6 +230,11 @@
           AND sl.warehouse_id = #{warehouseId}
           AND sl.id = #{storageLocationId}
           AND (kb.board_qty - COALESCE(kb.picked_qty, 0)) > 0
+          AND NOT EXISTS (
+              SELECT 1 FROM inventory_hold ih
+              WHERE ih.kanban_board_id = kb.id
+                AND ih.status = 'ACTIVE'
+          )
         ORDER BY kb.received_at ASC, kb.id ASC
         FOR UPDATE
     </select>
@@ -195,6 +252,11 @@
         WHERE k.status = 'RECEIVED'
           AND (k.board_qty - COALESCE(k.picked_qty, 0)) > 0
           AND iol.material_id = #{materialId}
+          AND NOT EXISTS (
+              SELECT 1 FROM inventory_hold ih
+              WHERE ih.kanban_board_id = k.id
+                AND ih.status = 'ACTIVE'
+          )
           AND sl.warehouse_id IN
         <foreach collection="warehouseIds" item="id" open="(" separator="," close=")">
             #{id}
@@ -216,6 +278,11 @@
         WHERE kb.status = 'RECEIVED'
           AND iol.material_id = #{materialId}
           AND (kb.board_qty - COALESCE(kb.picked_qty, 0)) > 0
+          AND NOT EXISTS (
+              SELECT 1 FROM inventory_hold ih
+              WHERE ih.kanban_board_id = kb.id
+                AND ih.status = 'ACTIVE'
+          )
         <if test="containerTypeId != null">
           AND kb.container_type_id = #{containerTypeId}
         </if>

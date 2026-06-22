@@ -75,6 +75,7 @@ public class DatabaseMigration implements CommandLineRunner {
 
             // ====== 锁货功能迁移 ======
             ensureLockTable(conn);
+            ensureInventoryHoldTable(conn);
 
             ensureColumn(conn, "kanban_board", "locked_by_order_id",
                     "BIGINT DEFAULT NULL");
@@ -494,6 +495,36 @@ public class DatabaseMigration implements CommandLineRunner {
                 )
                 """;
         log.info("迁移: CREATE TABLE inventory_lock");
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+        }
+    }
+
+    private void ensureInventoryHoldTable(Connection conn) throws Exception {
+        if (tableExists(conn, "inventory_hold")) {
+            return;
+        }
+        String sql = """
+                CREATE TABLE inventory_hold (
+                  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                  kanban_board_id BIGINT NOT NULL,
+                  hold_type VARCHAR(32) NOT NULL,
+                  hold_qty DECIMAL(18, 3) NOT NULL,
+                  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+                  reason VARCHAR(128) NOT NULL,
+                  remark VARCHAR(255),
+                  operator_name VARCHAR(64) NOT NULL,
+                  released_reason VARCHAR(128) DEFAULT NULL,
+                  released_remark VARCHAR(255) DEFAULT NULL,
+                  released_by VARCHAR(64) DEFAULT NULL,
+                  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                  released_at DATETIME DEFAULT NULL,
+                  CONSTRAINT fk_hold_kanban FOREIGN KEY (kanban_board_id) REFERENCES kanban_board(id),
+                  INDEX idx_hold_kanban_status (kanban_board_id, status),
+                  INDEX idx_hold_type_status (hold_type, status)
+                )
+                """;
+        log.info("迁移: CREATE TABLE inventory_hold");
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(sql);
         }

@@ -6,21 +6,20 @@
       </template>
 
       <el-tabs v-model="activeTab">
-        <!-- ═══════ 锁记录 — 看板直列 ═══════ -->
         <el-tab-pane label="锁记录" name="locks">
           <el-form :model="query" inline class="filter-form">
             <el-form-item label="锁状态">
-              <el-select v-model="query.status" placeholder="全部" clearable style="width:140px">
+              <el-select v-model="query.status" placeholder="全部" clearable style="width: 140px">
                 <el-option label="锁定中" value="LOCKED" />
                 <el-option label="已释放" value="RELEASED" />
                 <el-option label="被抢锁" value="FORCE_STOLEN" />
               </el-select>
             </el-form-item>
             <el-form-item label="物料编码">
-              <el-input v-model="query.materialCode" placeholder="模糊搜索" clearable style="width:160px" />
+              <el-input v-model="query.materialCode" placeholder="模糊搜索" clearable style="width: 160px" />
             </el-form-item>
             <el-form-item label="出库单号">
-              <el-input v-model="query.outboundNo" placeholder="模糊搜索" clearable style="width:180px" />
+              <el-input v-model="query.outboundNo" placeholder="模糊搜索" clearable style="width: 180px" />
             </el-form-item>
             <el-form-item>
               <el-button type="primary" :loading="loading" @click="loadLocks">查询</el-button>
@@ -47,17 +46,16 @@
             <el-table-column prop="lockQty" label="锁定量" width="90" align="right" />
             <el-table-column prop="lockStatus" label="锁状态" width="100">
               <template #default="{ row }">
-                <el-tag v-if="row.lockStatus==='LOCKED'" type="warning" size="small">锁定中</el-tag>
-                <el-tag v-else-if="row.lockStatus==='FORCE_STOLEN'" type="danger" size="small">被抢锁</el-tag>
-                <el-tag v-else-if="row.lockStatus==='RELEASED'" type="info" size="small">已释放</el-tag>
+                <el-tag v-if="row.lockStatus === 'LOCKED'" type="warning" size="small">锁定中</el-tag>
+                <el-tag v-else-if="row.lockStatus === 'FORCE_STOLEN'" type="danger" size="small">被抢锁</el-tag>
+                <el-tag v-else-if="row.lockStatus === 'RELEASED'" type="info" size="small">已释放</el-tag>
                 <el-tag v-else size="small">{{ row.lockStatus }}</el-tag>
               </template>
             </el-table-column>
             <el-table-column label="关联出库单" width="180">
               <template #default="{ row }">
                 <template v-if="row.outboundNo">
-                  <el-button type="primary" size="small" text
-                    @click="goToOrder(row.outboundOrderId)">
+                  <el-button type="primary" size="small" text @click="goToOrder(row.outboundOrderId)">
                     {{ row.outboundNo }}
                   </el-button>
                 </template>
@@ -69,8 +67,15 @@
             </el-table-column>
             <el-table-column label="操作" width="80">
               <template #default="{ row }">
-                <el-button v-if="row.lockStatus==='LOCKED'" type="danger" size="small" text
-                  @click="handleUnlock(row)">解锁</el-button>
+                <el-button
+                  v-if="row.lockStatus === 'LOCKED'"
+                  type="danger"
+                  size="small"
+                  text
+                  @click="handleUnlock(row)"
+                >
+                  解锁
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -78,11 +83,79 @@
           <el-empty v-if="!loading && !kanbanLocks.length" description="暂无锁记录" />
         </el-tab-pane>
 
-        <!-- ═══════ 强制出库审计 ═══════ -->
+        <el-tab-pane label="人工占用" name="holds">
+          <el-form :model="holdQuery" inline class="filter-form">
+            <el-form-item label="类型">
+              <el-select v-model="holdQuery.holdType" placeholder="全部" clearable style="width: 140px">
+                <el-option label="封存" value="SEALED" />
+                <el-option label="手动锁库" value="MANUAL_LOCK" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="状态">
+              <el-select v-model="holdQuery.status" placeholder="全部" clearable style="width: 140px">
+                <el-option label="生效中" value="ACTIVE" />
+                <el-option label="已释放" value="RELEASED" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="物料编码">
+              <el-input v-model="holdQuery.materialCode" placeholder="模糊搜索" clearable style="width: 160px" />
+            </el-form-item>
+            <el-form-item label="看板码">
+              <el-input v-model="holdQuery.kanbanCode" placeholder="模糊搜索" clearable style="width: 220px" />
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" :loading="holdLoading" @click="loadHolds">查询</el-button>
+              <el-button @click="resetHoldFilters">重置</el-button>
+            </el-form-item>
+          </el-form>
+
+          <el-table v-loading="holdLoading" :data="holdRecords" border stripe size="small">
+            <el-table-column prop="kanbanCode" label="看板码" min-width="190">
+              <template #default="{ row }"><code>{{ row.kanbanCode }}</code></template>
+            </el-table-column>
+            <el-table-column prop="materialCode" label="物料编码" width="140" />
+            <el-table-column prop="materialName" label="物料名称" min-width="170" />
+            <el-table-column prop="locationName" label="库位" width="140" />
+            <el-table-column prop="holdType" label="占用类型" width="110">
+              <template #default="{ row }">
+                <el-tag :type="holdTypeTagType(row.holdType)" size="small">{{ holdTypeLabel(row.holdType) }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="holdQty" label="数量" width="90" align="right" />
+            <el-table-column prop="kanbanStatus" label="看板状态" width="100">
+              <template #default="{ row }">
+                <el-tag :type="kanbanStatusType(row.kanbanStatus)" size="small">
+                  {{ kanbanStatusLabel(row.kanbanStatus) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="status" label="记录状态" width="100">
+              <template #default="{ row }">
+                <el-tag :type="row.status === 'ACTIVE' ? 'warning' : 'info'" size="small">
+                  {{ row.status === 'ACTIVE' ? '生效中' : row.status === 'RELEASED' ? '已释放' : row.status }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="reason" label="原因" min-width="140" />
+            <el-table-column prop="remark" label="备注" min-width="160">
+              <template #default="{ row }">{{ row.remark || '—' }}</template>
+            </el-table-column>
+            <el-table-column prop="operatorName" label="操作人" width="110" />
+            <el-table-column prop="createdAt" label="创建时间" width="170">
+              <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+            </el-table-column>
+            <el-table-column prop="releasedAt" label="释放时间" width="170">
+              <template #default="{ row }">{{ formatDateTime(row.releasedAt) }}</template>
+            </el-table-column>
+          </el-table>
+
+          <el-empty v-if="!holdLoading && !holdRecords.length" description="暂无人工占用记录" />
+        </el-tab-pane>
+
         <el-tab-pane label="强制出库审计" name="logs">
           <el-form :model="logQuery" inline class="filter-form">
             <el-form-item label="出库单号">
-              <el-input v-model="logQuery.outboundNo" placeholder="模糊搜索" clearable style="width:180px" />
+              <el-input v-model="logQuery.outboundNo" placeholder="模糊搜索" clearable style="width: 180px" />
             </el-form-item>
             <el-form-item>
               <el-button type="primary" :loading="logLoading" @click="loadForceLogs">查询</el-button>
@@ -109,10 +182,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { fetchKanbanLocks, fetchForceLogs, unlockRecord } from '../../api/outbound'
+import { fetchInventoryHolds } from '../../api/kanban'
+import { fetchForceLogs, fetchKanbanLocks, unlockRecord } from '../../api/outbound'
 
 const router = useRouter()
 const activeTab = ref('locks')
@@ -121,15 +195,57 @@ const query = reactive({ status: '', materialCode: '', outboundNo: '' })
 const kanbanLocks = ref([])
 const loading = ref(false)
 
+const holdQuery = reactive({ holdType: '', status: '', materialCode: '', kanbanCode: '' })
+const holdRecords = ref([])
+const holdLoading = ref(false)
+
 const logQuery = reactive({ outboundNo: '' })
 const forceLogs = ref([])
 const logLoading = ref(false)
 
-const kanbanStatusMap = { RECEIVED:'在库', LOCKED:'已锁定', SHIPPED:'已出库', PRINTED:'已打印', CANCELLED:'已取消' }
-const kanbanStatusTypeMap = { RECEIVED:'success', LOCKED:'warning', SHIPPED:'info', PRINTED:'', CANCELLED:'danger' }
+const kanbanStatusMap = {
+  RECEIVED: '在库',
+  LOCKED: '已锁定',
+  SEALED: '已封存',
+  SHIPPED: '已出库',
+  PRINTED: '已打印',
+  CANCELLED: '已取消'
+}
 
-function kanbanStatusLabel(s) { return kanbanStatusMap[s] || s || '—' }
-function kanbanStatusType(s) { return kanbanStatusTypeMap[s] || 'info' }
+const kanbanStatusTypeMap = {
+  RECEIVED: 'success',
+  LOCKED: 'warning',
+  SEALED: 'danger',
+  SHIPPED: 'info',
+  PRINTED: '',
+  CANCELLED: 'info'
+}
+
+const holdTypeMap = {
+  SEALED: '封存',
+  MANUAL_LOCK: '手动锁库'
+}
+
+const holdTypeTagMap = {
+  SEALED: 'danger',
+  MANUAL_LOCK: 'warning'
+}
+
+function kanbanStatusLabel(status) {
+  return kanbanStatusMap[status] || status || '—'
+}
+
+function kanbanStatusType(status) {
+  return kanbanStatusTypeMap[status] || 'info'
+}
+
+function holdTypeLabel(type) {
+  return holdTypeMap[type] || type || '—'
+}
+
+function holdTypeTagType(type) {
+  return holdTypeTagMap[type] || 'info'
+}
 
 async function loadLocks() {
   loading.value = true
@@ -139,45 +255,104 @@ async function loadLocks() {
       materialCode: query.materialCode || undefined,
       outboundNo: query.outboundNo || undefined
     })
-  } catch { kanbanLocks.value = [] }
-  finally { loading.value = false }
+  } catch {
+    kanbanLocks.value = []
+  } finally {
+    loading.value = false
+  }
 }
 
-function resetFilters() { query.status = ''; query.materialCode = ''; query.outboundNo = ''; loadLocks() }
+function resetFilters() {
+  query.status = ''
+  query.materialCode = ''
+  query.outboundNo = ''
+  loadLocks()
+}
 
 async function handleUnlock(row) {
   try {
     await ElMessageBox.confirm('确认解锁该看板？解锁后看板恢复为在库状态，关联出库单将自动补锁。', '确认解锁', {
-      confirmButtonText: '确认', cancelButtonText: '取消', type: 'warning'
+      confirmButtonText: '确认',
+      cancelButtonText: '取消',
+      type: 'warning'
     })
     await unlockRecord(row.lockId)
     ElMessage.success('解锁成功')
     await loadLocks()
   } catch (error) {
-    if (error !== 'cancel') ElMessage.error(error.response?.data?.message || '解锁失败')
+    if (error !== 'cancel') {
+      ElMessage.error(error.response?.data?.message || '解锁失败')
+    }
   }
 }
 
-function goToOrder(id) { if (id) router.push('/outbound/' + id) }
+function goToOrder(id) {
+  if (id) {
+    router.push('/outbound/' + id)
+  }
+}
+
+async function loadHolds() {
+  holdLoading.value = true
+  try {
+    holdRecords.value = await fetchInventoryHolds({
+      holdType: holdQuery.holdType || undefined,
+      status: holdQuery.status || undefined,
+      materialCode: holdQuery.materialCode || undefined,
+      kanbanCode: holdQuery.kanbanCode || undefined
+    })
+  } catch {
+    holdRecords.value = []
+  } finally {
+    holdLoading.value = false
+  }
+}
+
+function resetHoldFilters() {
+  holdQuery.holdType = ''
+  holdQuery.status = ''
+  holdQuery.materialCode = ''
+  holdQuery.kanbanCode = ''
+  loadHolds()
+}
 
 async function loadForceLogs() {
   logLoading.value = true
-  try { forceLogs.value = await fetchForceLogs({ outboundNo: logQuery.outboundNo || undefined }) }
-  catch { forceLogs.value = [] }
-  finally { logLoading.value = false }
+  try {
+    forceLogs.value = await fetchForceLogs({ outboundNo: logQuery.outboundNo || undefined })
+  } catch {
+    forceLogs.value = []
+  } finally {
+    logLoading.value = false
+  }
 }
 
 function formatDateTime(value) {
-  if (!value) return '—'
-  const d = new Date(value)
-  return Number.isNaN(d.getTime()) ? value : d.toLocaleString()
+  if (!value) {
+    return '—'
+  }
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
 }
 
-onMounted(() => { loadLocks(); loadForceLogs() })
+onMounted(() => {
+  loadLocks()
+  loadHolds()
+  loadForceLogs()
+})
 </script>
 
 <style scoped>
-.card-header h2 { margin: 0; }
-.filter-form { margin-bottom: 16px; }
-code { font-family: 'Courier New', monospace; font-size: 0.85rem; }
+.card-header h2 {
+  margin: 0;
+}
+
+.filter-form {
+  margin-bottom: 16px;
+}
+
+code {
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+}
 </style>

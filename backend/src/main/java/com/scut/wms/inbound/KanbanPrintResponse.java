@@ -16,7 +16,11 @@ public record KanbanPrintResponse(
         Long locationId,
         String locationName,
         BigDecimal qty,
+        BigDecimal pickedQty,
+        BigDecimal availableQty,
         String status,
+        String activeHoldType,
+        String activeHoldReason,
         LocalDateTime printedAt,
         String containerTypeName,
         BigDecimal capacityQty

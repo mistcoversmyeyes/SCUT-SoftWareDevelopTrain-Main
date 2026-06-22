@@ -1,7 +1,7 @@
 package com.scut.wms.inventory;
 
-import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.scut.wms.inbound.InboundOrder;
 import com.scut.wms.inbound.InboundOrderLine;
 import com.scut.wms.inbound.InboundOrderLineMapper;
@@ -28,11 +28,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class TraceQueryControllerTest {
-    private static final Long DEMO_ORDER_ID = 1L;
-    private static final Long DEMO_LINE_ONE_ID = 1L;
-    private static final Long DEMO_LINE_TWO_ID = 2L;
-    private static final Long DEMO_BOARD_ONE_ID = 1L;
-    private static final Long DEMO_BOARD_TWO_ID = 2L;
+    private static final Long DEMO_ORDER_ID = 4L;
+    private static final Long DEMO_LINE_ONE_ID = 7L;
+    private static final Long DEMO_LINE_TWO_ID = 8L;
+    private static final Long DEMO_BOARD_ONE_ID = 13L;
+    private static final Long DEMO_BOARD_TWO_ID = 15L;
     private static final String DEMO_BOARD_ONE_CODE = "KB:v1:IN-20260610-001:1:1";
     private static final String DEMO_BOARD_TWO_CODE = "KB:v1:IN-20260610-001:2:1";
 
@@ -66,8 +66,8 @@ class TraceQueryControllerTest {
 
         resetLine(DEMO_LINE_ONE_ID);
         resetLine(DEMO_LINE_TWO_ID);
-        resetBoard(DEMO_BOARD_ONE_ID, DEMO_BOARD_ONE_CODE);
-        resetBoard(DEMO_BOARD_TWO_ID, DEMO_BOARD_TWO_CODE);
+        resetBoard(DEMO_BOARD_ONE_ID, 1L);
+        resetBoard(DEMO_BOARD_TWO_ID, 2L);
     }
 
     @Test
@@ -81,13 +81,13 @@ class TraceQueryControllerTest {
 
         mockMvc.perform(get("/api/inventory/balances"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].materialCode").value("5HG 807 109 C"))
-                .andExpect(jsonPath("$[0].materialName").value("前保险杠支架"))
+                .andExpect(jsonPath("$[0].materialCode").value("5HG.807.109.C"))
+                .andExpect(jsonPath("$[0].materialName").value("前保险杠安装支架总成"))
                 .andExpect(jsonPath("$[0].warehouseCode").value("WH-JY"))
-                .andExpect(jsonPath("$[0].warehouseName").value("吉耀仓"))
+                .andExpect(jsonPath("$[0].warehouseName").value("吉耀仓（佛山三水基地）"))
                 .andExpect(jsonPath("$[0].locationCode").value("A-01"))
-                .andExpect(jsonPath("$[0].locationName").value("A区 01 库位"))
-                .andExpect(jsonPath("$[0].onHandQty").value(120.0))
+                .andExpect(jsonPath("$[0].locationName").value("高位货架 A 区 01 号"))
+                .andExpect(jsonPath("$[0].onHandQty").value(100.0))
                 .andExpect(jsonPath("$[0].updatedAt").isNotEmpty());
     }
 
@@ -98,13 +98,13 @@ class TraceQueryControllerTest {
         mockMvc.perform(get("/api/inventory/movements"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].movementNo").isNotEmpty())
-                .andExpect(jsonPath("$[0].materialCode").value("5HG 807 109 C"))
-                .andExpect(jsonPath("$[0].materialName").value("前保险杠支架"))
+                .andExpect(jsonPath("$[0].materialCode").value("5HG.807.109.C"))
+                .andExpect(jsonPath("$[0].materialName").value("前保险杠安装支架总成"))
                 .andExpect(jsonPath("$[0].warehouseCode").value("WH-JY"))
-                .andExpect(jsonPath("$[0].warehouseName").value("吉耀仓"))
+                .andExpect(jsonPath("$[0].warehouseName").value("吉耀仓（佛山三水基地）"))
                 .andExpect(jsonPath("$[0].locationCode").value("A-01"))
-                .andExpect(jsonPath("$[0].locationName").value("A区 01 库位"))
-                .andExpect(jsonPath("$[0].qty").value(120.0))
+                .andExpect(jsonPath("$[0].locationName").value("高位货架 A 区 01 号"))
+                .andExpect(jsonPath("$[0].qty").value(100.0))
                 .andExpect(jsonPath("$[0].kanbanCode").value(DEMO_BOARD_ONE_CODE))
                 .andExpect(jsonPath("$[0].inboundNo").value("IN-20260610-001"))
                 .andExpect(jsonPath("$[0].occurredAt").isNotEmpty());
@@ -117,10 +117,10 @@ class TraceQueryControllerTest {
                 .andExpect(jsonPath("$.kanbanCode").value(DEMO_BOARD_TWO_CODE))
                 .andExpect(jsonPath("$.kanbanStatus").value("PRINTED"))
                 .andExpect(jsonPath("$.inboundNo").value("IN-20260610-001"))
-                .andExpect(jsonPath("$.materialCode").value("5WD 723 913 C"))
-                .andExpect(jsonPath("$.materialName").value("踏板组件"))
+                .andExpect(jsonPath("$.materialCode").value("5WD.723.913.C"))
+                .andExpect(jsonPath("$.materialName").value("加速踏板模块总成"))
                 .andExpect(jsonPath("$.locationCode").value("A-02"))
-                .andExpect(jsonPath("$.locationName").value("A区 02 库位"))
+                .andExpect(jsonPath("$.locationName").value("高位货架 A 区 02 号"))
                 .andExpect(jsonPath("$.scannedAt").isEmpty())
                 .andExpect(jsonPath("$.movementNo").isEmpty());
 
@@ -131,10 +131,10 @@ class TraceQueryControllerTest {
                 .andExpect(jsonPath("$.kanbanCode").value(DEMO_BOARD_TWO_CODE))
                 .andExpect(jsonPath("$.kanbanStatus").value("RECEIVED"))
                 .andExpect(jsonPath("$.inboundNo").value("IN-20260610-001"))
-                .andExpect(jsonPath("$.materialCode").value("5WD 723 913 C"))
-                .andExpect(jsonPath("$.materialName").value("踏板组件"))
+                .andExpect(jsonPath("$.materialCode").value("5WD.723.913.C"))
+                .andExpect(jsonPath("$.materialName").value("加速踏板模块总成"))
                 .andExpect(jsonPath("$.locationCode").value("A-02"))
-                .andExpect(jsonPath("$.locationName").value("A区 02 库位"))
+                .andExpect(jsonPath("$.locationName").value("高位货架 A 区 02 号"))
                 .andExpect(jsonPath("$.scannedAt").isNotEmpty())
                 .andExpect(jsonPath("$.movementNo").isNotEmpty());
     }
@@ -152,13 +152,12 @@ class TraceQueryControllerTest {
         inboundOrderLineMapper.updateById(line);
     }
 
-    private void resetBoard(Long boardId, String kanbanCode) {
+    private void resetBoard(Long boardId, Long locationId) {
         kanbanBoardMapper.update(null, Wrappers.<KanbanBoard>lambdaUpdate()
                 .eq(KanbanBoard::getId, boardId)
-                .set(KanbanBoard::getKanbanCode, kanbanCode)
                 .set(KanbanBoard::getStatus, "PRINTED")
                 .set(KanbanBoard::getReceivedAt, null)
-                .set(KanbanBoard::getLocationId, boardId.equals(DEMO_BOARD_ONE_ID) ? 1L : 2L)
+                .set(KanbanBoard::getLocationId, locationId)
                 .set(KanbanBoard::getContainerTypeId, 1L));
     }
 

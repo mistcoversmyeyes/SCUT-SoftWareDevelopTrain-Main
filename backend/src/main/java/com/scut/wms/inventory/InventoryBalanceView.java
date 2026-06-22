@@ -11,69 +11,37 @@ public class InventoryBalanceView {
     private String locationCode;
     private String locationName;
     private BigDecimal onHandQty;
+    private BigDecimal availableQty;
+    private BigDecimal outboundLockedQty;
+    private BigDecimal sealedQty;
+    private BigDecimal manualLockedQty;
+    private BigDecimal looseQty;
     private LocalDateTime updatedAt;
 
-    public String getMaterialCode() {
-        return materialCode;
-    }
-
-    public void setMaterialCode(String materialCode) {
-        this.materialCode = materialCode;
-    }
-
-    public String getMaterialName() {
-        return materialName;
-    }
-
-    public void setMaterialName(String materialName) {
-        this.materialName = materialName;
-    }
-
-    public String getWarehouseCode() {
-        return warehouseCode;
-    }
-
-    public void setWarehouseCode(String warehouseCode) {
-        this.warehouseCode = warehouseCode;
-    }
-
-    public String getWarehouseName() {
-        return warehouseName;
-    }
-
-    public void setWarehouseName(String warehouseName) {
-        this.warehouseName = warehouseName;
-    }
-
-    public String getLocationCode() {
-        return locationCode;
-    }
-
-    public void setLocationCode(String locationCode) {
-        this.locationCode = locationCode;
-    }
-
-    public String getLocationName() {
-        return locationName;
-    }
-
-    public void setLocationName(String locationName) {
-        this.locationName = locationName;
-    }
-
-    public BigDecimal getOnHandQty() {
-        return onHandQty;
-    }
-
-    public void setOnHandQty(BigDecimal onHandQty) {
-        this.onHandQty = onHandQty;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
+    public String getMaterialCode() { return materialCode; }
+    public void setMaterialCode(String materialCode) { this.materialCode = materialCode; }
+    public String getMaterialName() { return materialName; }
+    public void setMaterialName(String materialName) { this.materialName = materialName; }
+    public String getWarehouseCode() { return warehouseCode; }
+    public void setWarehouseCode(String warehouseCode) { this.warehouseCode = warehouseCode; }
+    public String getWarehouseName() { return warehouseName; }
+    public void setWarehouseName(String warehouseName) { this.warehouseName = warehouseName; }
+    public String getLocationCode() { return locationCode; }
+    public void setLocationCode(String locationCode) { this.locationCode = locationCode; }
+    public String getLocationName() { return locationName; }
+    public void setLocationName(String locationName) { this.locationName = locationName; }
+    public BigDecimal getOnHandQty() { return onHandQty; }
+    public void setOnHandQty(BigDecimal onHandQty) { this.onHandQty = onHandQty; }
+    public BigDecimal getAvailableQty() { return availableQty; }
+    public void setAvailableQty(BigDecimal availableQty) { this.availableQty = availableQty; }
+    public BigDecimal getOutboundLockedQty() { return outboundLockedQty; }
+    public void setOutboundLockedQty(BigDecimal outboundLockedQty) { this.outboundLockedQty = outboundLockedQty; }
+    public BigDecimal getSealedQty() { return sealedQty; }
+    public void setSealedQty(BigDecimal sealedQty) { this.sealedQty = sealedQty; }
+    public BigDecimal getManualLockedQty() { return manualLockedQty; }
+    public void setManualLockedQty(BigDecimal manualLockedQty) { this.manualLockedQty = manualLockedQty; }
+    public BigDecimal getLooseQty() { return looseQty; }
+    public void setLooseQty(BigDecimal looseQty) { this.looseQty = looseQty; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

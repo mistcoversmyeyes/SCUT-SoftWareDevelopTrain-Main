@@ -86,7 +86,26 @@
             {{ scope.row.usedBoxes ?? 0 }} 箱 ({{ scope.row.totalPieces ?? 0 }} 件) / {{ scope.row.maxCapacity ?? '-' }} 箱
           </template>
         </el-table-column>
-        <el-table-column prop="onHandQty" label="当前库存" width="120" />
+        <el-table-column label="业务数量">
+          <el-table-column prop="onHandQty" label="账面库存" width="100" align="right">
+            <template #default="{ row }">{{ formatQty(row.onHandQty) }}</template>
+          </el-table-column>
+          <el-table-column prop="availableQty" label="可用" width="100" align="right">
+            <template #default="{ row }">{{ formatQty(row.availableQty) }}</template>
+          </el-table-column>
+          <el-table-column prop="outboundLockedQty" label="出库锁定" width="100" align="right">
+            <template #default="{ row }">{{ formatQty(row.outboundLockedQty) }}</template>
+          </el-table-column>
+          <el-table-column prop="sealedQty" label="封存" width="90" align="right">
+            <template #default="{ row }">{{ formatQty(row.sealedQty) }}</template>
+          </el-table-column>
+          <el-table-column prop="manualLockedQty" label="手锁" width="90" align="right">
+            <template #default="{ row }">{{ formatQty(row.manualLockedQty) }}</template>
+          </el-table-column>
+          <el-table-column prop="looseQty" label="零头" width="90" align="right">
+            <template #default="{ row }">{{ formatQty(row.looseQty) }}</template>
+          </el-table-column>
+        </el-table-column>
         <el-table-column prop="updatedAt" label="更新时间" min-width="180">
           <template #default="scope">
             {{ formatDateTime(scope.row.updatedAt) }}
@@ -169,6 +188,17 @@ function formatDateTime(value) {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return value
   return parsed.toLocaleString('zh-CN')
+}
+
+function formatQty(value) {
+  if (value === null || value === undefined) {
+    return '0'
+  }
+  const num = Number(value)
+  if (Number.isNaN(num)) {
+    return value
+  }
+  return String(num)
 }
 
 async function loadMasterData() {
