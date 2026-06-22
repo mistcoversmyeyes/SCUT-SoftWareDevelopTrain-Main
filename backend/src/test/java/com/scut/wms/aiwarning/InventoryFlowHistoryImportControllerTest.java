@@ -114,7 +114,7 @@ class InventoryFlowHistoryImportControllerTest {
 
     private void ensureColumn(String tableName, String columnName, String definition) {
         Integer count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?",
+                "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE UPPER(TABLE_NAME) = UPPER(?) AND UPPER(COLUMN_NAME) = UPPER(?)",
                 Integer.class,
                 tableName,
                 columnName
