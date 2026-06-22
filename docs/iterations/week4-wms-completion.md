@@ -9,6 +9,8 @@ Week 4 基于 Week 3 出库管理、基础数据 CRUD、入库增强、库存预
 - `docs/specs/module-week3-design.md`
 - `docs/specs/module-week4-lock-goods-design.md`
 - `docs/specs/week4-overall-requirements.md`
+- `docs/specs/week4-ai-warning-scope.md`
+- `docs/specs/week4-import-ai-data-template.md`
 
 ## 本周目标
 
@@ -42,12 +44,12 @@ Week 4 基于 Week 3 出库管理、基础数据 CRUD、入库增强、库存预
 
 | WP | 状态 | 执行者 | 分支 | 执行计划 | 验证状态 | 当前风险 |
 | --- | --- | --- | --- | --- | --- | --- |
-| WP4-01 | 未开始 | 未分配 | `feature/week4-business-rules` | `docs/exec-plans/active/week4-business-rules.md` | 待执行 | 散件出库会改变箱级看板假设 |
-| WP4-02 | 未开始 | 未分配 | `feature/week4-mobile-basic` | `docs/exec-plans/active/week4-mobile-basic.md` | 待执行 | 手机端交付形态需固定为 H5/响应式优先 |
-| WP4-03 | 未开始 | 未分配 | `feature/week4-monitor-history` | `docs/exec-plans/active/week4-monitor-history.md` | 待执行 | 监控口径依赖 WP4-01 的数量模型 |
-| WP4-04 | 未开始 | 未分配 | `feature/week4-import-ai-prep` | `docs/exec-plans/active/week4-import-ai-prep.md` | 待执行 | 导入对象过多会扩大范围 |
-| WP4-05 | 未开始 | 未分配 | `docs/week4-ai-scope` | `docs/exec-plans/active/week4-ai-warning-scope.md` | 待执行 | AI 范围容易扩散到真实模型训练 |
-| WP4-06 | 进行中 | main agent | `dev/iter4` / `docs/week4-scope` | `docs/exec-plans/active/week4-docs-coordination.md` | 文档自检 | 需要随实现持续维护 |
+| WP4-01 | 已完成 | subagent + main agent | `feature/week4-business-rules` -> `dev/iter4` | `docs/exec-plans/completed/week4-business-rules.md` | `mvn test` 通过；前端测试与构建通过 | FIFO 例外策略仍记录为 `PD-014` |
+| WP4-02 | 已完成 | subagent + main agent | `feature/week4-mobile-basic` -> `dev/iter4` | `docs/exec-plans/completed/week4-mobile-basic.md` | `npm test` 通过；`npm run build` 通过 | 真实摄像头扫码/PDA 协议不进入本周 |
+| WP4-03 | 已完成 | subagent + main agent | `feature/week4-monitor-history` -> `dev/iter4` | `docs/exec-plans/completed/week4-monitor-history.md` | `npm test` 通过；`npm run build` 通过 | 历史筛选首期有前端二次过滤 |
+| WP4-04 | 已完成 | subagent + main agent | `feature/week4-import-ai-prep` -> `dev/iter4` | `docs/exec-plans/completed/week4-import-ai-prep.md` | `mvn test` 通过；前端测试与构建通过 | 首期固定 CSV，不做 Excel 自由格式 |
+| WP4-05 | 已完成 | subagent + main agent | `docs/week4-ai-scope` -> `dev/iter4` | `docs/exec-plans/completed/week4-ai-warning-scope.md` | 文档自检与 `git diff --check` 通过 | 真实模型训练和阈值校准进入产品债 |
+| WP4-06 | 已完成 | main agent | `dev/iter4` | `docs/exec-plans/completed/week4-docs-coordination.md` | 文档收口自检；最终门禁见验证记录 | 已完成工作包分支仍保留用于审计，可后续清理 |
 
 ## 依赖关系
 
@@ -105,7 +107,7 @@ flowchart LR
 
 | 批次 | 工作包 | 前置条件 | 并行度 | 交付门禁 |
 | --- | --- | --- | --- | --- |
-| 第 0 批 | WP4-06 文档与集成协调 | Week4 需求确认 | 1 | 总体规格、iteration、active plans、依赖网络完成 |
+| 第 0 批 | WP4-06 文档与集成协调 | Week4 需求确认 | 1 | 总体规格、iteration、工作包级执行计划、依赖网络完成 |
 | 第 1 批 | WP4-01、WP4-05 | 第 0 批完成 | 2 | WP4-01 输出统一库存规则口径；WP4-05 输出 AI 方向取舍、预警目标和规则雏形边界 |
 | 第 2 批 | WP4-02、WP4-04 | WP4-01 规则稳定；WP4-05 字段目标稳定 | 2 | 手机端完成登录、扫码主流程、异常提示；导入完成错误行反馈、导入摘要、字段准备 |
 | 第 3 批 | WP4-03 | WP4-01、WP4-02、WP4-04、WP4-05 均完成主干功能并冻结接口 | 1 | 监控、历史、预警状态可基于真实业务流闭环展示 |
@@ -150,9 +152,15 @@ WP4-06 -> WP4-05 -> WP4-04 -> WP4-03 -> WP4-06 收口
 
 ## 验证记录
 
-待各工作包实现后补充。
+| 时间 | 范围 | 验证命令 | 结果 | 说明 |
+| --- | --- | --- | --- | --- |
+| 2026-06-23 | WP4-01 业务规则集成 | `cd backend && mvn test` | 通过，40 tests | 覆盖封存/解封、手动锁库、散件出库、FIFO、AI 导入测试 |
+| 2026-06-23 | WP4-01/WP4-04/WP4-02/WP4-03 前端集成 | `cd frontend && npm test` | 通过，5 files / 27 tests | 覆盖路由、移动端 API wrapper、监控规则工具 |
+| 2026-06-23 | 前端构建 | `cd frontend && npm run build` | 通过 | 保留既有 Vite PURE comment 与 chunk size warning |
+| 2026-06-23 | WP4-05/WP4-06 文档与合并结果 | `git diff --check` | 通过 | 合并冲突已处理，产品债编号保留 `PD-009` 至 `PD-014` |
 
 ## 遗留技术债与产品债
 
-- 产品债：手机端交付形态、FIFO 违规策略、AI 预警阈值、封存对象粒度、批量导入字段范围。
-- 技术债：测试环境依赖 MySQL、认证仍是 demo token、缺少 CI 验证门禁。
+- 产品债：外部 AI 方向、AI 仓库管理员、真实模型训练、阈值校准和 FIFO 例外策略分别记录在 `PD-009` 至 `PD-014`。
+- 技术债：缺少 CI 验证门禁、认证仍是 demo token、`DatabaseMigration` 在 H2 测试环境仍有兼容告警、前端主包存在 chunk size warning。
+- 清理项：本轮并行 worktree 和短生命周期分支已完成集成，后续可按审计需求清理。
