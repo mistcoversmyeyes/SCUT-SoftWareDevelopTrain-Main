@@ -11,6 +11,7 @@ import InboundScanView from '../views/inbound/InboundScanView.vue'
 import InboundPrintView from '../views/inbound/InboundPrintView.vue'
 import KanbanPrintView from '../views/inbound/KanbanPrintView.vue'
 import InventoryBalanceView from '../views/inventory/InventoryBalanceView.vue'
+import InventoryAiImportView from '../views/inventory/InventoryAiImportView.vue'
 import InventoryTraceView from '../views/inventory/InventoryTraceView.vue'
 import KanbanTraceView from '../views/kanban/KanbanTraceView.vue'
 
@@ -99,6 +100,11 @@ describe('router auth guard', () => {
         path: '/inbound/scan',
         name: 'inbound-scan',
         component: InboundScanView
+      },
+      {
+        path: '/inventory/ai-import',
+        name: 'inventory-ai-import',
+        component: InventoryAiImportView
       },
       {
         path: '/inventory/balances',
