@@ -7,6 +7,25 @@
         </div>
       </template>
 
+      <div class="summary-grid">
+        <div class="summary-card">
+          <span class="summary-label">总看板</span>
+          <strong>{{ filteredKanbans.length }}</strong>
+        </div>
+        <div class="summary-card">
+          <span class="summary-label">在库 / 锁定</span>
+          <strong>{{ summary.received }} / {{ summary.locked }}</strong>
+        </div>
+        <div class="summary-card">
+          <span class="summary-label">封存 / 手锁</span>
+          <strong>{{ summary.sealed }} / {{ summary.manualLock }}</strong>
+        </div>
+        <div class="summary-card">
+          <span class="summary-label">剩余数量</span>
+          <strong>{{ formatQty(summary.remainingQty) }}</strong>
+        </div>
+      </div>
+
       <el-form :model="query" inline class="filter-form">
         <el-form-item label="状态">
           <el-select v-model="query.status" placeholder="全部" clearable style="width: 120px">
@@ -27,16 +46,15 @@
           <el-input v-model="query.materialCode" placeholder="支持模糊输入" clearable />
         </el-form-item>
 
-        <el-form-item label="日期范围">
-          <el-date-picker
-            v-model="dateRange"
-            type="daterange"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
-            value-format="YYYY-MM-DD"
-            clearable
-          />
+        <el-form-item label="看板/物料">
+          <el-input v-model="query.keyword" placeholder="看板码 / 物料名称" clearable />
+        </el-form-item>
+
+        <el-form-item label="主动占用">
+          <el-select v-model="query.holdType" placeholder="全部" clearable style="width: 140px">
+            <el-option label="封存" value="SEALED" />
+            <el-option label="手动锁库" value="MANUAL_LOCK" />
+          </el-select>
         </el-form-item>
 
         <el-form-item>
@@ -67,6 +85,9 @@
           </template>
         </el-table-column>
         <el-table-column prop="inboundNo" label="入库单号" min-width="150" />
+        <el-table-column prop="supplierCode" label="供应商" min-width="150">
+          <template #default="{ row }">{{ row.supplierCode }} {{ row.supplierName }}</template>
+        </el-table-column>
         <el-table-column prop="materialCode" label="物料编码" min-width="140" />
         <el-table-column prop="materialName" label="物料名称" min-width="200" />
         <el-table-column prop="qty" label="总量" width="90" align="right">
@@ -75,18 +96,15 @@
         <el-table-column prop="pickedQty" label="已出库" width="90" align="right">
           <template #default="{ row }">{{ formatQty(row.pickedQty) }}</template>
         </el-table-column>
-        <el-table-column prop="availableQty" label="剩余可查" width="100" align="right">
+        <el-table-column prop="availableQty" label="剩余数量" width="100" align="right">
           <template #default="{ row }">{{ formatQty(row.availableQty ?? row.qty) }}</template>
         </el-table-column>
-        <el-table-column prop="containerTypeName" label="容器类型" min-width="110">
-          <template #default="{ row }">{{ row.containerTypeName || '—' }}</template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column prop="status" label="生命周期" width="100">
           <template #default="{ row }">
             <el-tag :type="statusType(row.status)" effect="light">{{ statusLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="业务占用" min-width="170">
+        <el-table-column label="主动占用" min-width="180">
           <template #default="{ row }">
             <div v-if="row.activeHoldType" class="hold-cell">
               <el-tag :type="holdTypeTagType(row.activeHoldType)" effect="light">
@@ -94,12 +112,19 @@
               </el-tag>
               <span class="hold-reason">{{ row.activeHoldReason || '未填写原因' }}</span>
             </div>
-            <span v-else>—</span>
+            <span v-else>无</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="封存/手锁状态" min-width="120">
+          <template #default="{ row }">
+            <el-tag v-if="row.activeHoldType === 'SEALED'" type="danger" effect="light">封存中</el-tag>
+            <el-tag v-else-if="row.activeHoldType === 'MANUAL_LOCK'" type="warning" effect="light">手锁中</el-tag>
+            <span v-else>可流转</span>
           </template>
         </el-table-column>
         <el-table-column prop="locationName" label="库位" min-width="130" />
-        <el-table-column prop="createdAt" label="创建时间" width="180">
-          <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+        <el-table-column prop="printedAt" label="打印时间" width="180">
+          <template #default="{ row }">{{ formatDateTime(row.printedAt) }}</template>
         </el-table-column>
 
         <el-table-column label="操作" width="240" fixed="right">
@@ -135,18 +160,18 @@
         </el-table-column>
       </el-table>
 
-      <div v-if="kanbans.length > pageSize" class="pagination-wrapper">
+      <div v-if="filteredKanbans.length > pageSize" class="pagination-wrapper">
         <el-pagination
           v-model:current-page="currentPage"
           v-model:page-size="pageSize"
           :page-sizes="[10, 15, 20, 50]"
-          :total="kanbans.length"
+          :total="filteredKanbans.length"
           layout="total, sizes, prev, pager, next, jumper"
           background
         />
       </div>
 
-      <el-empty v-if="!loading && !kanbans.length" description="暂无看板数据" />
+      <el-empty v-if="!loading && !filteredKanbans.length" description="暂无看板数据" />
     </el-card>
 
     <el-dialog
@@ -189,6 +214,7 @@ import {
   sealKanban,
   unsealKanban
 } from '../../api/kanban'
+import { filterKanbanRows } from '../../utils/monitoring'
 
 const router = useRouter()
 const holdFormRef = ref()
@@ -205,10 +231,11 @@ const statusOptions = [
 const query = reactive({
   status: '',
   inboundNo: '',
-  materialCode: ''
+  materialCode: '',
+  keyword: '',
+  holdType: ''
 })
 
-const dateRange = ref(null)
 const kanbans = ref([])
 const loading = ref(false)
 const loadError = ref('')
@@ -232,10 +259,31 @@ const holdRules = {
   reason: [{ required: true, message: '请输入原因', trigger: 'blur' }]
 }
 
+const filteredKanbans = computed(() => filterKanbanRows(kanbans.value, {
+  status: query.status,
+  holdType: query.holdType,
+  keyword: query.keyword
+}))
+
 const paginatedKanbans = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
-  return kanbans.value.slice(start, start + pageSize.value)
+  return filteredKanbans.value.slice(start, start + pageSize.value)
 })
+
+const summary = computed(() => filteredKanbans.value.reduce((acc, row) => {
+  acc.remainingQty += Number(row.availableQty || row.qty || 0)
+  if (row.status === 'RECEIVED') acc.received += 1
+  if (row.status === 'LOCKED') acc.locked += 1
+  if (row.activeHoldType === 'SEALED') acc.sealed += 1
+  if (row.activeHoldType === 'MANUAL_LOCK') acc.manualLock += 1
+  return acc
+}, {
+  received: 0,
+  locked: 0,
+  sealed: 0,
+  manualLock: 0,
+  remainingQty: 0
+}))
 
 const holdDialogTitleMap = {
   seal: '人工封存',
@@ -298,7 +346,7 @@ function formatDateTime(value) {
   if (Number.isNaN(date.getTime())) {
     return value
   }
-  return date.toLocaleString()
+  return date.toLocaleString('zh-CN')
 }
 
 function formatQty(value) {
@@ -344,12 +392,7 @@ async function loadData() {
       inboundNo: query.inboundNo || undefined,
       materialCode: query.materialCode || undefined
     }
-    if (dateRange.value) {
-      payload.startDate = dateRange.value[0]
-      payload.endDate = dateRange.value[1]
-    }
-    const list = await fetchKanbanList(payload)
-    kanbans.value = list
+    kanbans.value = await fetchKanbanList(payload)
     currentPage.value = 1
   } catch (error) {
     loadError.value = error.response?.data?.message || '看板列表加载失败'
@@ -363,7 +406,8 @@ function resetFilters() {
   query.status = ''
   query.inboundNo = ''
   query.materialCode = ''
-  dateRange.value = null
+  query.keyword = ''
+  query.holdType = ''
   loadData()
 }
 
@@ -452,6 +496,27 @@ onMounted(() => {
   margin: 0;
 }
 
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.summary-card {
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.summary-label {
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+
 .filter-form {
   margin-bottom: 16px;
 }
@@ -486,5 +551,11 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   margin-top: 16px;
+}
+
+@media (max-width: 1100px) {
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(160px, 1fr));
+  }
 }
 </style>
