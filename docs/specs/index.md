@@ -10,3 +10,4 @@
 - `module-inbound-data-model-review.md`：采购入库数据模型审查，记录原始 11 表方案、范式审查和最终 9 表持久化模型。
 - `module-week3-design.md`：Week 3 出库管理、基础数据 CRUD、入库增强、库存预警和看板生命周期设计。
 - `module-week4-lock-goods-design.md`：Week 4 锁货功能设计，覆盖出库释放锁货、带单/不带单出库、强制出库、锁货管理和审计。
+- `week4-overall-requirements.md`：Week 4 总体需求规格，覆盖业务补全、散件出库、封存解封、手机端、监控历史、批量导入和 AI 预警准备。

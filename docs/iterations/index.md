@@ -25,7 +25,7 @@ week3-<topic>.md
 
 ## Current Status
 
-- 当前暂无独立周迭代文件。
+- `week4-wms-completion.md`：Week 4 周迭代目标和工作包拆解，覆盖 WMS 业务补全、移动端、监控历史、批量导入和 AI 预警准备。
 - Week 1 规格已归档至 `docs/specs/2026-06-03-week1-wms-login-tabs-design.md`。
 - Week 1 执行计划已归档至 `docs/exec-plans/completed/2026-06-03-week1-wms-login-tabs.md`。
 - Week 2 规格见 `docs/specs/module-inbound-core-design.md`，执行计划见 `docs/exec-plans/completed/week2-inbound-core.md`。
