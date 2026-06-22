@@ -11,3 +11,4 @@
 - `module-week3-design.md`：Week 3 出库管理、基础数据 CRUD、入库增强、库存预警和看板生命周期设计。
 - `module-week4-lock-goods-design.md`：Week 4 锁货功能设计，覆盖出库释放锁货、带单/不带单出库、强制出库、锁货管理和审计。
 - `week4-overall-requirements.md`：Week 4 总体需求规格，覆盖业务补全、散件出库、封存解封、手机端、监控历史、批量导入和 AI 预警准备。
+- `week4-ai-warning-scope.md`：Week 4 WP4-05 AI 预警方向规格，覆盖方向取舍、字段清单、规则型预警雏形、导入联动和后续产品债出口。
