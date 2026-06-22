@@ -4,7 +4,6 @@
 
 - Backend: Java 17, Spring Boot 3.3.5, Maven.
 - Frontend: Vue 3, Vite, Element Plus, Pinia, Vue Router, Axios, Vitest.
-- Current branch observed during harness init: `dev/iter1`.
 
 ## Local Commands
 
@@ -52,6 +51,6 @@ These are Week 1 demonstration facts, not production security design.
 
 ## Product Background Source
 
-- Primary WMS background: `res/WMS仓储管理系统--产品介绍资料.pdf`
+- Primary WMS background: `docs/references/Course PPT/WMS仓储管理系统--产品介绍资料.pdf`
 - The PDF frames the product as Web frontend + server + Android handheld app.
 - It lists inbound, barcode, outbound, inventory monitoring, error prevention/FIFO, master data and user management as product areas.
