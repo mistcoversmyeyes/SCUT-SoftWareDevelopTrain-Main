@@ -348,7 +348,7 @@ class InboundOrderControllerTest {
                         .param("supplier", "华翔"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(created.get("id").asLong()))
-                .andExpect(jsonPath("$[0].supplier.name").value("佛山华翔金属件 8KH"))
+                .andExpect(jsonPath("$[0].supplier.name").value("佛山华翔金属件有限公司"))
                 .andExpect(jsonPath("$[0].lineCount").value(2))
                 .andExpect(jsonPath("$[0].plannedQty").value(20.5))
                 .andExpect(jsonPath("$[0].receivedQty").value(0));
@@ -359,34 +359,34 @@ class InboundOrderControllerTest {
         mockMvc.perform(get("/api/inbound-orders/{id}/print", 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.inboundNo").value("IN-20260610-001"))
+                .andExpect(jsonPath("$.inboundNo").value("IN-20260520-001"))
                 .andExpect(jsonPath("$.supplierCode").value("8KH"))
-                .andExpect(jsonPath("$.supplierName").value("佛山华翔金属件 8KH"))
-                .andExpect(jsonPath("$.sourceDocNo").value("PO-20260610-001"))
+                .andExpect(jsonPath("$.supplierName").value("佛山华翔金属件有限公司"))
+                .andExpect(jsonPath("$.sourceDocNo").value("PO-20260515-001"))
                 .andExpect(jsonPath("$.status").isString())
-                .andExpect(jsonPath("$.remark").value("Week 2 采购入库演示单据"))
+                .andExpect(jsonPath("$.remark").value("5/15 采购单首车到货，余数 5/22 补发"))
                 .andExpect(jsonPath("$.lines[0].lineNo").value(1))
-                .andExpect(jsonPath("$.lines[0].materialCode").value("5HG 807 109 C"))
-                .andExpect(jsonPath("$.lines[0].warehouseName").value("吉耀仓"))
-                .andExpect(jsonPath("$.lines[0].locationName").value("A区 01 库位"))
+                .andExpect(jsonPath("$.lines[0].materialCode").value("5HG.807.109.C"))
+                .andExpect(jsonPath("$.lines[0].warehouseName").value("吉耀仓（佛山三水基地）"))
+                .andExpect(jsonPath("$.lines[0].locationName").value("高位货架 A 区 01 号"))
                 .andExpect(jsonPath("$.lines[1].lineNo").value(2))
-                .andExpect(jsonPath("$.lines[1].materialCode").value("5WD 723 913 C"));
+                .andExpect(jsonPath("$.lines[1].materialCode").value("5WD.723.913.C"));
     }
 
     @Test
     void printKanbansReturnsDisplayLabels() throws Exception {
         mockMvc.perform(get("/api/inbound-orders/{id}/kanbans/print", 1L))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].kanbanCode").value("KB:v1:IN-20260610-001:1:1"))
-                .andExpect(jsonPath("$[0].inboundNo").value("IN-20260610-001"))
+                .andExpect(jsonPath("$[0].kanbanCode").value("KB:v1:IN-20260520-001:1:1"))
+                .andExpect(jsonPath("$[0].inboundNo").value("IN-20260520-001"))
                 .andExpect(jsonPath("$[0].supplierCode").value("8KH"))
-                .andExpect(jsonPath("$[0].materialCode").value("5HG 807 109 C"))
-                .andExpect(jsonPath("$[0].materialName").value("前保险杠支架"))
-                .andExpect(jsonPath("$[0].locationName").value("A区 01 库位"))
-                .andExpect(jsonPath("$[0].qty").value(120.0))
-                .andExpect(jsonPath("$[0].status").value("PRINTED"))
-                .andExpect(jsonPath("$[1].kanbanCode").value("KB:v1:IN-20260610-001:2:1"))
-                .andExpect(jsonPath("$[1].materialCode").value("5WD 723 913 C"));
+                .andExpect(jsonPath("$[0].materialCode").value("5HG.807.109.C"))
+                .andExpect(jsonPath("$[0].materialName").value("前保险杠安装支架总成"))
+                .andExpect(jsonPath("$[0].locationName").value("高位货架 A 区 01 号"))
+                .andExpect(jsonPath("$[0].qty").value(100.0))
+                .andExpect(jsonPath("$[0].status").value("RECEIVED"))
+                .andExpect(jsonPath("$[3].kanbanCode").value("KB:v1:IN-20260520-001:2:1"))
+                .andExpect(jsonPath("$[3].materialCode").value("5WD.723.913.C"));
     }
 
     @Test

@@ -1,16 +1,17 @@
+DROP TABLE IF EXISTS inventory_hold;
 DROP TABLE IF EXISTS inventory_lock;
 DROP TABLE IF EXISTS inventory_balance;
 DROP TABLE IF EXISTS inventory_movement;
 DROP TABLE IF EXISTS kanban_board;
-DROP TABLE IF EXISTS inbound_order_line;
-DROP TABLE IF EXISTS inbound_order;
 DROP TABLE IF EXISTS outbound_order_line;
 DROP TABLE IF EXISTS outbound_order;
+DROP TABLE IF EXISTS inbound_order_line;
+DROP TABLE IF EXISTS inbound_order;
+DROP TABLE IF EXISTS material_container_type;
 DROP TABLE IF EXISTS storage_location;
 DROP TABLE IF EXISTS warehouse;
 DROP TABLE IF EXISTS material;
 DROP TABLE IF EXISTS supplier;
-DROP TABLE IF EXISTS material_container_type;
 DROP TABLE IF EXISTS container_type;
 
 CREATE TABLE supplier (
@@ -132,6 +133,8 @@ CREATE TABLE kanban_board (
   status VARCHAR(32) NOT NULL,
   printed_at DATETIME,
   received_at DATETIME,
+  locked_by_order_id BIGINT DEFAULT NULL,
+  locked_by_order_line_id BIGINT DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_kanban_order FOREIGN KEY (inbound_order_id) REFERENCES inbound_order(id),
@@ -158,6 +161,8 @@ CREATE TABLE inventory_movement (
   operator_name VARCHAR(64),
   outbound_order_id BIGINT DEFAULT NULL,
   outbound_order_line_id BIGINT DEFAULT NULL,
+  force_outbound TINYINT(1) NOT NULL DEFAULT 0,
+  force_remark VARCHAR(255) DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_movement_kanban FOREIGN KEY (kanban_board_id) REFERENCES kanban_board(id),
   CONSTRAINT fk_movement_material FOREIGN KEY (material_id) REFERENCES material(id),
@@ -188,6 +193,7 @@ CREATE TABLE outbound_order (
   purpose VARCHAR(64),
   source_doc_no VARCHAR(64),
   status VARCHAR(32) NOT NULL,
+  qrcode VARCHAR(255) DEFAULT NULL,
   remark VARCHAR(255),
   released_at DATETIME,
   completed_at DATETIME,
@@ -205,6 +211,9 @@ CREATE TABLE outbound_order_line (
   supplier_id BIGINT DEFAULT NULL,
   planned_qty DECIMAL(18, 3) NOT NULL,
   picked_qty DECIMAL(18, 3) NOT NULL DEFAULT 0,
+  target_warehouse_id BIGINT DEFAULT NULL,
+  target_location_id BIGINT DEFAULT NULL,
+  container_type_id BIGINT DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT uk_outbound_order_line UNIQUE (outbound_order_id, line_no),
@@ -232,4 +241,23 @@ CREATE TABLE inventory_lock (
   INDEX idx_lock_order (outbound_order_id),
   INDEX idx_lock_kanban (kanban_board_id),
   INDEX idx_lock_status (status)
+);
+
+CREATE TABLE inventory_hold (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  kanban_board_id BIGINT NOT NULL,
+  hold_type VARCHAR(32) NOT NULL,
+  hold_qty DECIMAL(18, 3) NOT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+  reason VARCHAR(128) NOT NULL,
+  remark VARCHAR(255),
+  operator_name VARCHAR(64) NOT NULL,
+  released_reason VARCHAR(128) DEFAULT NULL,
+  released_remark VARCHAR(255) DEFAULT NULL,
+  released_by VARCHAR(64) DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  released_at DATETIME DEFAULT NULL,
+  CONSTRAINT fk_hold_kanban FOREIGN KEY (kanban_board_id) REFERENCES kanban_board(id),
+  INDEX idx_hold_kanban_status (kanban_board_id, status),
+  INDEX idx_hold_type_status (hold_type, status)
 );

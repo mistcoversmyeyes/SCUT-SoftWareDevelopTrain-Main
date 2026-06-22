@@ -47,7 +47,11 @@
                kb.location_id,
                sl.location_name,
                kb.board_qty AS qty,
+               COALESCE(kb.picked_qty, 0) AS picked_qty,
+               GREATEST(kb.board_qty - COALESCE(kb.picked_qty, 0), 0) AS available_qty,
                kb.status,
+               ih.hold_type AS active_hold_type,
+               ih.reason AS active_hold_reason,
                kb.printed_at,
                ct.container_name AS container_type_name,
                ct.capacity_qty AS capacity_qty
@@ -58,6 +62,7 @@
                  JOIN material m ON m.id = l.material_id
                  JOIN storage_location sl ON sl.id = kb.location_id
                  JOIN container_type ct ON ct.id = kb.container_type_id
+                 LEFT JOIN inventory_hold ih ON ih.kanban_board_id = kb.id AND ih.status = 'ACTIVE'
         WHERE kb.inbound_order_id = #{id}
         ORDER BY kb.location_id ASC, kb.id ASC
     </select>
@@ -75,7 +80,11 @@
                kb.location_id,
                sl.location_name,
                kb.board_qty AS qty,
+               COALESCE(kb.picked_qty, 0) AS picked_qty,
+               GREATEST(kb.board_qty - COALESCE(kb.picked_qty, 0), 0) AS available_qty,
                kb.status,
+               ih.hold_type AS active_hold_type,
+               ih.reason AS active_hold_reason,
                kb.printed_at,
                ct.container_name AS container_type_name,
                ct.capacity_qty AS capacity_qty
@@ -86,6 +95,7 @@
                  JOIN material m ON m.id = l.material_id
                  JOIN storage_location sl ON sl.id = kb.location_id
                  JOIN container_type ct ON ct.id = kb.container_type_id
+                 LEFT JOIN inventory_hold ih ON ih.kanban_board_id = kb.id AND ih.status = 'ACTIVE'
         WHERE (#{status} IS NULL OR kb.status = #{status})
           AND (#{inboundNo} IS NULL OR o.inbound_no LIKE CONCAT('%', #{inboundNo}, '%'))
           AND (#{materialCode} IS NULL OR m.material_code = #{materialCode})

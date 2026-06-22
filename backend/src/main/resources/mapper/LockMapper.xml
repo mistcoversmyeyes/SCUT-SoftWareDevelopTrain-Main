@@ -9,12 +9,13 @@
                oo.outbound_no AS outboundNo,
                COALESCE(s.supplier_name, '') AS supplierName,
                oo.status,
-               COALESCE(SUM(il.lock_qty), 0) AS totalLockQty,
+               COALESCE(SUM(LEAST(il.lock_qty, GREATEST(kb.board_qty - COALESCE(kb.picked_qty, 0), 0))), 0) AS totalLockQty,
                COALESCE(SUM(ol.picked_qty), 0) AS totalPickedQty,
                COALESCE(MAX(CASE WHEN il.status = 'FORCE_STOLEN' THEN 1 ELSE 0 END), 0) = 1 AS hasForceStolen,
                oo.created_at AS createdAt
         FROM outbound_order oo
                  INNER JOIN inventory_lock il ON il.outbound_order_id = oo.id
+                 INNER JOIN kanban_board kb ON kb.id = il.kanban_board_id
                  LEFT JOIN outbound_order_line ol ON ol.id = il.outbound_order_line_id
                  LEFT JOIN supplier s ON s.id = oo.supplier_id
         WHERE 1=1
@@ -39,7 +40,7 @@
                m.material_code AS materialCode,
                m.material_name AS materialName,
                sl.location_name AS locationName,
-               il.lock_qty AS lockQty,
+               LEAST(il.lock_qty, GREATEST(kb.board_qty - COALESCE(kb.picked_qty, 0), 0)) AS lockQty,
                kb.status AS lockStatus,
                il.outbound_order_line_id AS lineNo
         FROM inventory_lock il
@@ -80,7 +81,7 @@
                m.material_code AS materialCode,
                m.material_name AS materialName,
                sl.location_name AS locationName,
-               il.lock_qty AS lockQty,
+               LEAST(il.lock_qty, GREATEST(kb.board_qty - COALESCE(kb.picked_qty, 0), 0)) AS lockQty,
                il.status AS lockStatus,
                COALESCE(oo.outbound_no, '') AS outboundNo,
                oo.id AS outboundOrderId,
