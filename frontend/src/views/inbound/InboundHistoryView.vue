@@ -23,6 +23,18 @@
           <el-input v-model="query.inboundNo" placeholder="支持模糊输入" clearable />
         </el-form-item>
 
+        <el-form-item label="供应商">
+          <el-input v-model="query.supplierKeyword" placeholder="编码 / 名称" clearable />
+        </el-form-item>
+
+        <el-form-item label="物料">
+          <el-select v-model="query.materialCode" placeholder="全部" clearable filterable style="width: 220px">
+            <el-option v-for="material in materialOptions" :key="material.id" :label="material.materialCode" :value="material.materialCode">
+              {{ material.materialCode }} {{ material.materialName }}
+            </el-option>
+          </el-select>
+        </el-form-item>
+
         <el-form-item label="日期范围">
           <el-date-picker
             v-model="dateRange"
@@ -42,11 +54,19 @@
       </el-form>
 
       <el-alert
+        title="当前页优先复用 existing inbound-orders 接口，再叠加物料/日期前端筛选，满足 Week4 可演示历史查询。"
+        type="info"
+        :closable="false"
+        show-icon
+      />
+
+      <el-alert
         v-if="loadError"
         :title="loadError"
         type="error"
         :closable="false"
         show-icon
+        class="status-alert"
       />
 
       <el-table
@@ -64,6 +84,7 @@
             <template v-else>—</template>
           </template>
         </el-table-column>
+        <el-table-column prop="materialSummary" label="物料摘要" min-width="220" />
         <el-table-column prop="sourceDocNo" label="来源单号" min-width="140" />
         <el-table-column prop="status" label="状态" width="140">
           <template #default="{ row }">
@@ -71,53 +92,41 @@
           </template>
         </el-table-column>
         <el-table-column prop="lineCount" label="明细行数" width="100" />
-        <el-table-column
-          prop="plannedQty"
-          label="计划数量"
-          width="120"
-          align="right"
-        >
+        <el-table-column prop="plannedQty" label="计划数量" width="120" align="right">
           <template #default="{ row }">{{ formatQty(row.plannedQty) }}</template>
         </el-table-column>
-        <el-table-column
-          prop="receivedQty"
-          label="已收数量"
-          width="120"
-          align="right"
-        >
+        <el-table-column prop="receivedQty" label="已收数量" width="120" align="right">
           <template #default="{ row }">{{ formatQty(row.receivedQty) }}</template>
         </el-table-column>
         <el-table-column prop="createdAt" label="创建时间" width="180">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
+        <el-table-column prop="completedAt" label="完成时间" width="180">
+          <template #default="{ row }">{{ formatDateTime(row.completedAt) }}</template>
+        </el-table-column>
         <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip />
 
         <el-table-column label="操作" width="100" fixed="right">
           <template #default="{ row }">
-            <el-button
-              type="primary"
-              size="small"
-              text
-              @click="handleView(row)"
-            >
+            <el-button type="primary" size="small" text @click="handleView(row)">
               查看
             </el-button>
           </template>
         </el-table-column>
       </el-table>
 
-      <div v-if="orders.length > pageSize" class="pagination-wrapper">
+      <div v-if="filteredOrders.length > pageSize" class="pagination-wrapper">
         <el-pagination
           v-model:current-page="currentPage"
           v-model:page-size="pageSize"
           :page-sizes="[10, 15, 20, 50]"
-          :total="orders.length"
+          :total="filteredOrders.length"
           layout="total, sizes, prev, pager, next, jumper"
           background
         />
       </div>
 
-      <el-empty v-if="!loading && !orders.length" description="暂无历史数据" />
+      <el-empty v-if="!loading && !filteredOrders.length" description="暂无历史数据" />
     </el-card>
   </section>
 </template>
@@ -125,8 +134,9 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import { fetchInboundOrders } from '../../api/inbound'
+import { fetchMaterials } from '../../api/masterData'
+import { filterInboundHistoryOrders } from '../../utils/monitoring'
 
 const router = useRouter()
 
@@ -137,21 +147,31 @@ const statusOptions = [
 
 const query = reactive({
   status: ['COMPLETED', 'CANCELLED'],
-  inboundNo: ''
+  inboundNo: '',
+  supplierKeyword: '',
+  materialCode: ''
 })
 
 const dateRange = ref(null)
-
 const orders = ref([])
+const materialOptions = ref([])
+const materialsById = ref({})
 const loading = ref(false)
 const loadError = ref('')
-
 const currentPage = ref(1)
 const pageSize = ref(15)
 
+const filteredOrders = computed(() => filterInboundHistoryOrders(orders.value, materialsById.value, {
+  statuses: query.status,
+  inboundNo: query.inboundNo,
+  supplierKeyword: query.supplierKeyword,
+  materialCode: query.materialCode,
+  dateRange: dateRange.value
+}))
+
 const paginatedOrders = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
-  return orders.value.slice(start, start + pageSize.value)
+  return filteredOrders.value.slice(start, start + pageSize.value)
 })
 
 const statusMap = {
@@ -186,7 +206,7 @@ function formatDateTime(value) {
   if (Number.isNaN(date.getTime())) {
     return value
   }
-  return date.toLocaleString()
+  return date.toLocaleString('zh-CN')
 }
 
 function formatQty(value) {
@@ -200,22 +220,29 @@ function formatQty(value) {
   return String(num)
 }
 
+async function loadMaterialOptions() {
+  try {
+    const list = await fetchMaterials()
+    materialOptions.value = list
+    materialsById.value = Object.fromEntries(list.map((item) => [item.id, { code: item.materialCode, name: item.materialName }]))
+  } catch {
+    materialOptions.value = []
+    materialsById.value = {}
+  }
+}
+
 async function loadOrders() {
   loading.value = true
   loadError.value = ''
   try {
     const payload = {
-      inboundNo: query.inboundNo || undefined
+      inboundNo: query.inboundNo || undefined,
+      supplier: query.supplierKeyword || undefined
     }
     if (query.status && query.status.length) {
       payload.status = query.status.join(',')
     }
-    if (dateRange.value) {
-      payload.startDate = dateRange.value[0]
-      payload.endDate = dateRange.value[1]
-    }
-    const list = await fetchInboundOrders(payload)
-    orders.value = list
+    orders.value = await fetchInboundOrders(payload)
     currentPage.value = 1
   } catch (error) {
     loadError.value = error.response?.data?.message || '历史数据加载失败'
@@ -228,6 +255,8 @@ async function loadOrders() {
 function resetFilters() {
   query.status = ['COMPLETED', 'CANCELLED']
   query.inboundNo = ''
+  query.supplierKeyword = ''
+  query.materialCode = ''
   dateRange.value = null
   loadOrders()
 }
@@ -236,8 +265,9 @@ function handleView(row) {
   router.push('/inbound/' + row.id)
 }
 
-onMounted(() => {
-  loadOrders()
+onMounted(async () => {
+  await loadMaterialOptions()
+  await loadOrders()
 })
 </script>
 
@@ -260,8 +290,13 @@ onMounted(() => {
   margin-bottom: 16px;
 }
 
+.status-alert {
+  margin-top: 12px;
+}
+
 .order-table {
   min-height: 260px;
+  margin-top: 12px;
 }
 
 .pagination-wrapper {

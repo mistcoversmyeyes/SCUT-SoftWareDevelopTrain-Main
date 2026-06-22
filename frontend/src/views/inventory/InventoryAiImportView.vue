@@ -3,7 +3,7 @@
     <div class="page-toolbar">
       <div>
         <h2>AI 数据导入</h2>
-        <p class="page-subtitle">首期固定对象：`inventory_flow_history` UTF-8 CSV</p>
+        <p class="page-subtitle">本页仅展示规则型预警数据准备与样例风险，不训练模型。</p>
       </div>
       <a class="sample-link" href="/samples/week4-inventory-flow-history-sample.csv" download>
         下载样例文件
@@ -15,6 +15,15 @@
       type="info"
       :closable="false"
       show-icon
+    />
+
+    <el-alert
+      :title="`规则型预警数据状态：${readiness.label}`"
+      :description="readiness.reason"
+      :type="readiness.tone"
+      :closable="false"
+      show-icon
+      class="status-alert"
     />
 
     <section class="upload-section">
@@ -36,6 +45,35 @@
         </el-button>
         <el-button :loading="loadingBatches" @click="loadBatches">刷新批次</el-button>
       </div>
+    </section>
+
+    <section class="result-section">
+      <div class="section-header">
+        <h3>预警样例预览</h3>
+      </div>
+      <el-table :data="riskPreviewRows" stripe empty-text="暂无风险样例或数据未准备">
+        <el-table-column prop="materialCode" label="物料编码" width="140" />
+        <el-table-column prop="materialName" label="物料名称" min-width="180" />
+        <el-table-column prop="availableQty" label="可用" width="90" align="right" />
+        <el-table-column label="缺货风险" width="120">
+          <template #default="{ row }">
+            <el-tag :type="tagType(row.shortageRisk.tone)">{{ row.shortageRisk.label }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="呆滞风险" width="120">
+          <template #default="{ row }">
+            <el-tag :type="tagType(row.stagnationRisk.tone)">{{ row.stagnationRisk.label }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="触发原因" min-width="320">
+          <template #default="{ row }">
+            <div class="reason-cell">
+              <div>{{ row.shortageRisk.reason }}</div>
+              <div class="sub-reason">{{ row.stagnationRisk.reason }}</div>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
     </section>
 
     <section v-if="lastResult" class="result-section">
@@ -121,14 +159,17 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
+import { fetchInventoryBalances } from '../../api/inventory'
+import { fetchMaterials } from '../../api/masterData'
 import {
   fetchInventoryFlowImportBatches,
   fetchInventoryFlowImportRecords,
   importInventoryFlowHistory
 } from '../../api/aiWarningImport'
+import { buildInventoryMonitorRows, buildRiskPreviewRows, buildWarningDataReadiness } from '../../utils/monitoring'
 
 const selectedFile = ref(null)
 const selectedFileName = ref('')
@@ -139,6 +180,16 @@ const lastResult = ref(null)
 const batches = ref([])
 const records = ref([])
 const activeBatchId = ref(null)
+const balances = ref([])
+const materials = ref([])
+
+const readiness = computed(() => buildWarningDataReadiness(batches.value, records.value))
+const riskPreviewRows = computed(() => buildRiskPreviewRows(buildInventoryMonitorRows({
+  balances: balances.value,
+  materials: materials.value,
+  flowRecords: records.value,
+  today: new Date()
+}), 8))
 
 function handleFileChange(uploadFile) {
   selectedFile.value = uploadFile.raw || null
@@ -153,6 +204,27 @@ function movementTypeSummary(counts) {
   return entries.map(([type, count]) => `${type}: ${count}`).join(' / ')
 }
 
+function tagType(tone) {
+  if (tone === 'danger') return 'danger'
+  if (tone === 'warning') return 'warning'
+  if (tone === 'success') return 'success'
+  return 'info'
+}
+
+async function loadPreviewBaseData() {
+  try {
+    const [balanceRows, materialRows] = await Promise.all([
+      fetchInventoryBalances(),
+      fetchMaterials()
+    ])
+    balances.value = balanceRows
+    materials.value = materialRows
+  } catch {
+    balances.value = []
+    materials.value = []
+  }
+}
+
 async function submitImport() {
   if (!selectedFile.value) {
     ElMessage.warning('请先选择 CSV 文件')
@@ -164,7 +236,7 @@ async function submitImport() {
     const result = await importInventoryFlowHistory(selectedFile.value)
     lastResult.value = result
     activeBatchId.value = result.batchId
-    await Promise.all([loadBatches(), loadRecords(result.batchId)])
+    await Promise.all([loadBatches(), loadRecords(result.batchId), loadPreviewBaseData()])
     ElMessage.success(`导入完成：成功 ${result.successRows} 行，失败 ${result.failedRows} 行`)
   } catch (error) {
     ElMessage.error(error.response?.data?.message || '导入失败')
@@ -201,7 +273,7 @@ function viewBatch(batchId) {
 }
 
 onMounted(async () => {
-  await Promise.all([loadBatches(), loadRecords()])
+  await Promise.all([loadBatches(), loadRecords(), loadPreviewBaseData()])
 })
 </script>
 
@@ -234,6 +306,7 @@ onMounted(async () => {
   white-space: nowrap;
 }
 
+.status-alert,
 .upload-section,
 .result-section,
 .batch-section,
@@ -301,6 +374,17 @@ onMounted(async () => {
 
 .summary-item .bad {
   color: var(--el-color-danger);
+}
+
+.reason-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  line-height: 1.4;
+}
+
+.sub-reason {
+  color: var(--el-text-color-secondary);
 }
 
 @media (max-width: 900px) {
