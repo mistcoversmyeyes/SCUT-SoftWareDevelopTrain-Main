@@ -29,6 +29,10 @@ import InventoryOverviewView from '../views/inventory/InventoryOverviewView.vue'
 import InventoryAiImportView from '../views/inventory/InventoryAiImportView.vue'
 import KanbanListView from '../views/kanban/KanbanListView.vue'
 import KanbanTraceView from '../views/kanban/KanbanTraceView.vue'
+import MobileLayout from '../views/mobile/MobileLayout.vue'
+import MobileInboundView from '../views/mobile/MobileInboundView.vue'
+import MobileOutboundView from '../views/mobile/MobileOutboundView.vue'
+import MobileKanbanQueryView from '../views/mobile/MobileKanbanQueryView.vue'
 import PlaceholderPage from '../views/PlaceholderPage.vue'
 
 
@@ -124,6 +128,32 @@ const routes = [
         meta: { requiresAuth: true, tabKey: 'kanban-detail', title: '看板详情' }
       },
     ])
+  },
+  {
+    path: '/mobile',
+    component: MobileLayout,
+    meta: { requiresAuth: true },
+    redirect: '/mobile/inbound',
+    children: [
+      {
+        path: 'inbound',
+        name: 'mobile-inbound',
+        component: MobileInboundView,
+        meta: { requiresAuth: true, title: '手机入库' }
+      },
+      {
+        path: 'outbound',
+        name: 'mobile-outbound',
+        component: MobileOutboundView,
+        meta: { requiresAuth: true, title: '手机出库' }
+      },
+      {
+        path: 'kanban',
+        name: 'mobile-kanban',
+        component: MobileKanbanQueryView,
+        meta: { requiresAuth: true, title: '手机看板查询' }
+      }
+    ]
   },
   {
     path: '/:pathMatch(.*)*',

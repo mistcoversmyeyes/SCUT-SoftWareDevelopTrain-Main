@@ -21,6 +21,9 @@
         <el-button class="login-button" type="primary" size="large" native-type="submit" :loading="loading">
           登录
         </el-button>
+        <el-button class="mobile-entry" size="large" @click="enterMobile">
+          手机端入口
+        </el-button>
       </el-form>
     </section>
   </main>
@@ -63,6 +66,13 @@ async function submitLogin() {
   } finally {
     loading.value = false
   }
+}
+
+function enterMobile() {
+  const redirect = typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/mobile')
+    ? route.query.redirect
+    : '/mobile'
+  router.push(redirect)
 }
 </script>
 
@@ -125,6 +135,11 @@ async function submitLogin() {
 .login-button {
   width: 100%;
   margin-top: 18px;
+}
+
+.mobile-entry {
+  width: 100%;
+  margin-top: 12px;
 }
 
 @media (max-width: 900px) {
