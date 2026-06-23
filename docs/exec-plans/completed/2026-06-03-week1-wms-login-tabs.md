@@ -14,7 +14,7 @@
 
 The referenced spec covers one small but complete homework demo. It has two parts, backend and frontend, but they are coupled by one login flow and can be implemented as one plan because the final acceptance requires both services running together.
 
-The large-project PDF in `res/0.华南理工大学授课(2).pdf` is intentionally excluded from this plan.
+The large-project PDF in `docs/references/Course PPT/0.华南理工大学授课(2).pdf` is intentionally excluded from this plan.
 
 ## File Structure
 
