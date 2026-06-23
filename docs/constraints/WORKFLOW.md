@@ -16,7 +16,7 @@
 
 ```text
 产品背景与需求基线
-  -> docs/iterations/weekN-*.md
+  -> docs/iterations/iterN-*.md
   -> docs/specs/<wp-or-module>.md
   -> docs/exec-plans/active/<plan>.md
   -> implementation + tests

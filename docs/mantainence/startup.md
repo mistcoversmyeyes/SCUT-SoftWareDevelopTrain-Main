@@ -2,7 +2,7 @@
 
 本文件记录 WMS 本地一键启动和手动分步启动命令。运行前提见 `environment.md`，数据库初始化或重置见 `database.md`。
 
-## One-command Startup
+## 一键启动
 
 适用场景：本地 MySQL 已有表结构，或已经按 `database.md` 完成干净初始化或重置。
 
@@ -33,7 +33,7 @@ bash scripts/start.sh
 
 启动后可用性检查见 `verification.md`。
 
-## Manual Startup
+## 手动启动
 
 ### 1. Start MySQL
 
