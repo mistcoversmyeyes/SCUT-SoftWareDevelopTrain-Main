@@ -1,58 +1,55 @@
-# SCUT WMS — 仓储管理系统
+# SCUT WMS - 仓储管理系统
 
 华南理工大学软件工程实训项目。
 
 ## 技术栈
 
-- 后端: Spring Boot 3 + MyBatis-Plus + MySQL 8.0
-- 前端: Vue 3 + Vite + Element Plus
+- Backend: Java 17, Spring Boot 3.3.5, Maven, MyBatis-Plus, MySQL 8.0
+- Frontend: Vue 3, Vite, Element Plus, Pinia, Vue Router, Axios, Vitest
+- Local runtime: Docker / Docker Compose, MySQL client, Node.js/npm
+- 项目运维文档族：`docs/mantainence/index.md`
 
-## 前置条件
+## 快速启动
 
-- Java 17+, Maven 3.9+, Node.js 20+
-- Docker 或 MySQL 8.0
-- Ubuntu 20.04+ 或 Windows (Git Bash)
-
-## 快速启动（一键）
+切换到 `main` 分支，同步云端仓库：
 
 ```bash
-# 1. 启动 MySQL（仅首次）
-docker-compose up -d mysql
+cd /home/yuming/scut/SCUT_26_spring/software_develop_train
+git checkout main
+git pull origin main:main
+``` 
 
-# 2. 一键启动
+首次使用全新 MySQL 数据卷，或需要重置演示数据时，先按 `docs/mantainence/index.md` 的数据库入口执行。已有本地演示库时可直接启动：
+
+```bash
 bash scripts/start.sh
 ```
 
-启动完成后访问 `http://localhost:5173`，用户名 `admin`，密码 `123456`。
+启动完成后访问：
 
-`start.sh` 会自动完成：MySQL 就绪检测 → 首次导入种子数据 → 启动后端 → 启动前端。数据库表结构由 `DatabaseMigration` 启动时自动创建，无需手动执行 `schema.sql`。
+- Web 前端：`http://localhost:5173`
+- 后端服务：`http://localhost:8080`
+- 手机端 H5：`http://localhost:5173/mobile/inbound`
+- 登录账号：`admin` / `123456`
 
-## 手动启动
 
-```bash
-# 1. MySQL
-docker-compose up -d mysql
+## 用户界面介绍
 
-# 2. 种子数据（仅首次）
-mysql -u root -proot -h 127.0.0.1 scut_wms < scripts/seed-data.sql
+主要 Web 页面：
 
-# 3. 后端
-cd backend && mvn spring-boot:run -DskipTests
+- 入库：`/inbound/orders`、`/inbound/scan`、`/inbound/history`
+- 出库：`/outbound/orders`、`/outbound/pick-with-order`、`/outbound/pick-no-order`、`/outbound/locks`、`/outbound/history`
+- 库存：`/inventory/overview`、`/inventory/balances`、`/inventory/trace`、`/inventory/ai-import`
+- 看板：`/kanbans/list`、`/kanbans/trace`
+- 手机端：`/mobile/inbound`、`/mobile/outbound`、`/mobile/kanban`
 
-# 4. 前端
-cd frontend && npm install && npm run dev
-```
+AI 导入样例：`frontend/public/samples/week4-inventory-flow-history-sample.csv`，页面下载入口为 `http://localhost:5173/samples/week4-inventory-flow-history-sample.csv`。
 
-## 架构
+## 日志与清理
 
-```
-MySQL(:3306) → Spring Boot(:8080) → Vue 前端(:5173)
-```
+一键启动日志：
 
-## 模块
+- 后端：`/tmp/wms-backend.log`
+- 前端：`/tmp/wms-frontend.log`
 
-- **基础数据**: 供应商、物料、容器类型、仓库库位
-- **入库管理**: 入库单创建 → 释放(生成看板) → 打印看板 → 扫码入库
-- **出库管理**: 出库单创建 → 释放(锁库) → 带单/不带单/强制 扫码出库
-- **库存管理**: 库存总览(库位容量 + 物料充足性)、库存追溯、流水
-- **锁库管理**: 看板锁记录、解锁、强制出库审计
+停止、清理数据库、端口占用和常见故障处理见 `docs/mantainence/index.md`。
