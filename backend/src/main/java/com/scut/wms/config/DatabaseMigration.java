@@ -10,6 +10,7 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.util.Objects;
 
 /**
  * 启动时自动补齐数据库缺失列（幂等，已存在的列跳过）。
@@ -78,6 +79,8 @@ public class DatabaseMigration implements CommandLineRunner {
             ensureLockTable(conn);
             ensureInventoryHoldTable(conn);
 
+            ensureColumn(conn, "kanban_board", "picked_qty",
+                    "DECIMAL(18, 3) NOT NULL DEFAULT 0");
             ensureColumn(conn, "kanban_board", "locked_by_order_id",
                     "BIGINT DEFAULT NULL");
             ensureColumn(conn, "kanban_board", "locked_by_order_line_id",
@@ -178,17 +181,13 @@ public class DatabaseMigration implements CommandLineRunner {
 
     private void dropForeignKeysForColumn(Connection conn, String table, String column)
             throws Exception {
-        String findFk = """
-                SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE
-                WHERE TABLE_SCHEMA = (SELECT DATABASE())
-                  AND TABLE_NAME = '%s'
-                  AND COLUMN_NAME = '%s'
-                  AND REFERENCED_TABLE_NAME IS NOT NULL
-                """.formatted(table, column);
-        try (Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(findFk)) {
+        DatabaseMetaData meta = conn.getMetaData();
+        try (ResultSet rs = meta.getImportedKeys(conn.getCatalog(), null, table)) {
             while (rs.next()) {
-                String fkName = rs.getString("CONSTRAINT_NAME");
+                if (!Objects.equals(column, rs.getString("FKCOLUMN_NAME"))) {
+                    continue;
+                }
+                String fkName = rs.getString("FK_NAME");
                 String sql = "ALTER TABLE " + table + " DROP FOREIGN KEY " + fkName;
                 log.info("迁移: {}", sql);
                 try (Statement dropStmt = conn.createStatement()) {
@@ -493,16 +492,14 @@ public class DatabaseMigration implements CommandLineRunner {
 
     private boolean foreignKeyExists(Connection conn, String table, String fkName)
             throws Exception {
-        String sql = """
-                SELECT 1 FROM information_schema.TABLE_CONSTRAINTS
-                WHERE TABLE_SCHEMA = (SELECT DATABASE())
-                  AND TABLE_NAME = '%s'
-                  AND CONSTRAINT_NAME = '%s'
-                  AND CONSTRAINT_TYPE = 'FOREIGN KEY'
-                """.formatted(table, fkName);
-        try (Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            return rs.next();
+        DatabaseMetaData meta = conn.getMetaData();
+        try (ResultSet rs = meta.getImportedKeys(conn.getCatalog(), null, table)) {
+            while (rs.next()) {
+                if (Objects.equals(fkName, rs.getString("FK_NAME"))) {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 
