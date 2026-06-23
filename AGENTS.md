@@ -19,6 +19,9 @@ docs/
 ├── specs/
 │   ├── index.md                  <- 需求、设计、WP 行为规格索引
 │   └── ...
+├── tests/
+│   ├── index.md                  <- V 模型测试文档索引
+│   └── acceptence-tests/         <- 验收测试步骤、预期结果和判定标准
 ├── exec-plans/
 │   ├── active/                   <- 进行中的实现计划
 │   ├── completed/                <- 已完成的实现计划
