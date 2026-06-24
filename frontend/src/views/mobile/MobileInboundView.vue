@@ -3,7 +3,7 @@
     <div class="page-hero">
       <div>
         <h2>手机入库</h2>
-        <p>支持手工输入库存标签码，课堂演示不依赖真实扫码设备。</p>
+        <p>支持摄像头扫码、图片识别和手工输入库存标签码。</p>
       </div>
       <el-tag type="success">扫码入库</el-tag>
     </div>
@@ -16,6 +16,13 @@
     />
 
     <section class="panel">
+      <MobileQrScanner
+        reader-id="inbound"
+        label="扫描库存标签码"
+        :disabled="submitting"
+        @decoded="handleInventoryTagScan"
+      />
+
       <div class="field-grid">
         <div class="field-block">
           <label class="field-label" for="mobile-inbound-code">库存标签码</label>
@@ -49,7 +56,6 @@
       </div>
 
       <div class="action-row">
-        <el-button size="large" @click="applyDemoCode">模拟扫码</el-button>
         <el-button type="primary" size="large" :loading="submitting" @click="submitInbound">
           提交入库
         </el-button>
@@ -128,6 +134,8 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { fetchMasterDataOptions } from '../../api/masterData'
 import { lookupInventoryTagInbound, scanInbound } from '../../api/inventory'
+import MobileQrScanner from '../../components/mobile/MobileQrScanner.vue'
+import { normalizeInventoryTagCode } from '../../utils/scanPayload'
 
 const inventoryTagCode = ref('')
 const selectedLocationId = ref(null)
@@ -158,10 +166,8 @@ watch(inventoryTagCode, (value) => {
   }, 250)
 })
 
-function applyDemoCode() {
-  if (!inventoryTagCode.value.trim()) {
-    inventoryTagCode.value = 'IT:v1:DEMO:INPUT'
-  }
+function handleInventoryTagScan(text) {
+  inventoryTagCode.value = normalizeInventoryTagCode(text)
 }
 
 async function submitInbound() {

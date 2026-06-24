@@ -9,6 +9,13 @@
     </div>
 
     <section class="panel">
+      <MobileQrScanner
+        reader-id="inventory-tag-query"
+        label="扫描库存标签码"
+        :disabled="loading"
+        @decoded="handleInventoryTagScan"
+      />
+
       <div class="field-block">
         <label class="field-label" for="mobile-inventory-tag-code">库存标签码</label>
         <el-input
@@ -22,7 +29,6 @@
       </div>
 
       <div class="action-row">
-        <el-button size="large" @click="applyDemoCode">模拟扫码</el-button>
         <el-button type="primary" size="large" :loading="loading" @click="queryInventoryTag">
           查询
         </el-button>
@@ -97,6 +103,8 @@
 import { computed, ref } from 'vue'
 import { fetchInventoryTagTrace } from '../../api/inventoryTag'
 import { lookupInventoryTag } from '../../api/outbound'
+import MobileQrScanner from '../../components/mobile/MobileQrScanner.vue'
+import { normalizeInventoryTagCode } from '../../utils/scanPayload'
 
 const lifecycleStatuses = ['PRINTED', 'RECEIVED', 'LOCKED', 'SEALED', 'SHIPPED', 'CANCELLED']
 
@@ -129,10 +137,9 @@ const holdSummary = computed(() => {
   return '正常'
 })
 
-function applyDemoCode() {
-  if (!inventoryTagCode.value.trim()) {
-    inventoryTagCode.value = 'IT:v1:DEMO:QUERY'
-  }
+async function handleInventoryTagScan(text) {
+  inventoryTagCode.value = normalizeInventoryTagCode(text)
+  await queryInventoryTag()
 }
 
 async function queryInventoryTag() {
