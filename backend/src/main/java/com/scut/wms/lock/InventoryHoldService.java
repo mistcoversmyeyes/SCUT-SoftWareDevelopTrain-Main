@@ -20,6 +20,7 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -116,13 +117,16 @@ public class InventoryHoldService {
                 .collect(Collectors.toList());
     }
 
-    public void ensureOutboundAllowed(KanbanBoard board, String holdType, String actionName) {
-        if (SEALED.equals(board.getStatus()) || InventoryHold.SEALED.equals(holdType)) {
-            throw new BusinessException("看板已封存，不能执行" + actionName);
-        }
-        if (InventoryHold.MANUAL_LOCK.equals(holdType)) {
-            throw new BusinessException("看板已手动锁库，不能执行" + actionName);
-        }
+    public void ensureOrderOutboundAllowed(KanbanBoard board) {
+        ensureOutboundAllowed(board, false);
+    }
+
+    public void ensureNormalOutboundAllowed(KanbanBoard board) {
+        ensureOutboundAllowed(board, true);
+    }
+
+    public boolean hasBlockingAutoLockHold(Long kanbanId) {
+        return hasActiveHold(kanbanId, InventoryHold.SEALED, InventoryHold.MANUAL_LOCK);
     }
 
     public void assertNormalFifoPick(Long outboundOrderId, Long outboundOrderLineId, Long kanbanBoardId) {
@@ -184,6 +188,21 @@ public class InventoryHoldService {
         return board;
     }
 
+    private void ensureOutboundAllowed(KanbanBoard board, boolean normalOutbound) {
+        boolean sealed = SEALED.equals(board.getStatus()) || hasActiveHold(board.getId(), InventoryHold.SEALED);
+        if (sealed) {
+            throw new BusinessException(normalOutbound
+                    ? "库存标签已封存，不能普通出库"
+                    : "库存标签已封存，不能出库");
+        }
+
+        if (hasActiveHold(board.getId(), InventoryHold.MANUAL_LOCK)) {
+            throw new BusinessException(normalOutbound
+                    ? "库存标签已手动锁库，不能普通出库"
+                    : "库存标签已手动锁库，不能出库");
+        }
+    }
+
     private InventoryHold createHold(KanbanBoard board, String holdType, HoldCommand command) {
         InventoryHold hold = new InventoryHold();
         hold.setKanbanBoardId(board.getId());
@@ -217,6 +236,18 @@ public class InventoryHoldService {
             throw new BusinessException("未找到生效中的" + label(holdType) + "记录");
         }
         return hold;
+    }
+
+    private boolean hasActiveHold(Long kanbanId, String... holdTypes) {
+        var query = Wrappers.<InventoryHold>lambdaQuery()
+                .eq(InventoryHold::getKanbanBoardId, kanbanId)
+                .eq(InventoryHold::getStatus, InventoryHold.ACTIVE);
+        if (holdTypes.length == 1) {
+            query.eq(InventoryHold::getHoldType, holdTypes[0]);
+        } else {
+            query.in(InventoryHold::getHoldType, Arrays.asList(holdTypes));
+        }
+        return inventoryHoldMapper.selectCount(query) > 0;
     }
 
     private InventoryHoldView toView(InventoryHold hold) {

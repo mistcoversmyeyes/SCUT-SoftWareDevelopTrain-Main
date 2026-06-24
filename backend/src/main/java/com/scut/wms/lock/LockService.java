@@ -46,6 +46,7 @@ public class LockService {
     private final StorageLocationMapper storageLocationMapper;
     private final InboundOrderLineMapper inboundOrderLineMapper;
     private final ContainerTypeMapper containerTypeMapper;
+    private final InventoryHoldService inventoryHoldService;
 
     public LockService(
             OutboundOrderMapper outboundOrderMapper,
@@ -56,7 +57,8 @@ public class LockService {
             MaterialMapper materialMapper,
             StorageLocationMapper storageLocationMapper,
             InboundOrderLineMapper inboundOrderLineMapper,
-            ContainerTypeMapper containerTypeMapper
+            ContainerTypeMapper containerTypeMapper,
+            InventoryHoldService inventoryHoldService
     ) {
         this.outboundOrderMapper = outboundOrderMapper;
         this.outboundOrderLineMapper = outboundOrderLineMapper;
@@ -67,6 +69,7 @@ public class LockService {
         this.storageLocationMapper = storageLocationMapper;
         this.inboundOrderLineMapper = inboundOrderLineMapper;
         this.containerTypeMapper = containerTypeMapper;
+        this.inventoryHoldService = inventoryHoldService;
     }
 
     /**
@@ -111,7 +114,11 @@ public class LockService {
                 BigDecimal toLock = remaining;
 
                 KanbanBoard board = kanbanBoardMapper.selectById(candidate.getKanbanId());
-                if (board == null || !RECEIVED.equals(board.getStatus())) continue;
+                if (board == null
+                        || !RECEIVED.equals(board.getStatus())
+                        || inventoryHoldService.hasBlockingAutoLockHold(board.getId())) {
+                    continue;
+                }
 
                 board.setStatus(LOCKED_KANBAN);
                 board.setLockedByOrderId(orderId);
@@ -267,7 +274,11 @@ public class LockService {
                 BigDecimal toLock = remaining;
 
                 KanbanBoard board = kanbanBoardMapper.selectById(candidate.getKanbanId());
-                if (board == null || !RECEIVED.equals(board.getStatus())) continue;
+                if (board == null
+                        || !RECEIVED.equals(board.getStatus())
+                        || inventoryHoldService.hasBlockingAutoLockHold(board.getId())) {
+                    continue;
+                }
 
                 board.setStatus(LOCKED_KANBAN);
                 board.setLockedByOrderId(orderId);

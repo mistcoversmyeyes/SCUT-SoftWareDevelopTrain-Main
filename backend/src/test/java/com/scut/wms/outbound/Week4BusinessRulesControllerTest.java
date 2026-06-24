@@ -136,6 +136,45 @@ class Week4BusinessRulesControllerTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("RECEIVED"));
+
+        mockMvc.perform(post("/api/outbound-orders/{id}/reassign", OUTBOUND_ORDER_ID))
+                .andExpect(status().isOk());
+
+        List<InventoryLock> locksAfterUnseal = inventoryLockMapper.selectList(
+                Wrappers.<InventoryLock>lambdaQuery()
+                        .eq(InventoryLock::getOutboundOrderId, OUTBOUND_ORDER_ID)
+                        .eq(InventoryLock::getStatus, InventoryLock.LOCKED)
+                        .orderByAsc(InventoryLock::getId));
+        assertThat(locksAfterUnseal).extracting(InventoryLock::getKanbanBoardId)
+                .contains(MATERIAL_ONE_FIFO_BOARD_ID, MATERIAL_TWO_FIFO_BOARD_ID)
+                .doesNotContain(MATERIAL_ONE_NEXT_BOARD_ID);
+    }
+
+    @Test
+    void normalOutboundRejectsSealedKanban() throws Exception {
+        mockMvc.perform(post("/api/kanbans/{kanbanId}/seal", MATERIAL_ONE_FIFO_BOARD_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reason": "QUALITY_HOLD",
+                                  "remark": "待复检",
+                                  "operator": "tester"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SEALED"));
+
+        mockMvc.perform(post("/api/outbound/pick-no-order")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "kanbanCode": "%s",
+                                  "qty": 10,
+                                  "operator": "tester"
+                                }
+                                """.formatted(MATERIAL_ONE_FIFO_BOARD_CODE)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("库存标签已封存，不能普通出库"));
     }
 
     @Test

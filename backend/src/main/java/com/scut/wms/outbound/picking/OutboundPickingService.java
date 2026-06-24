@@ -71,7 +71,7 @@ public class OutboundPickingService {
             throw new BusinessException("未找到看板");
         }
         KanbanBoard board = requireBoard(ctx.getKanbanId());
-        inventoryHoldService.ensureOutboundAllowed(board, ctx.getActiveHoldType(), "出库");
+        inventoryHoldService.ensureOrderOutboundAllowed(board);
 
         if (!force) {
             inventoryHoldService.assertNormalFifoPick(request.outboundOrderId(), request.outboundOrderLineId(), ctx.getKanbanId());
@@ -98,7 +98,7 @@ public class OutboundPickingService {
             throw new BusinessException("未找到看板");
         }
         KanbanBoard board = requireBoard(ctx.getKanbanId());
-        inventoryHoldService.ensureOutboundAllowed(board, ctx.getActiveHoldType(), "出库");
+        inventoryHoldService.ensureNormalOutboundAllowed(board);
 
         if (LOCKED.equals(ctx.getKanbanStatus())) {
             lockService.markForceStolen(ctx.getKanbanId());

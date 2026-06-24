@@ -234,6 +234,7 @@
               SELECT 1 FROM inventory_hold ih
               WHERE ih.kanban_board_id = kb.id
                 AND ih.status = 'ACTIVE'
+                AND ih.hold_type IN ('SEALED', 'MANUAL_LOCK')
           )
         ORDER BY kb.received_at ASC, kb.id ASC
         FOR UPDATE
@@ -256,6 +257,7 @@
               SELECT 1 FROM inventory_hold ih
               WHERE ih.kanban_board_id = k.id
                 AND ih.status = 'ACTIVE'
+                AND ih.hold_type IN ('SEALED', 'MANUAL_LOCK')
           )
           AND sl.warehouse_id IN
         <foreach collection="warehouseIds" item="id" open="(" separator="," close=")">
@@ -282,6 +284,7 @@
               SELECT 1 FROM inventory_hold ih
               WHERE ih.kanban_board_id = kb.id
                 AND ih.status = 'ACTIVE'
+                AND ih.hold_type IN ('SEALED', 'MANUAL_LOCK')
           )
         <if test="containerTypeId != null">
           AND kb.container_type_id = #{containerTypeId}
