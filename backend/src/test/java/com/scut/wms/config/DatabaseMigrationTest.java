@@ -46,6 +46,7 @@ class DatabaseMigrationTest {
             stmt.execute("""
                     CREATE TABLE inventory_hold (
                       id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                      kanban_board_id BIGINT NOT NULL,
                       hold_type VARCHAR(32) NOT NULL,
                       status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
                       reason VARCHAR(128) NOT NULL,
@@ -53,11 +54,17 @@ class DatabaseMigrationTest {
                       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
                     )
                     """);
+            stmt.execute("""
+                    INSERT INTO inventory_hold (id, kanban_board_id, hold_type, status, reason, operator_name)
+                    VALUES (1, 7, 'SEALED', 'ACTIVE', 'legacy', 'web')
+                    """);
         }
 
         new DatabaseMigration(dataSource).run();
 
         assertThat(columnExists(dataSource, "inventory_hold", "inventory_tag_id")).isTrue();
+        assertThat(longValue(dataSource, "SELECT inventory_tag_id FROM inventory_hold WHERE id = 1"))
+                .isEqualTo(7L);
     }
 
     private DataSource legacyDataSource() {
@@ -74,6 +81,14 @@ class DatabaseMigrationTest {
         try (Connection conn = dataSource.getConnection();
              ResultSet rs = conn.getMetaData().getColumns(null, null, table, column)) {
             return rs.next();
+        }
+    }
+
+    private Long longValue(DataSource dataSource, String sql) throws Exception {
+        try (Connection conn = dataSource.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            return rs.next() ? rs.getLong(1) : null;
         }
     }
 }

@@ -568,6 +568,7 @@ public class DatabaseMigration implements CommandLineRunner {
 
     private void ensureInventoryHoldColumns(Connection conn) throws Exception {
         ensureColumn(conn, "inventory_hold", "inventory_tag_id", "BIGINT DEFAULT NULL");
+        migrateInventoryHoldLegacyInventoryTagId(conn);
         ensureColumn(conn, "inventory_hold", "hold_type", "VARCHAR(32) NOT NULL DEFAULT 'MANUAL_LOCK'");
         ensureColumn(conn, "inventory_hold", "hold_qty", "DECIMAL(18, 3) NOT NULL DEFAULT 0");
         ensureColumn(conn, "inventory_hold", "status", "VARCHAR(32) NOT NULL DEFAULT 'ACTIVE'");
@@ -584,6 +585,21 @@ public class DatabaseMigration implements CommandLineRunner {
                     "inventory_tag", "id", "fk_hold_inventory_tag");
         } catch (Exception e) {
             log.warn("添加外键 fk_hold_inventory_tag 失败（可能因存在历史无效引用值）: {}", e.getMessage());
+        }
+    }
+
+    private void migrateInventoryHoldLegacyInventoryTagId(Connection conn) throws Exception {
+        if (!columnExists(conn, "inventory_hold", "kanban_board_id")) {
+            return;
+        }
+        String sql = """
+                UPDATE inventory_hold
+                SET inventory_tag_id = kanban_board_id
+                WHERE inventory_tag_id IS NULL
+                """;
+        log.info("迁移: inventory_hold.kanban_board_id -> inventory_hold.inventory_tag_id");
+        try (Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate(sql);
         }
     }
 
