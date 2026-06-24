@@ -4,7 +4,7 @@
 
 本设计服务于 `fix/iter4` 分支。Iteration 4 人工验收显示，入库主路径已可用，但出库创建、出库锁货、封存与出库联动、库存标签术语和入库单状态命名仍会影响 FR-01 至 FR-07 的重新验收。
 
-本分支采用验收闭环优先策略：先恢复出库和封存联动的可验收路径，再进行直接影响验收理解的领域命名迁移。FR-08 表格批量导入和 FR-09 AI 预警不在本分支返工范围内。
+本分支采用验收闭环优先策略：先恢复出库和封存联动的可验收路径，再进行直接影响验收理解的领域命名迁移。FR-03 当前只确认已存在手动封存/解封能力；普通出库和自动 FIFO 锁货联动仍需在 FR-02 恢复后补验。FR-08 表格批量导入和 FR-09 AI 预警不在本分支返工范围内。
 
 相关输入：
 
@@ -168,14 +168,14 @@ IT:v1:IN-20260624-39A78DBC:1:1
 需要同步更新：
 
 - `docs/specs/2026-06-10-inbound-core-design.md`
-- `docs/specs/2026-06-15-outbound-master-data-inbound-enhancement-design.md`
 - `docs/specs/2026-06-17-lock-goods-design.md`
+- `docs/specs/2026-06-23-ai-data-import-template.md`
 - `docs/specs/2026-06-23-wms-completion-requirements.md`
 - `docs/tests/acceptence-tests/iter4/week4-fr-acceptance-test-steps.md`
 - `docs/tests/acceptence-tests/iter4/week4-fr-acceptance-results.md`
 - `docs/exec-plans/product-debt-tracker.md`
 
-验收结果文档不得由本分支直接改为通过；只有人工复验完成后才能记录通过结论。
+验收结果文档不得由本分支直接改为通过；只有人工复验完成后才能记录通过结论。若保留历史截图、旧码值或旧入口名，必须显式标注其为历史证据，避免误导为当前通过状态。
 
 ## 交付验证
 
@@ -199,7 +199,7 @@ IT:v1:IN-20260624-39A78DBC:1:1
 
 - `docs/specs/index.md` 包含本规格。
 - `docs/tests/index.md`、`docs/tests/acceptence-tests/index.md` 和 `docs/tests/acceptence-tests/iter4/index.md` 链接仍有效。
-- 验收步骤中的对象名、状态名和码值前缀与实现一致。
+- 验收步骤中的对象名和状态名与实现一致；历史验收记录中如保留旧截图、旧码值或旧入口名，需显式标注原因。
 
 ## 建议提交顺序
 

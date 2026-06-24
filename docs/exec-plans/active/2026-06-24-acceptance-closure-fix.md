@@ -15,6 +15,7 @@
 - 不返工 FR-08 表格批量导入。
 - 不实现 FR-09 独立 AI 推荐或风险预警。
 - 不由本分支代替人工验收；本分支只提供重新验收的功能条件和自动化验证证据。
+- FR-03 只允许记录“当前已有手动封存/解封能力，但人工补验未完成”的事实；不得把未执行的普通出库/FIFO 联动补验写成通过。
 - 入库单状态 `RELEASED / 已释放` 迁移为 `READY_TO_RECEIVE / 待收货`。
 - 原“看板”领域对象迁移为“库存标签”。
 - 库存标签码前缀从 `KB:v1:` 全量改为 `IT:v1:`。
@@ -511,62 +512,64 @@ git commit -m "refactor(inbound): 统一待收货状态命名"
 ## Task 6: 同步规格、产品债和验收步骤口径
 
 **Files:**
-- Modify: `docs/specs/2026-06-10-inbound-core-design.md`
-- Modify: `docs/specs/2026-06-15-outbound-master-data-inbound-enhancement-design.md`
 - Modify: `docs/specs/2026-06-17-lock-goods-design.md`
+- Modify: `docs/specs/2026-06-23-ai-data-import-template.md`
 - Modify: `docs/specs/2026-06-23-wms-completion-requirements.md`
+- Modify: `docs/specs/2026-06-24-acceptance-closure-fix-design.md`
+- Modify: `docs/specs/index.md`
 - Modify: `docs/tests/acceptence-tests/iter4/week4-fr-acceptance-test-steps.md`
 - Modify: `docs/tests/acceptence-tests/iter4/week4-fr-acceptance-results.md`
 - Modify: `docs/exec-plans/product-debt-tracker.md`
 
 **Interfaces:**
 - Consumes: final implementation naming from Tasks 3-5.
-- Produces: docs that consistently use `库存标签`、`库存标签码`、`IT:v1:`、`READY_TO_RECEIVE / 待收货`。
+- Produces: current-target docs that consistently use `库存标签`、`库存标签码`、`IT:v1:`、`READY_TO_RECEIVE / 待收货`；历史截图、旧码值或旧入口名仅在显式标注为历史证据时保留。
 
 - [ ] **Step 1: Replace terminology in specs and acceptance steps**
 
 Use scoped search before editing:
 
 ```bash
-rg -n "看板|看板码|Kanban|kanban|KB:v1|RELEASED|已释放" docs/specs docs/tests/acceptence-tests/iter4 docs/exec-plans/product-debt-tracker.md
+rg -n "看板码|看板对象|RELEASED|已释放|AI 数据导入|AI数据导入" docs
+rg -n "看板|Kanban|kanban|KB:v1" docs/specs docs/tests/acceptence-tests/iter4 docs/exec-plans/product-debt-tracker.md
 ```
 
-Apply these replacements only where the old term referred to the inventory label object:
+Apply replacements only where the old term referred to the inventory label object or where FR-08/FR-09 分类被写错：
 
 - `看板` -> `库存标签`
 - `看板码` -> `库存标签码`
-- `KB:v1:` -> `IT:v1:`
 - inbound order `RELEASED / 已释放` -> `READY_TO_RECEIVE / 待收货`
+- `AI 数据导入` -> `表格导入`，除非是在说明当前页面旧入口名或历史文件名
 
-Keep historical notes only if explicitly marked as old terminology.
+Keep historical notes only if explicitly marked as old terminology or historical evidence.
 
 - [ ] **Step 2: Preserve acceptance-result authority**
 
-Do not change failed/blocked/conditional conclusions to pass. It is acceptable to update wording from “看板” to “库存标签” and clarify that manual re-acceptance is pending.
+Do not change failed/blocked/conditional conclusions to pass. It is acceptable to update wording from “看板” to “库存标签” and clarify that manual re-acceptance is pending. FR-08/FR-09 只能写“跳过/不可验收及原因”；FR-03 不得伪造人工补验结果。
 
 - [ ] **Step 3: Update product debt statuses**
 
-When implementation is complete:
+Update PD-015 / PD-016 to show they are covered by `fix/iter4`, retain the historical problem statement, and record the settled target wording:
 
-- PD-015 becomes resolved with decision `READY_TO_RECEIVE / 待收货`.
-- PD-016 becomes resolved with decision `库存标签 / 库存标签码 / IT:v1:` and破坏式 schema 重建。
+- PD-015 -> `covered-by-fix/iter4`, decision `READY_TO_RECEIVE / 待收货`
+- PD-016 -> `covered-by-fix/iter4`, decision `库存标签 / 库存标签码 / IT:v1:`
 
 - [ ] **Step 4: Verify docs**
 
 Run:
 
 ```bash
-rg -n "看板码|KB:v1|RELEASED|已释放" docs/specs docs/tests/acceptence-tests/iter4 docs/exec-plans/product-debt-tracker.md
-git diff --check -- docs/specs docs/tests/acceptence-tests docs/exec-plans
+rg -n "看板码|看板对象|RELEASED|已释放|AI 数据导入|AI数据导入" docs
+git diff --check -- docs
 ```
 
-Expected: first command has no unintended active terminology hits; second command has exit code 0.
+Expected: first command only returns explicitly justified historical mentions or current legacy entry-name notes; second command has exit code 0.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add docs/specs docs/tests/acceptence-tests docs/exec-plans/product-debt-tracker.md
-git commit -m "docs(iter4): 同步验收闭环术语"
+git commit -m "docs(iter4): 同步库存标签和待收货语义"
 ```
 
 ---

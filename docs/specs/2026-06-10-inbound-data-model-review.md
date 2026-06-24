@@ -2,7 +2,7 @@
 
 ## 1. 当前核心表 ER 图设计
 
-本图表达本周建议落地的简化模型，不包含延后的 `container_type`，也不单独保留 `scan_record`。扫码成功后的业务事实进入 `inventory_movement`；失败扫码不落库，只在接口响应或前端提示中体现。入库单状态不使用 `PENDING`，待执行状态统一为 `RELEASED`。
+本图表达本周建议落地的简化模型，不包含延后的 `container_type`，也不单独保留 `scan_record`。扫码成功后的业务事实进入 `inventory_movement`；失败扫码不落库，只在接口响应或前端提示中体现。入库单状态不使用 `PENDING`，待执行状态统一为 `READY_TO_RECEIVE`。
 
 ```mermaid
 erDiagram
@@ -105,7 +105,7 @@ erDiagram
 - 延后 `container_type`：器具类型属于基础资料扩展，本周采购入库闭环不依赖真实器具类型维护。
 - 取消独立 `scan_record`：成功扫码直接形成入库流水 `inventory_movement`，失败扫码不落库。
 - 保留 `inventory_movement` 与 `inventory_balance`：流水记录事实，余额支撑库存查询，二者职责不同。
-- 入库单初始可执行状态从 `PENDING` 改为 `RELEASED`，避免把“已下发待收货”和“草稿未释放”混在一个状态里。
+- 入库单初始可执行状态从 `PENDING` 改为 `READY_TO_RECEIVE`，避免把“已下发待收货”和“草稿未释放”混在一个状态里。
 
 ## 2. 原始表设计 schema
 
@@ -303,7 +303,7 @@ CREATE TABLE inventory_movement (
 - 合并或取消 `scan_record`，成功扫码以 `inventory_movement` 作为唯一持久化事实；失败扫码不落库，避免把临时错误、设备噪声或用户误扫沉淀为业务数据。
 - 保留 `inventory_movement`，用于记录每次成功入库的数量、库位、看板和发生时间。
 - 保留 `inventory_balance`，用于按物料、仓库、库位查询现存量；它由成功入库流水驱动更新，不替代流水。
-- 入库单状态使用 `RELEASED` 表达“已释放、可扫码收货”，不使用 `PENDING`。建议状态集合为 `DRAFT`、`RELEASED`、`PARTIAL_RECEIVED`、`COMPLETED`、`CANCELLED`，本周可只实现闭环需要的子集。
+- 入库单状态使用 `READY_TO_RECEIVE` 表达“待收货、可扫码收货”，不使用 `PENDING`。建议状态集合为 `DRAFT`、`READY_TO_RECEIVE`、`PARTIAL_RECEIVED`、`COMPLETED`、`CANCELLED`，本周可只实现闭环需要的子集。
 
 ## 5. 最终建议的本周最小持久化模型
 
@@ -315,7 +315,7 @@ CREATE TABLE inventory_movement (
 | `material` | 物料引用数据，支撑入库明细和库存 | `material_code` 唯一，可关联默认供应商 |
 | `warehouse` | 仓库引用数据 | `warehouse_code` 唯一 |
 | `storage_location` | 库位引用数据 | `(warehouse_id, location_code)` 唯一 |
-| `inbound_order` | 入库单头，记录供应商、来源单号、状态和完成时间 | `inbound_no` 唯一，状态使用 `RELEASED` 作为可收货状态 |
+| `inbound_order` | 入库单头，记录供应商、来源单号、状态和完成时间 | `inbound_no` 唯一，状态使用 `READY_TO_RECEIVE` 作为可收货状态 |
 | `inbound_order_line` | 入库单行，记录物料、计划数量和已收数量 | `(inbound_order_id, line_no)` 唯一 |
 | `kanban_board` | 唯一看板，连接入库明细与扫码收货 | `kanban_code` 唯一 |
 | `inventory_movement` | 成功扫码后的入库流水 | `movement_no` 唯一，`movement_type = INBOUND_RECEIVE` |

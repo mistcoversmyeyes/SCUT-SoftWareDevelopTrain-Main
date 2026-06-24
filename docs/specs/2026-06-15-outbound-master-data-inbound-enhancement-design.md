@@ -12,7 +12,7 @@
 
 **出库管理：**
 - 出库单：列表、创建、编辑、释放、取消、查看/打印
-- 出库扫码：看板码出库，FIFO 先进先出，扣减库存，更新看板状态
+- 出库扫码：库存标签码出库，FIFO 先进先出，扣减库存，更新库存标签状态
 - 出库历史：按时间范围查询已完成/已取消的出库单
 
 **基础数据 CRUD：**
@@ -138,7 +138,7 @@ ALTER TABLE kanban_board
 | `POST` | `/api/outbound-orders/{id}/release` | 释放出库单 |
 | `POST` | `/api/outbound-orders/{id}/cancel` | 取消出库单 |
 | `GET` | `/api/outbound-orders/{id}/print` | 获取出库单打印数据 |
-| `POST` | `/api/outbound/scan` | 扫描看板码执行 FIFO 出库 |
+| `POST` | `/api/outbound/scan` | 扫描库存标签码执行 FIFO 出库 |
 | `POST` | `/api/container-types` | 创建器具类型 |
 | `GET` | `/api/container-types` | 器具类型列表 |
 | `PUT` | `/api/container-types/{id}` | 修改器具类型 |
@@ -225,7 +225,7 @@ ALTER TABLE kanban_board
 - 横条物料标签风格：QR 码在左、信息在右
 - 每张标签约 360px×100px，A4 纸纵向排列多张
 - QR 码使用 `qrcode` 库生成（`npm install qrcode`）
-- 每个看板码旁有复制按钮
+- 每个库存标签码旁有复制按钮
 - 打印按钮触发 window.print()，@media print 隐藏非打印元素
 
 ### 前端依赖新增

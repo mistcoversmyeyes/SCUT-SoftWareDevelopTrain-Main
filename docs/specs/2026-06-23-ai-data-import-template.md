@@ -1,4 +1,6 @@
-# Week 4 WP4-04 首期 AI 数据导入模板规格
+# Week 4 WP4-04 首期表格导入模板规格
+
+> 文件路径沿用 `ai-data-import-template.md` 仅为历史兼容；本文当前对应 FR-08 表格批量导入，不把导入本身作为 AI 功能。
 
 ## 1. 首期导入对象冻结
 
@@ -13,7 +15,7 @@ WP4-04 首期固定导入对象为 `inventory_flow_history`。
 本期不做：
 
 - 不导入库存初始化余额。
-- 不写入现有 `inventory_balance`、`inventory_movement`、`kanban_board` 等核心事务表。
+- 不写入现有 `inventory_balance`、`inventory_movement`、`inventory_tag` 等核心事务表。
 - 不承诺 Excel 解析；首期固定为 UTF-8 CSV。
 
 ## 2. 文件格式
@@ -37,7 +39,7 @@ business_date,material_code,warehouse_code,location_code,board_code,movement_typ
 | `material_code` | 必填 | 必须存在于当前物料主数据 |
 | `warehouse_code` | 必填 | 必须存在于当前仓库主数据 |
 | `location_code` | 必填 | 必须属于该仓库；作为项目本地扩展字段保留明细追溯 |
-| `board_code` | 必填 | 样例看板码或载体标识 |
+| `board_code` | 必填 | 样例库存标签码或载体标识 |
 | `movement_type` | 必填 | 仅允许 `INBOUND`、`OUTBOUND`、`ADJUST`、`SEAL`、`UNSEAL`、`SCRAP` |
 | `quantity` | 必填 | 大于 0，最小分析单位为件 |
 | `source_order_no` | 必填 | 来源单号、封存单号或样例来源标识 |
@@ -59,10 +61,12 @@ business_date,material_code,warehouse_code,location_code,board_code,movement_typ
 
 ## 4. 数据落点与查询
 
-为避免影响现有库存事务口径，导入数据只写入独立 AI 样例表：
+为避免影响现有库存事务口径，导入数据只写入独立导入样例表：
 
 - `ai_import_batch`
 - `ai_inventory_flow_history`
+
+上述表名保留既有 `ai_` 前缀属于实现细节，不改变 FR-08 的验收分类。
 
 查询接口：
 
