@@ -5,8 +5,8 @@
 
 ## Current Test Docs
 
-- `acceptence-tests/`：验收测试材料，覆盖从用户需求和周迭代目标出发的人工验收步骤。
+- `acceptence-tests/`：验收测试材料，按周迭代组织人工验收步骤、执行结果和证据。
 
 ## Task Routing
 
-- 执行 Week 4 功能验收：读 `acceptence-tests/week4-fr-acceptance-test-steps.md`，必要时先按 `docs/mantainence/database.md` 重置演示库。
+- 执行 Week 4 功能验收：读 `acceptence-tests/iter4/week4-fr-acceptance-test-steps.md`，必要时先按 `docs/mantainence/database.md` 重置演示库。

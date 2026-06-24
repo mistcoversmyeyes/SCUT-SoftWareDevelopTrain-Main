@@ -5,5 +5,4 @@
 
 ## Current Docs
 
-- `week4-fr-acceptance-test-steps.md`：Week 4 FR-01 至 FR-09 人工验收步骤、预期结果和判定标准。
-- `week4-fr-acceptance-results.md`：Week 4 FR-01 至 FR-09 人工验收执行结果记录。
+- `iter4/`：Week 4 FR-01 至 FR-09 的人工验收步骤、预期结果、判定标准、执行结果和证据截图。
