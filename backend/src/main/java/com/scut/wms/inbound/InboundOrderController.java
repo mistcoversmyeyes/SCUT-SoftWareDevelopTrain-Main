@@ -18,11 +18,11 @@ import java.util.Map;
 @RequestMapping("/api/inbound-orders")
 public class InboundOrderController {
     private final InboundOrderService service;
-    private final KanbanBoardMapper kanbanBoardMapper;
+    private final InventoryTagMapper inventoryTagMapper;
 
-    public InboundOrderController(InboundOrderService service, KanbanBoardMapper kanbanBoardMapper) {
+    public InboundOrderController(InboundOrderService service, InventoryTagMapper inventoryTagMapper) {
         this.service = service;
-        this.kanbanBoardMapper = kanbanBoardMapper;
+        this.inventoryTagMapper = inventoryTagMapper;
     }
 
     @GetMapping
@@ -48,10 +48,10 @@ public class InboundOrderController {
     @PostMapping("/{id}/release")
     public Map<String, Object> release(@PathVariable Long id) {
         InboundOrderResponse resp = service.release(id);
-        List<KanbanBoard> kanbans = kanbanBoardMapper.selectList(Wrappers.<KanbanBoard>lambdaQuery()
-                .eq(KanbanBoard::getInboundOrderId, id));
-        return Map.of("order", resp, "kanbanCount", kanbans.size(),
-                "kanbanCodes", kanbans.stream().map(KanbanBoard::getKanbanCode).toList());
+        List<InventoryTag> inventoryTags = inventoryTagMapper.selectList(Wrappers.<InventoryTag>lambdaQuery()
+                .eq(InventoryTag::getInboundOrderId, id));
+        return Map.of("order", resp, "inventoryTagCount", inventoryTags.size(),
+                "inventoryTagCodes", inventoryTags.stream().map(InventoryTag::getInventoryTagCode).toList());
     }
 
     @PostMapping("/{id}/cancel")
@@ -69,13 +69,13 @@ public class InboundOrderController {
         return service.getById(id);
     }
 
-    @GetMapping("/{id}/kanbans")
-    public List<KanbanPrintResponse> getKanbans(@PathVariable Long id) {
-        return service.printKanbans(id);
+    @GetMapping("/{id}/inventory-tags")
+    public List<InventoryTagPrintResponse> getInventoryTags(@PathVariable Long id) {
+        return service.printInventoryTags(id);
     }
 
-    @GetMapping("/{id}/kanbans/print")
-    public List<KanbanPrintResponse> printKanbans(@PathVariable Long id) {
-        return service.printKanbans(id);
+    @GetMapping("/{id}/inventory-tags/print")
+    public List<InventoryTagPrintResponse> printInventoryTags(@PathVariable Long id) {
+        return service.printInventoryTags(id);
     }
 }

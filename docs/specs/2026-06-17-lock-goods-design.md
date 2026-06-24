@@ -2,7 +2,7 @@
 
 ## 背景输入
 
-本设计服务于出库管理增强。当前出库模块在释放出库单后直接进入拣货，没有库存预分配机制。本功能在释放出库单时按 FIFO 规则提前锁定看板库存，防止多张出库单同时争抢同一批货，并支持带单/不带单出库、强制出库、锁货管理。
+本设计服务于出库管理增强。当前出库模块在释放出库单后直接进入拣货，没有库存预分配机制。本功能在释放出库单时按 FIFO 规则提前锁定库存标签库存，防止多张出库单同时争抢同一批货，并支持带单/不带单出库、强制出库、锁货管理。
 
 产品背景第一事实源为 `docs/references/Course PPT/WMS仓储管理系统--产品介绍资料.pdf`。一汽大众专题课程资料当前未在本地 references 中归档；需要引用时先补充资料并更新 `docs/references/index.md`。
 
@@ -10,11 +10,11 @@
 
 ### 新增
 
-- 出库单释放并加锁：释放时按多选仓库范围 FIFO 锁定看板
-- 看板新状态 LOCKED：锁定后仅关联出库单可拣货
+- 出库单释放并加锁：释放时按多选仓库范围 FIFO 锁定库存标签
+- 库存标签新状态 `LOCKED`：锁定后仅关联出库单可拣货
 - 带单出库：扫出库单二维码 → 查看锁定清单 → 跳扫码页出库
-- 不带单出库：直接扫看板出库（强制抢锁+审计）
-- 带单强制出库：扫看板抢锁 → 算本单 → 重新 FIFO
+- 不带单出库：直接扫库存标签码出库（强制抢锁+审计）
+- 带单强制出库：扫库存标签码抢锁 → 算本单 → 重新 FIFO
 - 通用扫码页面：支持 normal / force / no-order 三种模式
 - 锁货管理页面：锁记录查看 / 解锁 / 重新分配 / 强制审计日志
 - 挂起拣货：暂停后出库单保持 PICKING，可从详情页继续
@@ -36,7 +36,7 @@ CREATE TABLE inventory_lock (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   outbound_order_id BIGINT NOT NULL,
   outbound_order_line_id BIGINT NOT NULL,
-  kanban_board_id BIGINT NOT NULL,
+  inventory_tag_id BIGINT NOT NULL,
   material_id BIGINT NOT NULL,
   lock_qty DECIMAL(18, 3) NOT NULL,
   status VARCHAR(32) NOT NULL DEFAULT 'LOCKED',
@@ -47,14 +47,14 @@ CREATE TABLE inventory_lock (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_lock_order FOREIGN KEY (outbound_order_id) REFERENCES outbound_order(id),
   CONSTRAINT fk_lock_line FOREIGN KEY (outbound_order_line_id) REFERENCES outbound_order_line(id),
-  CONSTRAINT fk_lock_kanban FOREIGN KEY (kanban_board_id) REFERENCES kanban_board(id),
+  CONSTRAINT fk_lock_inventory_tag FOREIGN KEY (inventory_tag_id) REFERENCES inventory_tag(id),
   INDEX idx_lock_order (outbound_order_id),
-  INDEX idx_lock_kanban (kanban_board_id),
+  INDEX idx_lock_inventory_tag (inventory_tag_id),
   INDEX idx_lock_status (status)
 );
 ```
 
-### kanban_board 新增字段
+### inventory_tag 新增字段
 
 - `locked_by_order_id BIGINT`
 - `locked_by_order_line_id BIGINT`
@@ -68,7 +68,7 @@ CREATE TABLE inventory_lock (
 
 - `qrcode VARCHAR(255)`
 
-### 看板状态枚举
+### 库存标签状态枚举
 
 `PRINTED → RECEIVED → LOCKED → SHIPPED`
 
@@ -82,7 +82,7 @@ CREATE TABLE inventory_lock (
 
 | 接口 | 路径 | 用途 |
 |------|------|------|
-| POST | /api/outbound-orders/{id}/release-and-lock | FIFO 锁定看板 |
+| POST | /api/outbound-orders/{id}/release-and-lock | FIFO 锁定库存标签 |
 | GET | /api/locks | 锁记录列表 |
 | POST | /api/locks/{id}/unlock | 解锁 |
 | POST | /api/outbound-orders/{id}/reassign | 重新 FIFO 分配 |

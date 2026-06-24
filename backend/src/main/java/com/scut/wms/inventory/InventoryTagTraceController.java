@@ -6,16 +6,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/kanbans")
-public class KanbanTraceController {
+@RequestMapping("/api/inventory-tags")
+public class InventoryTagTraceController {
     private final InventoryService inventoryService;
 
-    public KanbanTraceController(InventoryService inventoryService) {
+    public InventoryTagTraceController(InventoryService inventoryService) {
         this.inventoryService = inventoryService;
     }
 
-    @GetMapping("/{kanbanCode}/trace")
-    public KanbanTraceView trace(@PathVariable String kanbanCode) {
-        return inventoryService.getKanbanTrace(kanbanCode);
+    @GetMapping("/{inventoryTagCode}/trace")
+    public InventoryTagTraceView trace(@PathVariable String inventoryTagCode) {
+        return inventoryService.getInventoryTagTrace(inventoryTagCode);
     }
 }

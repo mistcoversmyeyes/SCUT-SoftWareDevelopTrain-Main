@@ -4,7 +4,7 @@ DROP TABLE IF EXISTS inventory_hold;
 DROP TABLE IF EXISTS inventory_lock;
 DROP TABLE IF EXISTS inventory_balance;
 DROP TABLE IF EXISTS inventory_movement;
-DROP TABLE IF EXISTS kanban_board;
+DROP TABLE IF EXISTS inventory_tag;
 DROP TABLE IF EXISTS outbound_order_line;
 DROP TABLE IF EXISTS outbound_order;
 DROP TABLE IF EXISTS inbound_order_line;
@@ -123,9 +123,9 @@ CREATE TABLE inbound_order_line (
   CONSTRAINT fk_inbound_line_location FOREIGN KEY (target_location_id) REFERENCES storage_location(id)
 );
 
-CREATE TABLE kanban_board (
+CREATE TABLE inventory_tag (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  kanban_code VARCHAR(128) NOT NULL UNIQUE,
+  inventory_tag_code VARCHAR(128) NOT NULL UNIQUE,
   inbound_order_id BIGINT NOT NULL,
   inbound_order_line_id BIGINT NOT NULL,
   location_id BIGINT NOT NULL DEFAULT 0,
@@ -139,12 +139,12 @@ CREATE TABLE kanban_board (
   locked_by_order_line_id BIGINT DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT fk_kanban_order FOREIGN KEY (inbound_order_id) REFERENCES inbound_order(id),
-  CONSTRAINT fk_kanban_line FOREIGN KEY (inbound_order_line_id) REFERENCES inbound_order_line(id),
-  CONSTRAINT fk_kanban_location FOREIGN KEY (location_id) REFERENCES storage_location(id),
-  CONSTRAINT fk_kanban_container FOREIGN KEY (container_type_id) REFERENCES container_type(id),
-  INDEX idx_kanban_line_status (inbound_order_line_id, status),
-  INDEX idx_kanban_location_status (location_id, status)
+  CONSTRAINT fk_inventory_tag_order FOREIGN KEY (inbound_order_id) REFERENCES inbound_order(id),
+  CONSTRAINT fk_inventory_tag_line FOREIGN KEY (inbound_order_line_id) REFERENCES inbound_order_line(id),
+  CONSTRAINT fk_inventory_tag_location FOREIGN KEY (location_id) REFERENCES storage_location(id),
+  CONSTRAINT fk_inventory_tag_container FOREIGN KEY (container_type_id) REFERENCES container_type(id),
+  INDEX idx_inventory_tag_line_status (inbound_order_line_id, status),
+  INDEX idx_inventory_tag_location_status (location_id, status)
 );
 
 CREATE TABLE inventory_movement (
@@ -153,7 +153,7 @@ CREATE TABLE inventory_movement (
   movement_type VARCHAR(32) NOT NULL,
   source_type VARCHAR(32) NOT NULL,
   source_id BIGINT,
-  kanban_board_id BIGINT,
+  inventory_tag_id BIGINT,
   material_id BIGINT NOT NULL,
   warehouse_id BIGINT NOT NULL,
   storage_location_id BIGINT NOT NULL,
@@ -166,7 +166,7 @@ CREATE TABLE inventory_movement (
   force_outbound TINYINT(1) NOT NULL DEFAULT 0,
   force_remark VARCHAR(255) DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_movement_kanban FOREIGN KEY (kanban_board_id) REFERENCES kanban_board(id),
+  CONSTRAINT fk_movement_inventory_tag FOREIGN KEY (inventory_tag_id) REFERENCES inventory_tag(id),
   CONSTRAINT fk_movement_material FOREIGN KEY (material_id) REFERENCES material(id),
   CONSTRAINT fk_movement_warehouse FOREIGN KEY (warehouse_id) REFERENCES warehouse(id),
   CONSTRAINT fk_movement_location FOREIGN KEY (storage_location_id) REFERENCES storage_location(id),
@@ -228,7 +228,7 @@ CREATE TABLE inventory_lock (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   outbound_order_id BIGINT NOT NULL,
   outbound_order_line_id BIGINT NOT NULL,
-  kanban_board_id BIGINT NOT NULL,
+  inventory_tag_id BIGINT NOT NULL,
   material_id BIGINT NOT NULL,
   lock_qty DECIMAL(18, 3) NOT NULL,
   status VARCHAR(32) NOT NULL DEFAULT 'LOCKED',
@@ -239,15 +239,15 @@ CREATE TABLE inventory_lock (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_lock_order FOREIGN KEY (outbound_order_id) REFERENCES outbound_order(id),
   CONSTRAINT fk_lock_line FOREIGN KEY (outbound_order_line_id) REFERENCES outbound_order_line(id),
-  CONSTRAINT fk_lock_kanban FOREIGN KEY (kanban_board_id) REFERENCES kanban_board(id),
+  CONSTRAINT fk_lock_inventory_tag FOREIGN KEY (inventory_tag_id) REFERENCES inventory_tag(id),
   INDEX idx_lock_order (outbound_order_id),
-  INDEX idx_lock_kanban (kanban_board_id),
+  INDEX idx_lock_inventory_tag (inventory_tag_id),
   INDEX idx_lock_status (status)
 );
 
 CREATE TABLE inventory_hold (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  kanban_board_id BIGINT NOT NULL,
+  inventory_tag_id BIGINT NOT NULL,
   hold_type VARCHAR(32) NOT NULL,
   hold_qty DECIMAL(18, 3) NOT NULL,
   status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
@@ -259,8 +259,8 @@ CREATE TABLE inventory_hold (
   released_by VARCHAR(64) DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   released_at DATETIME DEFAULT NULL,
-  CONSTRAINT fk_hold_kanban FOREIGN KEY (kanban_board_id) REFERENCES kanban_board(id),
-  INDEX idx_hold_kanban_status (kanban_board_id, status),
+  CONSTRAINT fk_hold_inventory_tag FOREIGN KEY (inventory_tag_id) REFERENCES inventory_tag(id),
+  INDEX idx_hold_inventory_tag_status (inventory_tag_id, status),
   INDEX idx_hold_type_status (hold_type, status)
 );
 

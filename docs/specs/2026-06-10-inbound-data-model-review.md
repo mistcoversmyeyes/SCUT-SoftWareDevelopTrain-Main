@@ -2,7 +2,7 @@
 
 ## 1. 当前核心表 ER 图设计
 
-本图表达本周建议落地的简化模型，不包含延后的 `container_type`，也不单独保留 `scan_record`。扫码成功后的业务事实进入 `inventory_movement`；失败扫码不落库，只在接口响应或前端提示中体现。入库单状态不使用 `PENDING`，待执行状态统一为 `RELEASED`。
+本图表达本周建议落地的简化模型，不包含延后的 `container_type`，也不单独保留 `scan_record`。扫码成功后的业务事实进入 `inventory_movement`；失败扫码不落库，只在接口响应或前端提示中体现。入库单状态不使用 `PENDING`，待执行状态统一为 `READY_TO_RECEIVE`。
 
 ```mermaid
 erDiagram
@@ -11,8 +11,8 @@ erDiagram
   warehouse ||--o{ storage_location : contains
   inbound_order ||--o{ inbound_order_line : includes
   material ||--o{ inbound_order_line : requested
-  inbound_order_line ||--o{ kanban_board : generates
-  kanban_board ||--o{ inventory_movement : received_by
+  inbound_order_line ||--o{ inventory_tag : generates
+  inventory_tag ||--o{ inventory_movement : received_by
   material ||--o{ inventory_movement : moved
   warehouse ||--o{ inventory_movement : posted_to
   storage_location ||--o{ inventory_movement : located_at
@@ -69,10 +69,10 @@ erDiagram
     decimal received_qty
   }
 
-  kanban_board {
+  inventory_tag {
     bigint id PK
     bigint inbound_order_line_id FK
-    varchar kanban_code UK
+    varchar inventory_tag_code UK
     decimal planned_qty
     decimal received_qty
     varchar status
@@ -82,7 +82,7 @@ erDiagram
     bigint id PK
     varchar movement_no UK
     varchar movement_type
-    bigint kanban_board_id FK
+    bigint inventory_tag_id FK
     bigint material_id FK
     bigint warehouse_id FK
     bigint storage_location_id FK
@@ -105,7 +105,7 @@ erDiagram
 - 延后 `container_type`：器具类型属于基础资料扩展，本周采购入库闭环不依赖真实器具类型维护。
 - 取消独立 `scan_record`：成功扫码直接形成入库流水 `inventory_movement`，失败扫码不落库。
 - 保留 `inventory_movement` 与 `inventory_balance`：流水记录事实，余额支撑库存查询，二者职责不同。
-- 入库单初始可执行状态从 `PENDING` 改为 `RELEASED`，避免把“已下发待收货”和“草稿未释放”混在一个状态里。
+- 入库单初始可执行状态从 `PENDING` 改为 `READY_TO_RECEIVE`，避免把“已下发待收货”和“草稿未释放”混在一个状态里。
 
 ## 2. 原始表设计 schema
 
@@ -199,10 +199,10 @@ CREATE TABLE inbound_order_line (
   CONSTRAINT fk_inbound_line_container FOREIGN KEY (container_type_id) REFERENCES container_type(id)
 );
 
-CREATE TABLE kanban_board (
+CREATE TABLE inventory_tag (
   id BIGINT PRIMARY KEY,
   inbound_order_line_id BIGINT NOT NULL,
-  kanban_code VARCHAR(96) NOT NULL UNIQUE,
+  inventory_tag_code VARCHAR(96) NOT NULL UNIQUE,
   material_id BIGINT NOT NULL,
   planned_qty DECIMAL(18, 3) NOT NULL,
   received_qty DECIMAL(18, 3) NOT NULL DEFAULT 0,
@@ -210,20 +210,20 @@ CREATE TABLE kanban_board (
   printed_at DATETIME,
   created_at DATETIME NOT NULL,
   updated_at DATETIME NOT NULL,
-  CONSTRAINT fk_kanban_line FOREIGN KEY (inbound_order_line_id) REFERENCES inbound_order_line(id),
-  CONSTRAINT fk_kanban_material FOREIGN KEY (material_id) REFERENCES material(id)
+  CONSTRAINT fk_inventory_tag_line FOREIGN KEY (inbound_order_line_id) REFERENCES inbound_order_line(id),
+  CONSTRAINT fk_inventory_tag_material FOREIGN KEY (material_id) REFERENCES material(id)
 );
 
 CREATE TABLE scan_record (
   id BIGINT PRIMARY KEY,
-  kanban_board_id BIGINT,
-  kanban_code VARCHAR(96) NOT NULL,
+  inventory_tag_id BIGINT,
+  inventory_tag_code VARCHAR(96) NOT NULL,
   scan_result VARCHAR(32) NOT NULL,
   failure_reason VARCHAR(255),
   operator_id BIGINT,
   scanned_at DATETIME NOT NULL,
   created_at DATETIME NOT NULL,
-  CONSTRAINT fk_scan_kanban FOREIGN KEY (kanban_board_id) REFERENCES kanban_board(id)
+  CONSTRAINT fk_scan_inventory_tag FOREIGN KEY (inventory_tag_id) REFERENCES inventory_tag(id)
 );
 
 CREATE TABLE inventory_balance (
@@ -244,14 +244,14 @@ CREATE TABLE inventory_movement (
   id BIGINT PRIMARY KEY,
   movement_no VARCHAR(64) NOT NULL UNIQUE,
   movement_type VARCHAR(32) NOT NULL,
-  kanban_board_id BIGINT,
+  inventory_tag_id BIGINT,
   material_id BIGINT NOT NULL,
   warehouse_id BIGINT NOT NULL,
   storage_location_id BIGINT NOT NULL,
   qty DECIMAL(18, 3) NOT NULL,
   occurred_at DATETIME NOT NULL,
   created_at DATETIME NOT NULL,
-  CONSTRAINT fk_movement_kanban FOREIGN KEY (kanban_board_id) REFERENCES kanban_board(id),
+  CONSTRAINT fk_movement_inventory_tag FOREIGN KEY (inventory_tag_id) REFERENCES inventory_tag(id),
   CONSTRAINT fk_movement_material FOREIGN KEY (material_id) REFERENCES material(id),
   CONSTRAINT fk_movement_warehouse FOREIGN KEY (warehouse_id) REFERENCES warehouse(id),
   CONSTRAINT fk_movement_location FOREIGN KEY (storage_location_id) REFERENCES storage_location(id)
@@ -277,33 +277,33 @@ CREATE TABLE inventory_movement (
 
 原始方案存在若干传递依赖或冗余同步风险：
 
-- `kanban_board.material_id` 可由 `kanban_board.inbound_order_line_id -> inbound_order_line.material_id` 推导，重复存储会带来物料不一致风险。
-- `scan_record.kanban_code` 与 `scan_record.kanban_board_id -> kanban_board.kanban_code` 重复。若扫码失败时没有可解析看板，只保留失败文本又会混合“业务事实”和“错误日志”两类数据。
-- `inventory_movement.material_id` 可由 `kanban_board_id -> inbound_order_line_id -> material_id` 推导，但库存流水需要保留发生时的物料事实，允许作为审计快照保留。
+- `inventory_tag.material_id` 可由 `inventory_tag.inbound_order_line_id -> inbound_order_line.material_id` 推导，重复存储会带来物料不一致风险。
+- `scan_record.inventory_tag_code` 与 `scan_record.inventory_tag_id -> inventory_tag.inventory_tag_code` 重复。若扫码失败时没有可解析库存标签，只保留失败文本又会混合“业务事实”和“错误日志”两类数据。
+- `inventory_movement.material_id` 可由 `inventory_tag_id -> inbound_order_line_id -> material_id` 推导，但库存流水需要保留发生时的物料事实，允许作为审计快照保留。
 - `storage_location` 已归属 `warehouse`，`inventory_balance` 和 `inventory_movement` 同时保存 `warehouse_id` 与 `storage_location_id` 时存在库位和仓库不一致风险。为便于查询可以保留，但必须校验库位属于该仓库。
 
 ### BCNF
 
 主要 BCNF 风险来自“业务编码也是候选键”的表：
 
-- `supplier_code`、`material_code`、`warehouse_code`、`kanban_code`、`movement_no` 都是候选键，应保持唯一且不可复用。
+- `supplier_code`、`material_code`、`warehouse_code`、`inventory_tag_code`、`movement_no` 都是候选键，应保持唯一且不可复用。
 - `storage_location` 的候选键是 `(warehouse_id, location_code)`，不能假设 `location_code` 全局唯一，除非业务明确要求。
-- `scan_record` 同时允许 `kanban_board_id` 和 `kanban_code` 决定部分看板信息，决定因素不单一，是取消该表的主要原因之一。
+- `scan_record` 同时允许 `inventory_tag_id` 和 `inventory_tag_code` 决定部分库存标签信息，决定因素不单一，是取消该表的主要原因之一。
 
 ## 4. 化简建议
 
-本周目标是采购入库核心闭环，不扩展到 Android、移动端摄像头、基础信息 CRUD 或真实打印机。数据模型应服务于“下发入库单、生成看板、扫码收货、产生库存流水、更新库存余额”的最短闭环。
+本周目标是采购入库核心闭环，不扩展到 Android、移动端摄像头、基础信息 CRUD 或真实打印机。数据模型应服务于“下发入库单、生成库存标签、扫码收货、产生库存流水、更新库存余额”的最短闭环。
 
 化简建议如下：
 
 - 保留 `supplier`、`material`、`warehouse`、`storage_location` 作为必要引用数据，但本周只需要可被入库单引用的种子数据或后端内置数据，不做完整基础资料 CRUD。
 - 保留 `inbound_order` 和 `inbound_order_line`，入库单头记录供应商和状态，行记录物料、计划数量和已收数量。
-- 保留 `kanban_board` 表承载唯一看板编码、计划收货数量和收货状态；本周不接真实打印机，只生成可展示或可复制的看板编码。
+- 保留 `inventory_tag` 表承载唯一库存标签码、计划收货数量和收货状态；本周不接真实打印机，只生成可展示或可复制的库存标签码。
 - 延后 `container_type`，因为器具容量和器具基础资料不会阻塞采购入库闭环。
 - 合并或取消 `scan_record`，成功扫码以 `inventory_movement` 作为唯一持久化事实；失败扫码不落库，避免把临时错误、设备噪声或用户误扫沉淀为业务数据。
-- 保留 `inventory_movement`，用于记录每次成功入库的数量、库位、看板和发生时间。
+- 保留 `inventory_movement`，用于记录每次成功入库的数量、库位、库存标签和发生时间。
 - 保留 `inventory_balance`，用于按物料、仓库、库位查询现存量；它由成功入库流水驱动更新，不替代流水。
-- 入库单状态使用 `RELEASED` 表达“已释放、可扫码收货”，不使用 `PENDING`。建议状态集合为 `DRAFT`、`RELEASED`、`PARTIAL_RECEIVED`、`COMPLETED`、`CANCELLED`，本周可只实现闭环需要的子集。
+- 入库单状态使用 `READY_TO_RECEIVE` 表达“待收货、可扫码收货”，不使用 `PENDING`。建议状态集合为 `DRAFT`、`READY_TO_RECEIVE`、`PARTIAL_RECEIVED`、`COMPLETED`、`CANCELLED`，本周可只实现闭环需要的子集。
 
 ## 5. 最终建议的本周最小持久化模型
 
@@ -315,17 +315,17 @@ CREATE TABLE inventory_movement (
 | `material` | 物料引用数据，支撑入库明细和库存 | `material_code` 唯一，可关联默认供应商 |
 | `warehouse` | 仓库引用数据 | `warehouse_code` 唯一 |
 | `storage_location` | 库位引用数据 | `(warehouse_id, location_code)` 唯一 |
-| `inbound_order` | 入库单头，记录供应商、来源单号、状态和完成时间 | `inbound_no` 唯一，状态使用 `RELEASED` 作为可收货状态 |
+| `inbound_order` | 入库单头，记录供应商、来源单号、状态和完成时间 | `inbound_no` 唯一，状态使用 `READY_TO_RECEIVE` 作为可收货状态 |
 | `inbound_order_line` | 入库单行，记录物料、计划数量和已收数量 | `(inbound_order_id, line_no)` 唯一 |
-| `kanban_board` | 唯一看板，连接入库明细与扫码收货 | `kanban_code` 唯一 |
+| `inventory_tag` | 唯一库存标签，连接入库明细与扫码收货 | `inventory_tag_code` 唯一 |
 | `inventory_movement` | 成功扫码后的入库流水 | `movement_no` 唯一，`movement_type = INBOUND_RECEIVE` |
 | `inventory_balance` | 物料在仓库和库位上的库存余额 | `(material_id, warehouse_id, storage_location_id)` 唯一 |
 
 建议的本周最小 schema 调整：
 
 - 从 `inbound_order_line` 移除 `container_type_id`，等器具管理进入后续周迭代时再恢复或另建关联。
-- 从 `kanban_board` 移除可推导的 `material_id`，通过 `inbound_order_line` 获取物料；若实现层为了查询性能保留该字段，必须在写入时校验它与明细物料一致。
-- 不创建 `scan_record` 表。扫码成功时新增 `inventory_movement`，同步累加 `inbound_order_line.received_qty`、`kanban_board.received_qty` 和 `inventory_balance.on_hand_qty`；扫码失败时返回失败原因但不持久化。
+- 从 `inventory_tag` 移除可推导的 `material_id`，通过 `inbound_order_line` 获取物料；若实现层为了查询性能保留该字段，必须在写入时校验它与明细物料一致。
+- 不创建 `scan_record` 表。扫码成功时新增 `inventory_movement`，同步累加 `inbound_order_line.received_qty`、`inventory_tag.received_qty` 和 `inventory_balance.on_hand_qty`；扫码失败时返回失败原因但不持久化。
 - `inventory_movement` 可保留 `material_id`、`warehouse_id`、`storage_location_id` 作为发生事实快照，但必须校验 `storage_location_id` 属于同一个 `warehouse_id`。
 - `inventory_balance` 不记录历史原因，只记录当前余额；历史追溯统一查 `inventory_movement`。
 
@@ -333,5 +333,5 @@ CREATE TABLE inventory_movement (
 
 - 不做 Android 或移动端摄像头集成。
 - 不做供应商、物料、仓库、库位的完整基础信息 CRUD。
-- 不做真实打印机或打印协议，只保留看板编码生成与展示所需数据。
+- 不做真实打印机或打印协议，只保留库存标签码生成与展示所需数据。
 - 不做失败扫码持久化、设备日志持久化或审计日志体系。

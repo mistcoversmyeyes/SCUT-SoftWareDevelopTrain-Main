@@ -3,10 +3,10 @@ package com.scut.wms.inbound;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-public record KanbanPrintResponse(
-        Long kanbanId,
+public record InventoryTagPrintResponse(
+        Long inventoryTagId,
         Long inboundOrderId,
-        String kanbanCode,
+        String inventoryTagCode,
         String inboundNo,
         Integer lineNo,
         String supplierCode,

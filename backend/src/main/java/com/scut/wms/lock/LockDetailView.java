@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 
 public record LockDetailView(
         Long lockId,
-        String kanbanCode,
+        String inventoryTagCode,
         String materialCode,
         String materialName,
         String locationName,

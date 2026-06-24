@@ -7,8 +7,6 @@ import com.scut.wms.container.ContainerType;
 import com.scut.wms.container.ContainerTypeMapper;
 import com.scut.wms.lock.LockService;
 import com.scut.wms.masterdata.Material;
-import com.scut.wms.masterdata.MaterialContainerType;
-import com.scut.wms.masterdata.MaterialContainerTypeMapper;
 import com.scut.wms.masterdata.MaterialMapper;
 import com.scut.wms.masterdata.StorageLocation;
 import com.scut.wms.masterdata.StorageLocationMapper;
@@ -52,7 +50,6 @@ public class OutboundOrderService {
     private final WarehouseMapper warehouseMapper;
     private final StorageLocationMapper storageLocationMapper;
     private final ContainerTypeMapper containerTypeMapper;
-    private final MaterialContainerTypeMapper materialContainerTypeMapper;
     private final LockService lockService;
 
     public OutboundOrderService(
@@ -63,7 +60,6 @@ public class OutboundOrderService {
             WarehouseMapper warehouseMapper,
             StorageLocationMapper storageLocationMapper,
             ContainerTypeMapper containerTypeMapper,
-            MaterialContainerTypeMapper materialContainerTypeMapper,
             LockService lockService
     ) {
         this.outboundOrderMapper = outboundOrderMapper;
@@ -73,7 +69,6 @@ public class OutboundOrderService {
         this.warehouseMapper = warehouseMapper;
         this.storageLocationMapper = storageLocationMapper;
         this.containerTypeMapper = containerTypeMapper;
-        this.materialContainerTypeMapper = materialContainerTypeMapper;
         this.lockService = lockService;
     }
 
@@ -228,7 +223,7 @@ public class OutboundOrderService {
             order.setStatus(COMPLETED);
             order.setCompletedAt(LocalDateTime.now());
             outboundOrderMapper.updateById(order);
-            // Release all remaining locked kanbans — order is done, none needed anymore
+            // Release all remaining locked inventoryTags — order is done, none needed anymore
             lockService.releaseOrderLocks(orderId);
         }
     }
@@ -283,15 +278,13 @@ public class OutboundOrderService {
 
     private void validateRequest(OutboundOrderRequest request) {
         for (OutboundOrderRequest.LineItem line : request.lines()) {
-            requireEnabledSupplier(line.supplierId());
-            requireEnabledMaterial(line.materialId());
+            Supplier supplier = requireEnabledSupplier(line.supplierId());
+            Material material = requireEnabledMaterial(line.materialId());
+            if (material.getSupplierId() != null && !Objects.equals(material.getSupplierId(), supplier.getId())) {
+                throw new BusinessException("物料不属于所选供应商");
+            }
             if (line.containerTypeId() != null) {
-                var mctCount = materialContainerTypeMapper.selectCount(Wrappers.<MaterialContainerType>lambdaQuery()
-                        .eq(MaterialContainerType::getMaterialId, line.materialId())
-                        .eq(MaterialContainerType::getContainerTypeId, line.containerTypeId()));
-                if (mctCount == 0) {
-                    throw new BusinessException("所选容器类型不适用于该物料");
-                }
+                requireEnabledContainerType(line.containerTypeId());
             }
         }
     }
@@ -310,6 +303,14 @@ public class OutboundOrderService {
             throw new BusinessException("物料不存在或已停用");
         }
         return material;
+    }
+
+    private ContainerType requireEnabledContainerType(Long id) {
+        ContainerType containerType = containerTypeMapper.selectById(id);
+        if (containerType == null || !ENABLED.equals(containerType.getStatus())) {
+            throw new BusinessException("容器类型不存在或已停用");
+        }
+        return containerType;
     }
 
     private void insertLines(Long orderId, List<OutboundOrderRequest.LineItem> requestLines) {

@@ -4,8 +4,8 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.scut.wms.common.BusinessException;
 import com.scut.wms.container.ContainerType;
 import com.scut.wms.container.ContainerTypeMapper;
-import com.scut.wms.inbound.KanbanBoard;
-import com.scut.wms.inbound.KanbanBoardMapper;
+import com.scut.wms.inbound.InventoryTag;
+import com.scut.wms.inbound.InventoryTagMapper;
 import com.scut.wms.inbound.InboundOrderLine;
 import com.scut.wms.inbound.InboundOrderLineMapper;
 import com.scut.wms.inventory.InventoryTransactionMapper;
@@ -39,38 +39,41 @@ public class LockService {
 
     private final OutboundOrderMapper outboundOrderMapper;
     private final OutboundOrderLineMapper outboundOrderLineMapper;
-    private final KanbanBoardMapper kanbanBoardMapper;
+    private final InventoryTagMapper inventoryTagMapper;
     private final InventoryLockMapper inventoryLockMapper;
     private final InventoryTransactionMapper inventoryTransactionMapper;
     private final MaterialMapper materialMapper;
     private final StorageLocationMapper storageLocationMapper;
     private final InboundOrderLineMapper inboundOrderLineMapper;
     private final ContainerTypeMapper containerTypeMapper;
+    private final InventoryHoldService inventoryHoldService;
 
     public LockService(
             OutboundOrderMapper outboundOrderMapper,
             OutboundOrderLineMapper outboundOrderLineMapper,
-            KanbanBoardMapper kanbanBoardMapper,
+            InventoryTagMapper inventoryTagMapper,
             InventoryLockMapper inventoryLockMapper,
             InventoryTransactionMapper inventoryTransactionMapper,
             MaterialMapper materialMapper,
             StorageLocationMapper storageLocationMapper,
             InboundOrderLineMapper inboundOrderLineMapper,
-            ContainerTypeMapper containerTypeMapper
+            ContainerTypeMapper containerTypeMapper,
+            InventoryHoldService inventoryHoldService
     ) {
         this.outboundOrderMapper = outboundOrderMapper;
         this.outboundOrderLineMapper = outboundOrderLineMapper;
-        this.kanbanBoardMapper = kanbanBoardMapper;
+        this.inventoryTagMapper = inventoryTagMapper;
         this.inventoryLockMapper = inventoryLockMapper;
         this.inventoryTransactionMapper = inventoryTransactionMapper;
         this.materialMapper = materialMapper;
         this.storageLocationMapper = storageLocationMapper;
         this.inboundOrderLineMapper = inboundOrderLineMapper;
         this.containerTypeMapper = containerTypeMapper;
+        this.inventoryHoldService = inventoryHoldService;
     }
 
     /**
-     * 释放并加锁：对出库单的每条明细行按 FIFO 锁定看板。
+     * 释放并加锁：对出库单的每条明细行按 FIFO 锁定库存标签。
      * warehouseIds 可选，限制锁定范围。
      */
     @Transactional
@@ -107,21 +110,25 @@ public class LockService {
                 BigDecimal remaining = candidate.getBoardQty().subtract(picked);
                 if (remaining.compareTo(BigDecimal.ZERO) <= 0) continue;
 
-                // Whole-kanban locking: lock the FULL remaining, never split
+                // Whole-inventory-tag locking: lock the FULL remaining, never split
                 BigDecimal toLock = remaining;
 
-                KanbanBoard board = kanbanBoardMapper.selectById(candidate.getKanbanId());
-                if (board == null || !RECEIVED.equals(board.getStatus())) continue;
+                InventoryTag board = inventoryTagMapper.selectById(candidate.getInventoryTagId());
+                if (board == null
+                        || !RECEIVED.equals(board.getStatus())
+                        || inventoryHoldService.hasBlockingAutoLockHold(board.getId())) {
+                    continue;
+                }
 
                 board.setStatus(LOCKED_KANBAN);
                 board.setLockedByOrderId(orderId);
                 board.setLockedByOrderLineId(line.getId());
-                kanbanBoardMapper.updateById(board);
+                inventoryTagMapper.updateById(board);
 
                 InventoryLock lock = new InventoryLock();
                 lock.setOutboundOrderId(orderId);
                 lock.setOutboundOrderLineId(line.getId());
-                lock.setKanbanBoardId(candidate.getKanbanId());
+                lock.setInventoryTagId(candidate.getInventoryTagId());
                 lock.setMaterialId(line.getMaterialId());
                 lock.setLockQty(toLock);
                 lock.setStatus(InventoryLock.LOCKED);
@@ -165,8 +172,8 @@ public class LockService {
         return inventoryLockMapper.selectLockOrderSummaries(outboundNo, materialCode, status);
     }
 
-    public List<KanbanLockView> listKanbanLocks(String status, String materialCode, String outboundNo) {
-        return inventoryLockMapper.selectKanbanLocks(status, materialCode, outboundNo);
+    public List<InventoryTagLockView> listInventoryTagLocks(String status, String materialCode, String outboundNo) {
+        return inventoryLockMapper.selectInventoryTagLocks(status, materialCode, outboundNo);
     }
 
     public List<LockDetailView> listLockDetails(Long outboundOrderId) {
@@ -187,12 +194,12 @@ public class LockService {
             throw new BusinessException("锁记录当前状态不允许解锁: " + lock.getStatus());
         }
 
-        KanbanBoard board = kanbanBoardMapper.selectById(lock.getKanbanBoardId());
+        InventoryTag board = inventoryTagMapper.selectById(lock.getInventoryTagId());
         if (board != null && LOCKED_KANBAN.equals(board.getStatus())) {
             board.setStatus(RECEIVED);
             board.setLockedByOrderId(null);
             board.setLockedByOrderLineId(null);
-            kanbanBoardMapper.updateById(board);
+            inventoryTagMapper.updateById(board);
         }
 
         lock.setStatus(InventoryLock.RELEASED);
@@ -200,7 +207,7 @@ public class LockService {
         lock.setUnlockedBy(operator);
         inventoryLockMapper.updateById(lock);
 
-        // Re-lock FIFO replacements for the order that lost this kanban
+        // Re-lock FIFO replacements for the order that lost this inventoryTag
         reassignOrder(lock.getOutboundOrderId());
     }
 
@@ -220,7 +227,7 @@ public class LockService {
 
     /**
      * 对指定出库单执行 FIFO 补锁：检查每行已锁数量 vs 计划数量，
-     * 不足的通过 FIFO 查找新看板锁定（不释放已有锁）。
+     * 不足的通过 FIFO 查找新库存标签锁定（不释放已有锁）。
      */
     private void reassignOrder(Long orderId) {
         List<OutboundOrderLine> lines = outboundOrderLineMapper.selectList(
@@ -259,25 +266,29 @@ public class LockService {
                 BigDecimal remaining = candidate.getBoardQty().subtract(cPicked);
                 if (remaining.compareTo(BigDecimal.ZERO) <= 0) continue;
 
-                // Skip kanbans already locked by this order
-                boolean already = existingLocks.stream().anyMatch(l -> l.getKanbanBoardId().equals(candidate.getKanbanId()));
+                // Skip inventoryTags already locked by this order
+                boolean already = existingLocks.stream().anyMatch(l -> l.getInventoryTagId().equals(candidate.getInventoryTagId()));
                 if (already) continue;
 
-                // Whole-kanban locking
+                // Whole-inventory-tag locking
                 BigDecimal toLock = remaining;
 
-                KanbanBoard board = kanbanBoardMapper.selectById(candidate.getKanbanId());
-                if (board == null || !RECEIVED.equals(board.getStatus())) continue;
+                InventoryTag board = inventoryTagMapper.selectById(candidate.getInventoryTagId());
+                if (board == null
+                        || !RECEIVED.equals(board.getStatus())
+                        || inventoryHoldService.hasBlockingAutoLockHold(board.getId())) {
+                    continue;
+                }
 
                 board.setStatus(LOCKED_KANBAN);
                 board.setLockedByOrderId(orderId);
                 board.setLockedByOrderLineId(line.getId());
-                kanbanBoardMapper.updateById(board);
+                inventoryTagMapper.updateById(board);
 
                 InventoryLock lock = new InventoryLock();
                 lock.setOutboundOrderId(orderId);
                 lock.setOutboundOrderLineId(line.getId());
-                lock.setKanbanBoardId(candidate.getKanbanId());
+                lock.setInventoryTagId(candidate.getInventoryTagId());
                 lock.setMaterialId(line.getMaterialId());
                 lock.setLockQty(toLock);
                 lock.setStatus(InventoryLock.LOCKED);
@@ -303,30 +314,30 @@ public class LockService {
     @Transactional
     public void releaseOrderLocks(Long orderId) {
         releaseAllLocks(orderId);
-        // Also reset kanban statuses
+        // Also reset inventory tag statuses
         List<InventoryLock> locks = inventoryLockMapper.selectList(
                 Wrappers.<InventoryLock>lambdaQuery()
                         .eq(InventoryLock::getOutboundOrderId, orderId));
         for (InventoryLock lock : locks) {
-            KanbanBoard board = kanbanBoardMapper.selectById(lock.getKanbanBoardId());
+            InventoryTag board = inventoryTagMapper.selectById(lock.getInventoryTagId());
             if (board != null && LOCKED_KANBAN.equals(board.getStatus())) {
                 board.setStatus(RECEIVED);
                 board.setLockedByOrderId(null);
                 board.setLockedByOrderLineId(null);
-                kanbanBoardMapper.updateById(board);
+                inventoryTagMapper.updateById(board);
             }
         }
     }
 
     /**
-     * 带单强制出库时抢锁：将看板的锁从原单转给本单。
+     * 带单强制出库时抢锁：将库存标签的锁从原单转给本单。
      */
     @Transactional
-    public void stealLockForOrder(Long orderId, Long kanbanBoardId) {
+    public void stealLockForOrder(Long orderId, Long inventoryTagId) {
         Long victimOrderId = null;
         List<InventoryLock> existingLocks = inventoryLockMapper.selectList(
                 Wrappers.<InventoryLock>lambdaQuery()
-                        .eq(InventoryLock::getKanbanBoardId, kanbanBoardId)
+                        .eq(InventoryLock::getInventoryTagId, inventoryTagId)
                         .eq(InventoryLock::getStatus, InventoryLock.LOCKED));
         for (InventoryLock lock : existingLocks) {
             if (lock.getOutboundOrderId() != null && !orderId.equals(lock.getOutboundOrderId())) {
@@ -338,10 +349,10 @@ public class LockService {
             inventoryLockMapper.updateById(lock);
         }
 
-        KanbanBoard board = kanbanBoardMapper.selectById(kanbanBoardId);
+        InventoryTag board = inventoryTagMapper.selectById(inventoryTagId);
         if (board != null) {
             board.setLockedByOrderId(orderId);
-            kanbanBoardMapper.updateById(board);
+            inventoryTagMapper.updateById(board);
         }
 
         // Re-lock FIFO replacements for the victim order
@@ -351,14 +362,14 @@ public class LockService {
     }
 
     /**
-     * 不带单出库时标记看板锁为被抢。
+     * 不带单出库时标记库存标签锁为被抢。
      */
     @Transactional
-    public void markForceStolen(Long kanbanBoardId) {
+    public void markForceStolen(Long inventoryTagId) {
         Long victimOrderId = null;
         List<InventoryLock> locks = inventoryLockMapper.selectList(
                 Wrappers.<InventoryLock>lambdaQuery()
-                        .eq(InventoryLock::getKanbanBoardId, kanbanBoardId)
+                        .eq(InventoryLock::getInventoryTagId, inventoryTagId)
                         .eq(InventoryLock::getStatus, InventoryLock.LOCKED));
         for (InventoryLock lock : locks) {
             if (lock.getOutboundOrderId() != null) victimOrderId = lock.getOutboundOrderId();
@@ -372,11 +383,11 @@ public class LockService {
     }
 
     /**
-     * 强制出库时创建审计记录（含 RECEIVED 看板被强制出库的场景）。
+     * 强制出库时创建审计记录（含 RECEIVED 库存标签被强制出库的场景）。
      * 在 inventory_lock 表中写入一条 FORCE_STOLEN 记录供审计查询。
      */
     @Transactional
-    public void createForceAudit(Long outboundOrderId, com.scut.wms.inventory.ScanKanbanContext ctx) {
+    public void createForceAudit(Long outboundOrderId, com.scut.wms.inventory.ScanInventoryTagContext ctx) {
         Long lineId = null;
         if (outboundOrderId != null) {
             var lines = outboundOrderLineMapper.selectList(Wrappers.<OutboundOrderLine>lambdaQuery()
@@ -387,7 +398,7 @@ public class LockService {
         InventoryLock lock = new InventoryLock();
         lock.setOutboundOrderId(outboundOrderId);
         lock.setOutboundOrderLineId(lineId);
-        lock.setKanbanBoardId(ctx.getKanbanId());
+        lock.setInventoryTagId(ctx.getInventoryTagId());
         lock.setMaterialId(ctx.getMaterialId());
         lock.setLockQty(ctx.getBoardQty());
         lock.setStatus(InventoryLock.FORCE_STOLEN);
@@ -402,12 +413,12 @@ public class LockService {
                         .eq(InventoryLock::getOutboundOrderId, orderId)
                         .eq(InventoryLock::getStatus, InventoryLock.LOCKED));
         for (InventoryLock lock : locks) {
-            KanbanBoard board = kanbanBoardMapper.selectById(lock.getKanbanBoardId());
+            InventoryTag board = inventoryTagMapper.selectById(lock.getInventoryTagId());
             if (board != null && LOCKED_KANBAN.equals(board.getStatus())) {
                 board.setStatus(RECEIVED);
                 board.setLockedByOrderId(null);
                 board.setLockedByOrderLineId(null);
-                kanbanBoardMapper.updateById(board);
+                inventoryTagMapper.updateById(board);
             }
             lock.setStatus(InventoryLock.RELEASED);
             lock.setUnlockedAt(LocalDateTime.now());
@@ -431,8 +442,8 @@ public class LockService {
     }
 
     /**
-     * 获取强制出库候选看板：同物料+同容器类型的所有 RECEIVED 看板，
-     * 加上被其他出库单锁定的看板（可抢），排除已锁给本单的。
+     * 获取强制出库候选库存标签：同物料+同容器类型的所有 RECEIVED 库存标签，
+     * 加上被其他出库单锁定的库存标签（可抢），排除已锁给本单的。
      */
     public ForceCandidateResponse getForceCandidates(Long orderId) {
         List<OutboundOrderLine> lines = outboundOrderLineMapper.selectList(
@@ -446,41 +457,41 @@ public class LockService {
             Material material = materialMapper.selectById(line.getMaterialId());
             if (material == null) continue;
 
-            List<ForceCandidateResponse.KanbanEntry> kanbans = new ArrayList<>();
+            List<ForceCandidateResponse.InventoryTagEntry> inventoryTags = new ArrayList<>();
             Set<Long> excludedIds = new HashSet<>();
 
-            // Exclude kanbans already locked by THIS order
-            List<KanbanBoard> myLocked = kanbanBoardMapper.selectList(
-                    Wrappers.<KanbanBoard>lambdaQuery()
-                            .eq(KanbanBoard::getLockedByOrderId, orderId)
-                            .eq(KanbanBoard::getLockedByOrderLineId, line.getId()));
+            // Exclude inventoryTags already locked by THIS order
+            List<InventoryTag> myLocked = inventoryTagMapper.selectList(
+                    Wrappers.<InventoryTag>lambdaQuery()
+                            .eq(InventoryTag::getLockedByOrderId, orderId)
+                            .eq(InventoryTag::getLockedByOrderLineId, line.getId()));
             myLocked.forEach(kb -> excludedIds.add(kb.getId()));
 
-            // FIFO RECEIVED kanbans (same material + container type)
+            // FIFO RECEIVED inventoryTags (same material + container type)
             List<FifoPickCandidate> candidates = inventoryTransactionMapper.selectFifoCandidatesForLock(
                     line.getMaterialId(), null, line.getContainerTypeId());
             for (FifoPickCandidate c : candidates) {
-                if (excludedIds.contains(c.getKanbanId())) continue;
-                KanbanBoard kb = kanbanBoardMapper.selectById(c.getKanbanId());
+                if (excludedIds.contains(c.getInventoryTagId())) continue;
+                InventoryTag kb = inventoryTagMapper.selectById(c.getInventoryTagId());
                 if (kb == null) continue;
                 String locName = getLocationName(kb);
                 BigDecimal remaining = c.getBoardQty().subtract(
                         c.getPickedQty() == null ? BigDecimal.ZERO : c.getPickedQty());
                 if (remaining.compareTo(BigDecimal.ZERO) <= 0) continue;
-                kanbans.add(new ForceCandidateResponse.KanbanEntry(
-                        kb.getId(), kb.getKanbanCode(), locName,
+                inventoryTags.add(new ForceCandidateResponse.InventoryTagEntry(
+                        kb.getId(), kb.getInventoryTagCode(), locName,
                         remaining, false, null));
-                excludedIds.add(c.getKanbanId());
+                excludedIds.add(c.getInventoryTagId());
             }
 
-            // LOCKED kanbans from OTHER orders (same material + container type) — stealable
-            List<KanbanBoard> otherLocked = kanbanBoardMapper.selectList(
-                    Wrappers.<KanbanBoard>lambdaQuery()
-                            .eq(KanbanBoard::getStatus, "LOCKED")
-                            .eq(KanbanBoard::getContainerTypeId, line.getContainerTypeId())
-                            .ne(KanbanBoard::getLockedByOrderId, orderId)
-                            .isNotNull(KanbanBoard::getLockedByOrderId));
-            for (KanbanBoard kb : otherLocked) {
+            // LOCKED inventoryTags from OTHER orders (same material + container type) — stealable
+            List<InventoryTag> otherLocked = inventoryTagMapper.selectList(
+                    Wrappers.<InventoryTag>lambdaQuery()
+                            .eq(InventoryTag::getStatus, "LOCKED")
+                            .eq(InventoryTag::getContainerTypeId, line.getContainerTypeId())
+                            .ne(InventoryTag::getLockedByOrderId, orderId)
+                            .isNotNull(InventoryTag::getLockedByOrderId));
+            for (InventoryTag kb : otherLocked) {
                 // Only if same material (via inbound_order_line)
                 com.scut.wms.inbound.InboundOrderLine iol = inboundOrderLineMapper.selectById(kb.getInboundOrderLineId());
                 if (iol == null || !iol.getMaterialId().equals(line.getMaterialId())) continue;
@@ -493,8 +504,8 @@ public class LockService {
 
                 OutboundOrder otherOrder = outboundOrderMapper.selectById(kb.getLockedByOrderId());
                 String otherOutboundNo = otherOrder != null ? otherOrder.getOutboundNo() : null;
-                kanbans.add(new ForceCandidateResponse.KanbanEntry(
-                        kb.getId(), kb.getKanbanCode(), locName,
+                inventoryTags.add(new ForceCandidateResponse.InventoryTagEntry(
+                        kb.getId(), kb.getInventoryTagCode(), locName,
                         remaining, true, otherOutboundNo));
             }
 
@@ -504,13 +515,13 @@ public class LockService {
                     material.getMaterialCode(),
                     material.getMaterialName(),
                     line.getPlannedQty(),
-                    kanbans));
+                    inventoryTags));
         }
 
         return new ForceCandidateResponse(result);
     }
 
-    private String getLocationName(KanbanBoard kb) {
+    private String getLocationName(InventoryTag kb) {
         InboundOrderLine iol = inboundOrderLineMapper.selectById(kb.getInboundOrderLineId());
         if (iol != null && iol.getTargetLocationId() != null) {
             StorageLocation sl = storageLocationMapper.selectById(iol.getTargetLocationId());

@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public record ForceLogView(
-        String kanbanCode,
+        String inventoryTagCode,
         String materialCode,
         String materialName,
         BigDecimal qty,

@@ -6,8 +6,8 @@ import com.scut.wms.inbound.InboundOrder;
 import com.scut.wms.inbound.InboundOrderLine;
 import com.scut.wms.inbound.InboundOrderLineMapper;
 import com.scut.wms.inbound.InboundOrderMapper;
-import com.scut.wms.inbound.KanbanBoard;
-import com.scut.wms.inbound.KanbanBoardMapper;
+import com.scut.wms.inbound.InventoryTag;
+import com.scut.wms.inbound.InventoryTagMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,8 +33,8 @@ class TraceQueryControllerTest {
     private static final Long DEMO_LINE_TWO_ID = 8L;
     private static final Long DEMO_BOARD_ONE_ID = 13L;
     private static final Long DEMO_BOARD_TWO_ID = 15L;
-    private static final String DEMO_BOARD_ONE_CODE = "KB:v1:IN-20260610-001:1:1";
-    private static final String DEMO_BOARD_TWO_CODE = "KB:v1:IN-20260610-001:2:1";
+    private static final String DEMO_BOARD_ONE_CODE = "IT:v1:IN-20260610-001:1:1";
+    private static final String DEMO_BOARD_TWO_CODE = "IT:v1:IN-20260610-001:2:1";
 
     @Autowired
     private MockMvc mockMvc;
@@ -46,7 +46,7 @@ class TraceQueryControllerTest {
     private InventoryBalanceMapper inventoryBalanceMapper;
 
     @Autowired
-    private KanbanBoardMapper kanbanBoardMapper;
+    private InventoryTagMapper inventoryTagMapper;
 
     @Autowired
     private InboundOrderLineMapper inboundOrderLineMapper;
@@ -61,7 +61,7 @@ class TraceQueryControllerTest {
 
         inboundOrderMapper.update(null, Wrappers.<InboundOrder>lambdaUpdate()
                 .eq(InboundOrder::getId, DEMO_ORDER_ID)
-                .set(InboundOrder::getStatus, "RELEASED")
+                .set(InboundOrder::getStatus, "READY_TO_RECEIVE")
                 .set(InboundOrder::getCompletedAt, null));
 
         resetLine(DEMO_LINE_ONE_ID);
@@ -92,7 +92,7 @@ class TraceQueryControllerTest {
     }
 
     @Test
-    void movementsReturnsDisplayRowsForScannedKanbans() throws Exception {
+    void movementsReturnsDisplayRowsForScannedInventoryTags() throws Exception {
         scanInbound(DEMO_BOARD_ONE_CODE);
 
         mockMvc.perform(get("/api/inventory/movements"))
@@ -105,17 +105,17 @@ class TraceQueryControllerTest {
                 .andExpect(jsonPath("$[0].locationCode").value("A-01"))
                 .andExpect(jsonPath("$[0].locationName").value("高位货架 A 区 01 号"))
                 .andExpect(jsonPath("$[0].qty").value(100.0))
-                .andExpect(jsonPath("$[0].kanbanCode").value(DEMO_BOARD_ONE_CODE))
+                .andExpect(jsonPath("$[0].inventoryTagCode").value(DEMO_BOARD_ONE_CODE))
                 .andExpect(jsonPath("$[0].inboundNo").value("IN-20260610-001"))
                 .andExpect(jsonPath("$[0].occurredAt").isNotEmpty());
     }
 
     @Test
-    void kanbanTraceReturnsPrintedStateBeforeScanAndMovementAfterScan() throws Exception {
-        mockMvc.perform(get("/api/kanbans/{kanbanCode}/trace", DEMO_BOARD_TWO_CODE))
+    void inventoryTagTraceReturnsPrintedStateBeforeScanAndMovementAfterScan() throws Exception {
+        mockMvc.perform(get("/api/inventory-tags/{inventoryTagCode}/trace", DEMO_BOARD_TWO_CODE))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.kanbanCode").value(DEMO_BOARD_TWO_CODE))
-                .andExpect(jsonPath("$.kanbanStatus").value("PRINTED"))
+                .andExpect(jsonPath("$.inventoryTagCode").value(DEMO_BOARD_TWO_CODE))
+                .andExpect(jsonPath("$.inventoryTagStatus").value("PRINTED"))
                 .andExpect(jsonPath("$.inboundNo").value("IN-20260610-001"))
                 .andExpect(jsonPath("$.materialCode").value("5WD.723.913.C"))
                 .andExpect(jsonPath("$.materialName").value("加速踏板模块总成"))
@@ -126,10 +126,10 @@ class TraceQueryControllerTest {
 
         scanInbound(DEMO_BOARD_TWO_CODE);
 
-        mockMvc.perform(get("/api/kanbans/{kanbanCode}/trace", DEMO_BOARD_TWO_CODE))
+        mockMvc.perform(get("/api/inventory-tags/{inventoryTagCode}/trace", DEMO_BOARD_TWO_CODE))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.kanbanCode").value(DEMO_BOARD_TWO_CODE))
-                .andExpect(jsonPath("$.kanbanStatus").value("RECEIVED"))
+                .andExpect(jsonPath("$.inventoryTagCode").value(DEMO_BOARD_TWO_CODE))
+                .andExpect(jsonPath("$.inventoryTagStatus").value("RECEIVED"))
                 .andExpect(jsonPath("$.inboundNo").value("IN-20260610-001"))
                 .andExpect(jsonPath("$.materialCode").value("5WD.723.913.C"))
                 .andExpect(jsonPath("$.materialName").value("加速踏板模块总成"))
@@ -139,10 +139,24 @@ class TraceQueryControllerTest {
                 .andExpect(jsonPath("$.movementNo").isNotEmpty());
     }
 
-    private void scanInbound(String kanbanCode) throws Exception {
+    @Test
+    void inventoryLookupReturnsInventoryTagPreviewForInboundScan() throws Exception {
+        mockMvc.perform(get("/api/inventory/inventory-tag-lookup")
+                        .param("inventoryTagCode", DEMO_BOARD_TWO_CODE))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.inventoryTagCode").value(DEMO_BOARD_TWO_CODE))
+                .andExpect(jsonPath("$.inventoryTagStatus").value("PRINTED"))
+                .andExpect(jsonPath("$.inboundNo").value("IN-20260610-001"))
+                .andExpect(jsonPath("$.materialCode").value("5WD.723.913.C"))
+                .andExpect(jsonPath("$.materialName").value("加速踏板模块总成"))
+                .andExpect(jsonPath("$.targetLocationId").value(2))
+                .andExpect(jsonPath("$.locationName").value("高位货架 A 区 02 号"));
+    }
+
+    private void scanInbound(String inventoryTagCode) throws Exception {
         mockMvc.perform(post("/api/inventory/scan-inbound")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(scanRequest(kanbanCode)))
+                        .content(scanRequest(inventoryTagCode)))
                 .andExpect(status().isOk());
     }
 
@@ -153,19 +167,19 @@ class TraceQueryControllerTest {
     }
 
     private void resetBoard(Long boardId, Long locationId) {
-        kanbanBoardMapper.update(null, Wrappers.<KanbanBoard>lambdaUpdate()
-                .eq(KanbanBoard::getId, boardId)
-                .set(KanbanBoard::getStatus, "PRINTED")
-                .set(KanbanBoard::getReceivedAt, null)
-                .set(KanbanBoard::getLocationId, locationId)
-                .set(KanbanBoard::getContainerTypeId, 1L));
+        inventoryTagMapper.update(null, Wrappers.<InventoryTag>lambdaUpdate()
+                .eq(InventoryTag::getId, boardId)
+                .set(InventoryTag::getStatus, "PRINTED")
+                .set(InventoryTag::getReceivedAt, null)
+                .set(InventoryTag::getLocationId, locationId)
+                .set(InventoryTag::getContainerTypeId, 1L));
     }
 
-    private String scanRequest(String kanbanCode) {
+    private String scanRequest(String inventoryTagCode) {
         return """
                 {
-                  "kanbanCode": "%s"
+                  "inventoryTagCode": "%s"
                 }
-                """.formatted(kanbanCode);
+                """.formatted(inventoryTagCode);
     }
 }

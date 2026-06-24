@@ -15,7 +15,7 @@ public class InventoryMovementView {
     private String plannedLocationCode;
     private String plannedLocationName;
     private BigDecimal qty;
-    private String kanbanCode;
+    private String inventoryTagCode;
     private String inboundNo;
     private LocalDateTime occurredAt;
 
@@ -107,12 +107,12 @@ public class InventoryMovementView {
         this.qty = qty;
     }
 
-    public String getKanbanCode() {
-        return kanbanCode;
+    public String getInventoryTagCode() {
+        return inventoryTagCode;
     }
 
-    public void setKanbanCode(String kanbanCode) {
-        this.kanbanCode = kanbanCode;
+    public void setInventoryTagCode(String inventoryTagCode) {
+        this.inventoryTagCode = inventoryTagCode;
     }
 
     public String getInboundNo() {

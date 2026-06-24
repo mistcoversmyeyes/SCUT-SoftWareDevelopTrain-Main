@@ -49,7 +49,7 @@ class InboundOrderControllerTest {
     private InboundOrderLineMapper inboundOrderLineMapper;
 
     @Autowired
-    private KanbanBoardMapper kanbanBoardMapper;
+    private InventoryTagMapper inventoryTagMapper;
 
     @Autowired
     private WarehouseMapper warehouseMapper;
@@ -66,17 +66,17 @@ class InboundOrderControllerTest {
 
         // Fix existing demo data
         // Fix board location_id/container_type_id for existing demo data (may still have default 0 values)
-        KanbanBoard board1 = kanbanBoardMapper.selectById(1L);
+        InventoryTag board1 = inventoryTagMapper.selectById(1L);
         if (board1 != null) {
             board1.setLocationId(1L);
             board1.setContainerTypeId(1L);
-            kanbanBoardMapper.updateById(board1);
+            inventoryTagMapper.updateById(board1);
         }
-        KanbanBoard board2 = kanbanBoardMapper.selectById(2L);
+        InventoryTag board2 = inventoryTagMapper.selectById(2L);
         if (board2 != null) {
             board2.setLocationId(2L);
             board2.setContainerTypeId(1L);
-            kanbanBoardMapper.updateById(board2);
+            inventoryTagMapper.updateById(board2);
         }
         // Fix line container_type_id for existing demo data
         InboundOrderLine line1 = inboundOrderLineMapper.selectById(1L);
@@ -136,35 +136,35 @@ class InboundOrderControllerTest {
     }
 
     @Test
-    void updateReleasedUnreceivedOrderRegeneratesKanbansWithoutDuplicates() throws Exception {
-        Long orderId = createReleasedOrder("PO-TDD-UPDATE-RELEASED");
-        assertThat(kanbansOf(orderId)).hasSize(2);
+    void updateReadyToReceiveOrderRegeneratesInventoryTagsWithoutDuplicates() throws Exception {
+        Long orderId = createReadyToReceiveOrder("PO-TDD-UPDATE-READY");
+        assertThat(inventoryTagsOf(orderId)).hasSize(2);
 
         mockMvc.perform(put("/api/inbound-orders/{id}", orderId)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(oneLineUpdateRequest("PO-TDD-RELEASED-UPDATED")))
+                        .content(oneLineUpdateRequest("PO-TDD-READY-UPDATED")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("RELEASED"))
+                .andExpect(jsonPath("$.status").value("READY_TO_RECEIVE"))
                 .andExpect(jsonPath("$.lineCount").value(1))
                 .andExpect(jsonPath("$.plannedQty").value(7.0));
 
         InboundOrder order = inboundOrderMapper.selectById(orderId);
         List<InboundOrderLine> lines = linesOf(orderId);
-        List<KanbanBoard> kanbans = kanbansOf(orderId);
+        List<InventoryTag> inventoryTags = inventoryTagsOf(orderId);
 
         assertThat(lines).hasSize(1);
         assertThat(lines.get(0).getLineNo()).isEqualTo(1);
         assertThat(lines.get(0).getMaterialId()).isEqualTo(3L);
-        assertThat(kanbans).hasSize(1);
-        assertThat(kanbans).extracting(KanbanBoard::getInboundOrderLineId).containsExactly(lines.get(0).getId());
-        assertThat(kanbans).extracting(KanbanBoard::getStatus).containsOnly("PRINTED");
-        assertThat(kanbans).extracting(KanbanBoard::getKanbanCode)
-                .containsExactly("KB:v1:%s:1:1".formatted(order.getInboundNo()));
+        assertThat(inventoryTags).hasSize(1);
+        assertThat(inventoryTags).extracting(InventoryTag::getInboundOrderLineId).containsExactly(lines.get(0).getId());
+        assertThat(inventoryTags).extracting(InventoryTag::getStatus).containsOnly("PRINTED");
+        assertThat(inventoryTags).extracting(InventoryTag::getInventoryTagCode)
+                .containsExactly("IT:v1:%s:1:1".formatted(order.getInboundNo()));
     }
 
     @Test
-    void updateRejectsReleasedOrderWithReceivedQuantity() throws Exception {
-        Long orderId = createReleasedOrder("PO-TDD-UPDATE-RECEIVED-QTY");
+    void updateRejectsReadyToReceiveOrderWithReceivedQuantity() throws Exception {
+        Long orderId = createReadyToReceiveOrder("PO-TDD-UPDATE-RECEIVED-QTY");
         InboundOrderLine line = linesOf(orderId).get(0);
         line.setReceivedQty(new BigDecimal("1.000"));
         inboundOrderLineMapper.updateById(line);
@@ -175,13 +175,13 @@ class InboundOrderControllerTest {
                 .andExpect(status().isBadRequest());
 
         assertThat(linesOf(orderId)).hasSize(2);
-        assertThat(kanbansOf(orderId)).hasSize(2);
+        assertThat(inventoryTagsOf(orderId)).hasSize(2);
     }
 
     @Test
-    void updateRejectsReleasedOrderWithReceivedKanban() throws Exception {
-        Long orderId = createReleasedOrder("PO-TDD-UPDATE-RECEIVED-KB");
-        markFirstKanbanReceived(orderId);
+    void updateRejectsReadyToReceiveOrderWithReceivedInventoryTag() throws Exception {
+        Long orderId = createReadyToReceiveOrder("PO-TDD-UPDATE-RECEIVED-KB");
+        markFirstInventoryTagReceived(orderId);
 
         mockMvc.perform(put("/api/inbound-orders/{id}", orderId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -189,40 +189,40 @@ class InboundOrderControllerTest {
                 .andExpect(status().isBadRequest());
 
         assertThat(linesOf(orderId)).hasSize(2);
-        assertThat(kanbansOf(orderId)).hasSize(2);
+        assertThat(inventoryTagsOf(orderId)).hasSize(2);
     }
 
     @Test
-    void releaseGeneratesKanbanRowsAndChangesStatusToReleased() throws Exception {
+    void releaseGeneratesInventoryTagRowsAndChangesStatusToReadyToReceive() throws Exception {
         Long orderId = createOrder("PO-TDD-RELEASE");
 
         mockMvc.perform(post("/api/inbound-orders/{id}/release", orderId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.order.status").value("RELEASED"))
+                .andExpect(jsonPath("$.order.status").value("READY_TO_RECEIVE"))
                 .andExpect(jsonPath("$.order.releasedAt").isNotEmpty());
 
         InboundOrder order = inboundOrderMapper.selectById(orderId);
-        List<KanbanBoard> kanbans = kanbansOf(orderId);
+        List<InventoryTag> inventoryTags = inventoryTagsOf(orderId);
 
-        assertThat(order.getStatus()).isEqualTo("RELEASED");
+        assertThat(order.getStatus()).isEqualTo("READY_TO_RECEIVE");
         assertThat(order.getReleasedAt()).isNotNull();
-        assertThat(kanbans).hasSize(2);
-        assertThat(kanbans).extracting(KanbanBoard::getStatus).containsOnly("PRINTED");
-        assertThat(kanbans).extracting(KanbanBoard::getKanbanCode)
-                .allSatisfy(code -> assertThat(code).startsWith("KB:v1:" + order.getInboundNo() + ":"));
+        assertThat(inventoryTags).hasSize(2);
+        assertThat(inventoryTags).extracting(InventoryTag::getStatus).containsOnly("PRINTED");
+        assertThat(inventoryTags).extracting(InventoryTag::getInventoryTagCode)
+                .allSatisfy(code -> assertThat(code).startsWith("IT:v1:" + order.getInboundNo() + ":"));
     }
 
     @Test
-    void releaseTwiceDoesNotDuplicateKanbans() throws Exception {
+    void releaseTwiceDoesNotDuplicateInventoryTags() throws Exception {
         Long orderId = createOrder("PO-TDD-IDEMPOTENT");
 
         mockMvc.perform(post("/api/inbound-orders/{id}/release", orderId))
                 .andExpect(status().isOk());
         mockMvc.perform(post("/api/inbound-orders/{id}/release", orderId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.order.status").value("RELEASED"));
+                .andExpect(jsonPath("$.order.status").value("READY_TO_RECEIVE"));
 
-        assertThat(kanbansOf(orderId)).hasSize(2);
+        assertThat(inventoryTagsOf(orderId)).hasSize(2);
     }
 
     @Test
@@ -234,7 +234,7 @@ class InboundOrderControllerTest {
                 .andExpect(status().isBadRequest());
 
         assertThat(inboundOrderMapper.selectById(orderId).getStatus()).isEqualTo("COMPLETED");
-        assertThat(kanbansOf(orderId)).isEmpty();
+        assertThat(inventoryTagsOf(orderId)).isEmpty();
     }
 
     @Test
@@ -246,11 +246,11 @@ class InboundOrderControllerTest {
                 .andExpect(status().isBadRequest());
 
         assertThat(inboundOrderMapper.selectById(orderId).getStatus()).isEqualTo("PARTIAL_RECEIVED");
-        assertThat(kanbansOf(orderId)).isEmpty();
+        assertThat(inventoryTagsOf(orderId)).isEmpty();
     }
 
     @Test
-    void cancelReleasedOrderWithNoReceivedQuantityMarksOrderAndKanbansCancelled() throws Exception {
+    void cancelReadyToReceiveOrderWithNoReceivedQuantityMarksOrderAndInventoryTagsCancelled() throws Exception {
         Long orderId = createOrder("PO-TDD-CANCEL");
         mockMvc.perform(post("/api/inbound-orders/{id}/release", orderId))
                 .andExpect(status().isOk());
@@ -260,16 +260,16 @@ class InboundOrderControllerTest {
                 .andExpect(jsonPath("$.status").value("CANCELLED"));
 
         InboundOrder order = inboundOrderMapper.selectById(orderId);
-        List<KanbanBoard> kanbans = kanbansOf(orderId);
+        List<InventoryTag> inventoryTags = inventoryTagsOf(orderId);
 
         assertThat(order.getStatus()).isEqualTo("CANCELLED");
-        assertThat(kanbans).hasSize(2);
-        assertThat(kanbans).extracting(KanbanBoard::getStatus).containsOnly("CANCELLED");
+        assertThat(inventoryTags).hasSize(2);
+        assertThat(inventoryTags).extracting(InventoryTag::getStatus).containsOnly("CANCELLED");
     }
 
     @Test
     void cancelRejectsOrderWithReceivedQuantity() throws Exception {
-        Long orderId = createReleasedOrder("PO-TDD-CANCEL-RECEIVED-QTY");
+        Long orderId = createReadyToReceiveOrder("PO-TDD-CANCEL-RECEIVED-QTY");
         InboundOrderLine line = linesOf(orderId).get(0);
         line.setReceivedQty(new BigDecimal("1.000"));
         inboundOrderLineMapper.updateById(line);
@@ -277,19 +277,19 @@ class InboundOrderControllerTest {
         mockMvc.perform(post("/api/inbound-orders/{id}/cancel", orderId))
                 .andExpect(status().isBadRequest());
 
-        assertThat(inboundOrderMapper.selectById(orderId).getStatus()).isEqualTo("RELEASED");
-        assertThat(kanbansOf(orderId)).extracting(KanbanBoard::getStatus).containsOnly("PRINTED");
+        assertThat(inboundOrderMapper.selectById(orderId).getStatus()).isEqualTo("READY_TO_RECEIVE");
+        assertThat(inventoryTagsOf(orderId)).extracting(InventoryTag::getStatus).containsOnly("PRINTED");
     }
 
     @Test
-    void cancelRejectsOrderWithReceivedKanban() throws Exception {
-        Long orderId = createReleasedOrder("PO-TDD-CANCEL-RECEIVED-KB");
-        markFirstKanbanReceived(orderId);
+    void cancelRejectsOrderWithReceivedInventoryTag() throws Exception {
+        Long orderId = createReadyToReceiveOrder("PO-TDD-CANCEL-RECEIVED-KB");
+        markFirstInventoryTagReceived(orderId);
 
         mockMvc.perform(post("/api/inbound-orders/{id}/cancel", orderId))
                 .andExpect(status().isBadRequest());
 
-        assertThat(inboundOrderMapper.selectById(orderId).getStatus()).isEqualTo("RELEASED");
+        assertThat(inboundOrderMapper.selectById(orderId).getStatus()).isEqualTo("READY_TO_RECEIVE");
     }
 
     @Test
@@ -374,10 +374,10 @@ class InboundOrderControllerTest {
     }
 
     @Test
-    void printKanbansReturnsDisplayLabels() throws Exception {
-        mockMvc.perform(get("/api/inbound-orders/{id}/kanbans/print", 1L))
+    void printInventoryTagsReturnsDisplayLabels() throws Exception {
+        mockMvc.perform(get("/api/inbound-orders/{id}/inventory-tags/print", 1L))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].kanbanCode").value("KB:v1:IN-20260520-001:1:1"))
+                .andExpect(jsonPath("$[0].inventoryTagCode").value("IT:v1:IN-20260520-001:1:1"))
                 .andExpect(jsonPath("$[0].inboundNo").value("IN-20260520-001"))
                 .andExpect(jsonPath("$[0].supplierCode").value("8KH"))
                 .andExpect(jsonPath("$[0].materialCode").value("5HG.807.109.C"))
@@ -385,7 +385,7 @@ class InboundOrderControllerTest {
                 .andExpect(jsonPath("$[0].locationName").value("高位货架 A 区 01 号"))
                 .andExpect(jsonPath("$[0].qty").value(100.0))
                 .andExpect(jsonPath("$[0].status").value("RECEIVED"))
-                .andExpect(jsonPath("$[3].kanbanCode").value("KB:v1:IN-20260520-001:2:1"))
+                .andExpect(jsonPath("$[3].inventoryTagCode").value("IT:v1:IN-20260520-001:2:1"))
                 .andExpect(jsonPath("$[3].materialCode").value("5WD.723.913.C"));
     }
 
@@ -394,7 +394,7 @@ class InboundOrderControllerTest {
         mockMvc.perform(get("/api/inbound-orders/{id}/print", 9999L))
                 .andExpect(status().isNotFound());
 
-        mockMvc.perform(get("/api/inbound-orders/{id}/kanbans/print", 9999L))
+        mockMvc.perform(get("/api/inbound-orders/{id}/inventory-tags/print", 9999L))
                 .andExpect(status().isNotFound());
     }
 
@@ -406,7 +406,7 @@ class InboundOrderControllerTest {
                 .asLong();
     }
 
-    private Long createReleasedOrder(String sourceDocNo) throws Exception {
+    private Long createReadyToReceiveOrder(String sourceDocNo) throws Exception {
         Long orderId = createOrder(sourceDocNo);
         mockMvc.perform(post("/api/inbound-orders/{id}/release", orderId))
                 .andExpect(status().isOk());
@@ -419,11 +419,11 @@ class InboundOrderControllerTest {
         inboundOrderMapper.updateById(order);
     }
 
-    private void markFirstKanbanReceived(Long orderId) {
-        KanbanBoard kanban = kanbansOf(orderId).get(0);
-        kanban.setStatus("RECEIVED");
-        kanban.setReceivedAt(LocalDateTime.now());
-        kanbanBoardMapper.updateById(kanban);
+    private void markFirstInventoryTagReceived(Long orderId) {
+        InventoryTag inventoryTag = inventoryTagsOf(orderId).get(0);
+        inventoryTag.setStatus("RECEIVED");
+        inventoryTag.setReceivedAt(LocalDateTime.now());
+        inventoryTagMapper.updateById(inventoryTag);
     }
 
     private ResultActionsJson performCreate(String request) throws Exception {
@@ -516,8 +516,8 @@ class InboundOrderControllerTest {
                 .orderByAsc("line_no"));
     }
 
-    private List<KanbanBoard> kanbansOf(Long orderId) {
-        return kanbanBoardMapper.selectList(new QueryWrapper<KanbanBoard>()
+    private List<InventoryTag> inventoryTagsOf(Long orderId) {
+        return inventoryTagMapper.selectList(new QueryWrapper<InventoryTag>()
                 .eq("inbound_order_id", orderId)
                 .orderByAsc("id"));
     }

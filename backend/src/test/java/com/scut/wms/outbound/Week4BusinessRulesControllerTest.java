@@ -2,8 +2,8 @@ package com.scut.wms.outbound;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.scut.wms.inbound.KanbanBoard;
-import com.scut.wms.inbound.KanbanBoardMapper;
+import com.scut.wms.inbound.InventoryTag;
+import com.scut.wms.inbound.InventoryTagMapper;
 import com.scut.wms.inventory.InventoryBalance;
 import com.scut.wms.inventory.InventoryBalanceMapper;
 import com.scut.wms.inventory.InventoryMovementMapper;
@@ -38,14 +38,14 @@ class Week4BusinessRulesControllerTest {
     private static final Long MATERIAL_ONE_FIFO_BOARD_ID = 1L;
     private static final Long MATERIAL_ONE_NEXT_BOARD_ID = 2L;
     private static final Long MATERIAL_TWO_FIFO_BOARD_ID = 4L;
-    private static final String MATERIAL_ONE_FIFO_BOARD_CODE = "KB:v1:IN-20260520-001:1:1";
-    private static final String MATERIAL_ONE_NEXT_BOARD_CODE = "KB:v1:IN-20260520-001:1:2";
+    private static final String MATERIAL_ONE_FIFO_BOARD_CODE = "IT:v1:IN-20260520-001:1:1";
+    private static final String MATERIAL_ONE_NEXT_BOARD_CODE = "IT:v1:IN-20260520-001:1:2";
 
     @Autowired
     private MockMvc mockMvc;
 
     @Autowired
-    private KanbanBoardMapper kanbanBoardMapper;
+    private InventoryTagMapper inventoryTagMapper;
 
     @Autowired
     private InventoryLockMapper inventoryLockMapper;
@@ -68,8 +68,34 @@ class Week4BusinessRulesControllerTest {
     }
 
     @Test
-    void sealedKanbanIsExcludedFromAutoLockUntilUnsealed() throws Exception {
-        mockMvc.perform(post("/api/kanbans/{kanbanId}/seal", MATERIAL_ONE_FIFO_BOARD_ID)
+    void createsOutboundOrderWithContainerTypeFromAcceptancePayload() throws Exception {
+        mockMvc.perform(post("/api/outbound-orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "purpose": "PICKING",
+                                  "sourceDocNo": null,
+                                  "remark": "iter4-fr02-regression",
+                                  "lines": [
+                                    {
+                                      "supplierId": 1,
+                                      "materialId": 2,
+                                      "plannedQty": 1000,
+                                      "containerTypeId": 2
+                                    }
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andExpect(jsonPath("$.lineCount").value(1))
+                .andExpect(jsonPath("$.plannedQty").value(1000.0))
+                .andExpect(jsonPath("$.lines[0].containerTypeId").value(2));
+    }
+
+    @Test
+    void sealedInventoryTagIsExcludedFromAutoLockUntilUnsealed() throws Exception {
+        mockMvc.perform(post("/api/inventory-tags/{inventoryTagId}/seal", MATERIAL_ONE_FIFO_BOARD_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -95,11 +121,11 @@ class Week4BusinessRulesControllerTest {
                         .eq(InventoryLock::getOutboundOrderId, OUTBOUND_ORDER_ID)
                         .eq(InventoryLock::getStatus, InventoryLock.LOCKED)
                         .orderByAsc(InventoryLock::getId));
-        assertThat(locks).extracting(InventoryLock::getKanbanBoardId)
+        assertThat(locks).extracting(InventoryLock::getInventoryTagId)
                 .contains(MATERIAL_ONE_NEXT_BOARD_ID, MATERIAL_TWO_FIFO_BOARD_ID)
                 .doesNotContain(MATERIAL_ONE_FIFO_BOARD_ID);
 
-        mockMvc.perform(post("/api/kanbans/{kanbanId}/unseal", MATERIAL_ONE_FIFO_BOARD_ID)
+        mockMvc.perform(post("/api/inventory-tags/{inventoryTagId}/unseal", MATERIAL_ONE_FIFO_BOARD_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -110,11 +136,50 @@ class Week4BusinessRulesControllerTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("RECEIVED"));
+
+        mockMvc.perform(post("/api/outbound-orders/{id}/reassign", OUTBOUND_ORDER_ID))
+                .andExpect(status().isOk());
+
+        List<InventoryLock> locksAfterUnseal = inventoryLockMapper.selectList(
+                Wrappers.<InventoryLock>lambdaQuery()
+                        .eq(InventoryLock::getOutboundOrderId, OUTBOUND_ORDER_ID)
+                        .eq(InventoryLock::getStatus, InventoryLock.LOCKED)
+                        .orderByAsc(InventoryLock::getId));
+        assertThat(locksAfterUnseal).extracting(InventoryLock::getInventoryTagId)
+                .contains(MATERIAL_ONE_FIFO_BOARD_ID, MATERIAL_TWO_FIFO_BOARD_ID)
+                .doesNotContain(MATERIAL_ONE_NEXT_BOARD_ID);
+    }
+
+    @Test
+    void normalOutboundRejectsSealedInventoryTag() throws Exception {
+        mockMvc.perform(post("/api/inventory-tags/{inventoryTagId}/seal", MATERIAL_ONE_FIFO_BOARD_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reason": "QUALITY_HOLD",
+                                  "remark": "待复检",
+                                  "operator": "tester"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SEALED"));
+
+        mockMvc.perform(post("/api/outbound/pick-no-order")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "inventoryTagCode": "%s",
+                                  "qty": 10,
+                                  "operator": "tester"
+                                }
+                                """.formatted(MATERIAL_ONE_FIFO_BOARD_CODE)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("库存标签已封存，不能普通出库"));
     }
 
     @Test
     void manualLockRejectsOutboundConflictAndBlocksAutoFifo() throws Exception {
-        mockMvc.perform(post("/api/kanbans/{kanbanId}/manual-lock", MATERIAL_ONE_FIFO_BOARD_ID)
+        mockMvc.perform(post("/api/inventory-tags/{inventoryTagId}/manual-lock", MATERIAL_ONE_FIFO_BOARD_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -140,11 +205,11 @@ class Week4BusinessRulesControllerTest {
                         .eq(InventoryLock::getOutboundOrderId, OUTBOUND_ORDER_ID)
                         .eq(InventoryLock::getStatus, InventoryLock.LOCKED)
                         .orderByAsc(InventoryLock::getId));
-        assertThat(locks).extracting(InventoryLock::getKanbanBoardId)
+        assertThat(locks).extracting(InventoryLock::getInventoryTagId)
                 .contains(MATERIAL_ONE_NEXT_BOARD_ID, MATERIAL_TWO_FIFO_BOARD_ID)
                 .doesNotContain(MATERIAL_ONE_FIFO_BOARD_ID);
 
-        mockMvc.perform(post("/api/kanbans/{kanbanId}/manual-lock", MATERIAL_ONE_NEXT_BOARD_ID)
+        mockMvc.perform(post("/api/inventory-tags/{inventoryTagId}/manual-lock", MATERIAL_ONE_NEXT_BOARD_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -154,7 +219,7 @@ class Week4BusinessRulesControllerTest {
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("看板已被出库单锁定，不能手动锁库"));
+                .andExpect(jsonPath("$.message").value("库存标签已被出库单锁定，不能手动锁库"));
     }
 
     @Test
@@ -172,7 +237,7 @@ class Week4BusinessRulesControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "kanbanCode": "%s",
+                                  "inventoryTagCode": "%s",
                                   "qty": 30,
                                   "outboundOrderId": %s,
                                   "outboundOrderLineId": %s
@@ -180,10 +245,10 @@ class Week4BusinessRulesControllerTest {
                                 """.formatted(MATERIAL_ONE_FIFO_BOARD_CODE, OUTBOUND_ORDER_ID, OUTBOUND_LINE_ONE_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.pickedQty").value(30.0))
-                .andExpect(jsonPath("$.newKanbanStatus").value("LOCKED"));
+                .andExpect(jsonPath("$.newInventoryTagStatus").value("LOCKED"));
 
-        mockMvc.perform(get("/api/outbound/kanban-lookup")
-                        .param("kanbanCode", MATERIAL_ONE_FIFO_BOARD_CODE))
+        mockMvc.perform(get("/api/outbound/inventory-tag-lookup")
+                        .param("inventoryTagCode", MATERIAL_ONE_FIFO_BOARD_CODE))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.pickedQty").value(30.0))
                 .andExpect(jsonPath("$.boardQty").value(100.0));
@@ -192,16 +257,16 @@ class Week4BusinessRulesControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "kanbanCode": "%s",
+                                  "inventoryTagCode": "%s",
                                   "qty": 10,
                                   "outboundOrderId": %s,
                                   "outboundOrderLineId": %s
                                 }
                                 """.formatted(MATERIAL_ONE_NEXT_BOARD_CODE, OUTBOUND_ORDER_ID, OUTBOUND_LINE_ONE_ID)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("FIFO 违规：请先出库更早入库的看板 " + MATERIAL_ONE_FIFO_BOARD_CODE));
+                .andExpect(jsonPath("$.message").value("FIFO 违规：请先出库更早入库的库存标签 " + MATERIAL_ONE_FIFO_BOARD_CODE));
 
-        KanbanBoard board = kanbanBoardMapper.selectById(MATERIAL_ONE_FIFO_BOARD_ID);
+        InventoryTag board = inventoryTagMapper.selectById(MATERIAL_ONE_FIFO_BOARD_ID);
         assertThat(board.getPickedQty()).isEqualByComparingTo("30.000");
 
         InventoryBalance balance = inventoryBalanceMapper.selectOne(
@@ -213,11 +278,11 @@ class Week4BusinessRulesControllerTest {
     }
 
     private void resetBoard(Long boardId) {
-        KanbanBoard board = kanbanBoardMapper.selectById(boardId);
+        InventoryTag board = inventoryTagMapper.selectById(boardId);
         board.setStatus("RECEIVED");
         board.setPickedQty(BigDecimal.ZERO);
         board.setLockedByOrderId(null);
         board.setLockedByOrderLineId(null);
-        kanbanBoardMapper.updateById(board);
+        inventoryTagMapper.updateById(board);
     }
 }

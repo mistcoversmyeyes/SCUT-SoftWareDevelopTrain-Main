@@ -24,13 +24,13 @@ public class InventoryController {
         return inventoryService.scanInbound(request);
     }
 
-    @PostMapping("/kanbans/{kanbanId}/cancel")
-    public Map<String, Object> cancelKanban(@PathVariable Long kanbanId) {
-        return inventoryService.cancelKanban(kanbanId);
+    @PostMapping("/inventory-tags/{inventoryTagId}/cancel")
+    public Map<String, Object> cancelInventoryTag(@PathVariable Long inventoryTagId) {
+        return inventoryService.cancelInventoryTag(inventoryTagId);
     }
 
-    @PostMapping("/kanbans/cancel")
-    public Map<String, Object> cancelKanbansBatch(@RequestBody Map<String, List<Long>> body) {
-        return inventoryService.cancelKanbansBatch(body.get("ids"));
+    @PostMapping("/inventory-tags/cancel")
+    public Map<String, Object> cancelInventoryTagsBatch(@RequestBody Map<String, List<Long>> body) {
+        return inventoryService.cancelInventoryTagsBatch(body.get("ids"));
     }
 }

@@ -69,8 +69,8 @@
           <el-input v-model="filters.inboundNo" clearable placeholder="请输入入库单号" />
         </el-form-item>
 
-        <el-form-item label="看板码">
-          <el-input v-model="filters.kanbanCode" clearable placeholder="请输入看板码" />
+        <el-form-item label="库存标签码">
+          <el-input v-model="filters.inventoryTagCode" clearable placeholder="请输入库存标签码" />
         </el-form-item>
 
         <el-form-item>
@@ -105,7 +105,7 @@
             </span>
           </template>
         </el-table-column>
-        <el-table-column prop="kanbanCode" label="看板码" width="160" />
+        <el-table-column prop="inventoryTagCode" label="库存标签码" width="160" />
         <el-table-column prop="inboundNo" label="入库单号" width="140" />
         <el-table-column prop="occurredAt" label="发生时间" min-width="180">
           <template #default="scope">
@@ -137,7 +137,7 @@ const filters = reactive({
   warehouseCode: '',
   locationCode: '',
   inboundNo: '',
-  kanbanCode: ''
+  inventoryTagCode: ''
 })
 
 const loading = ref(false)
@@ -179,7 +179,7 @@ function resetFilters() {
   filters.warehouseCode = ''
   filters.locationCode = ''
   filters.inboundNo = ''
-  filters.kanbanCode = ''
+  filters.inventoryTagCode = ''
   queryMovements()
 }
 

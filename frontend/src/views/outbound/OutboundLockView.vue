@@ -27,18 +27,18 @@
             </el-form-item>
           </el-form>
 
-          <el-table v-loading="loading" :data="kanbanLocks" border stripe size="small">
-            <el-table-column prop="kanbanCode" label="看板码" min-width="200">
+          <el-table v-loading="loading" :data="inventoryTagLocks" border stripe size="small">
+            <el-table-column prop="inventoryTagCode" label="库存标签码" min-width="200">
               <template #default="{ row }">
-                <code>{{ row.kanbanCode }}</code>
+                <code>{{ row.inventoryTagCode }}</code>
               </template>
             </el-table-column>
             <el-table-column prop="materialCode" label="物料编码" width="140" />
             <el-table-column prop="materialName" label="物料名称" min-width="160" />
-            <el-table-column prop="kanbanStatus" label="看板状态" width="100">
+            <el-table-column prop="inventoryTagStatus" label="库存标签状态" width="100">
               <template #default="{ row }">
-                <el-tag :type="kanbanStatusType(row.kanbanStatus)" size="small">
-                  {{ kanbanStatusLabel(row.kanbanStatus) }}
+                <el-tag :type="inventoryTagStatusType(row.inventoryTagStatus)" size="small">
+                  {{ inventoryTagStatusLabel(row.inventoryTagStatus) }}
                 </el-tag>
               </template>
             </el-table-column>
@@ -80,7 +80,7 @@
             </el-table-column>
           </el-table>
 
-          <el-empty v-if="!loading && !kanbanLocks.length" description="暂无锁记录" />
+          <el-empty v-if="!loading && !inventoryTagLocks.length" description="暂无锁记录" />
         </el-tab-pane>
 
         <el-tab-pane label="人工占用" name="holds">
@@ -100,8 +100,8 @@
             <el-form-item label="物料编码">
               <el-input v-model="holdQuery.materialCode" placeholder="模糊搜索" clearable style="width: 160px" />
             </el-form-item>
-            <el-form-item label="看板码">
-              <el-input v-model="holdQuery.kanbanCode" placeholder="模糊搜索" clearable style="width: 220px" />
+            <el-form-item label="库存标签码">
+              <el-input v-model="holdQuery.inventoryTagCode" placeholder="模糊搜索" clearable style="width: 220px" />
             </el-form-item>
             <el-form-item>
               <el-button type="primary" :loading="holdLoading" @click="loadHolds">查询</el-button>
@@ -110,8 +110,8 @@
           </el-form>
 
           <el-table v-loading="holdLoading" :data="holdRecords" border stripe size="small">
-            <el-table-column prop="kanbanCode" label="看板码" min-width="190">
-              <template #default="{ row }"><code>{{ row.kanbanCode }}</code></template>
+            <el-table-column prop="inventoryTagCode" label="库存标签码" min-width="190">
+              <template #default="{ row }"><code>{{ row.inventoryTagCode }}</code></template>
             </el-table-column>
             <el-table-column prop="materialCode" label="物料编码" width="140" />
             <el-table-column prop="materialName" label="物料名称" min-width="170" />
@@ -122,10 +122,10 @@
               </template>
             </el-table-column>
             <el-table-column prop="holdQty" label="数量" width="90" align="right" />
-            <el-table-column prop="kanbanStatus" label="看板状态" width="100">
+            <el-table-column prop="inventoryTagStatus" label="库存标签状态" width="100">
               <template #default="{ row }">
-                <el-tag :type="kanbanStatusType(row.kanbanStatus)" size="small">
-                  {{ kanbanStatusLabel(row.kanbanStatus) }}
+                <el-tag :type="inventoryTagStatusType(row.inventoryTagStatus)" size="small">
+                  {{ inventoryTagStatusLabel(row.inventoryTagStatus) }}
                 </el-tag>
               </template>
             </el-table-column>
@@ -163,7 +163,7 @@
           </el-form>
 
           <el-table v-loading="logLoading" :data="forceLogs" border stripe size="small">
-            <el-table-column prop="kanbanCode" label="看板码" min-width="180" />
+            <el-table-column prop="inventoryTagCode" label="库存标签码" min-width="180" />
             <el-table-column prop="materialCode" label="物料编码" width="120" />
             <el-table-column prop="materialName" label="物料名称" min-width="140" />
             <el-table-column prop="qty" label="数量" width="100" align="right" />
@@ -185,17 +185,17 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { fetchInventoryHolds } from '../../api/kanban'
-import { fetchForceLogs, fetchKanbanLocks, unlockRecord } from '../../api/outbound'
+import { fetchInventoryHolds } from '../../api/inventoryTag'
+import { fetchForceLogs, fetchInventoryTagLocks, unlockRecord } from '../../api/outbound'
 
 const router = useRouter()
 const activeTab = ref('locks')
 
 const query = reactive({ status: '', materialCode: '', outboundNo: '' })
-const kanbanLocks = ref([])
+const inventoryTagLocks = ref([])
 const loading = ref(false)
 
-const holdQuery = reactive({ holdType: '', status: '', materialCode: '', kanbanCode: '' })
+const holdQuery = reactive({ holdType: '', status: '', materialCode: '', inventoryTagCode: '' })
 const holdRecords = ref([])
 const holdLoading = ref(false)
 
@@ -203,7 +203,7 @@ const logQuery = reactive({ outboundNo: '' })
 const forceLogs = ref([])
 const logLoading = ref(false)
 
-const kanbanStatusMap = {
+const inventoryTagStatusMap = {
   RECEIVED: '在库',
   LOCKED: '已锁定',
   SEALED: '已封存',
@@ -212,7 +212,7 @@ const kanbanStatusMap = {
   CANCELLED: '已取消'
 }
 
-const kanbanStatusTypeMap = {
+const inventoryTagStatusTypeMap = {
   RECEIVED: 'success',
   LOCKED: 'warning',
   SEALED: 'danger',
@@ -231,12 +231,12 @@ const holdTypeTagMap = {
   MANUAL_LOCK: 'warning'
 }
 
-function kanbanStatusLabel(status) {
-  return kanbanStatusMap[status] || status || '—'
+function inventoryTagStatusLabel(status) {
+  return inventoryTagStatusMap[status] || status || '—'
 }
 
-function kanbanStatusType(status) {
-  return kanbanStatusTypeMap[status] || 'info'
+function inventoryTagStatusType(status) {
+  return inventoryTagStatusTypeMap[status] || 'info'
 }
 
 function holdTypeLabel(type) {
@@ -250,13 +250,13 @@ function holdTypeTagType(type) {
 async function loadLocks() {
   loading.value = true
   try {
-    kanbanLocks.value = await fetchKanbanLocks({
+    inventoryTagLocks.value = await fetchInventoryTagLocks({
       status: query.status || undefined,
       materialCode: query.materialCode || undefined,
       outboundNo: query.outboundNo || undefined
     })
   } catch {
-    kanbanLocks.value = []
+    inventoryTagLocks.value = []
   } finally {
     loading.value = false
   }
@@ -271,7 +271,7 @@ function resetFilters() {
 
 async function handleUnlock(row) {
   try {
-    await ElMessageBox.confirm('确认解锁该看板？解锁后看板恢复为在库状态，关联出库单将自动补锁。', '确认解锁', {
+    await ElMessageBox.confirm('确认解锁该库存标签？解锁后库存标签恢复为在库状态，关联出库单将自动补锁。', '确认解锁', {
       confirmButtonText: '确认',
       cancelButtonText: '取消',
       type: 'warning'
@@ -299,7 +299,7 @@ async function loadHolds() {
       holdType: holdQuery.holdType || undefined,
       status: holdQuery.status || undefined,
       materialCode: holdQuery.materialCode || undefined,
-      kanbanCode: holdQuery.kanbanCode || undefined
+      inventoryTagCode: holdQuery.inventoryTagCode || undefined
     })
   } catch {
     holdRecords.value = []
@@ -312,7 +312,7 @@ function resetHoldFilters() {
   holdQuery.holdType = ''
   holdQuery.status = ''
   holdQuery.materialCode = ''
-  holdQuery.kanbanCode = ''
+  holdQuery.inventoryTagCode = ''
   loadHolds()
 }
 

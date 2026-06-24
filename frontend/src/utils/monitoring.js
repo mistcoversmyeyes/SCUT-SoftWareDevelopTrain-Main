@@ -313,7 +313,7 @@ export function buildRiskPreviewRows(inventoryRows = [], limit = 8) {
     .slice(0, limit)
 }
 
-export function filterKanbanRows(rows = [], filters = {}) {
+export function filterInventoryTagRows(rows = [], filters = {}) {
   const keyword = filters.keyword?.trim()
   return rows.filter((row) => {
     if (filters.status && row.status !== filters.status) {
@@ -323,7 +323,7 @@ export function filterKanbanRows(rows = [], filters = {}) {
       return false
     }
     if (keyword && ![
-      row.kanbanCode,
+      row.inventoryTagCode,
       row.inboundNo,
       row.materialCode,
       row.materialName

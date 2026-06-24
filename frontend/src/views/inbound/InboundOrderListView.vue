@@ -72,13 +72,13 @@
         </el-table-column>
         <el-table-column prop="lineCount" label="明细行数" width="90" />
         <el-table-column
-          prop="kanbanCount"
-          label="看板数"
+          prop="inventoryTagCount"
+          label="库存标签数"
           width="80"
           align="right"
         >
           <template #default="{ row }">
-            {{ row.kanbanCount > 0 ? row.kanbanCount : '—' }}
+            {{ row.inventoryTagCount > 0 ? row.inventoryTagCount : '—' }}
           </template>
         </el-table-column>
         <el-table-column
@@ -121,7 +121,7 @@
                 :disabled="!canRelease(row)"
                 @click="handleRelease(row)"
               >
-                释放
+                转待收货
               </el-button>
               <el-button
                 type="success"
@@ -136,10 +136,10 @@
                 type="success"
                 size="small"
                 text
-                :disabled="!canPrintKanbans(row)"
-                @click="handlePrintKanbans(row)"
+                :disabled="!canPrintInventoryTags(row)"
+                @click="handlePrintInventoryTags(row)"
               >
-                查看/打印看板
+                查看/打印库存标签
               </el-button>
               <el-button
                 type="warning"
@@ -196,22 +196,22 @@
 
     <el-dialog
       v-model="partialCancelVisible"
-      title="部分取消看板"
+      title="部分取消库存标签"
       width="700px"
     >
       <div v-if="partialCancelOrder">
         <p style="margin:0 0 12px; color:#606266;">
-          入库单: {{ partialCancelOrder.inboundNo }} — 选择需要取消的看板
+          入库单: {{ partialCancelOrder.inboundNo }} — 选择需要取消的库存标签
         </p>
         <el-table
-          :data="partialCancelKanbans"
+          :data="partialCancelInventoryTags"
           border
           stripe
           size="small"
           @selection-change="onPartialCancelSelectionChange"
         >
           <el-table-column type="selection" width="50" :selectable="(row) => row.status !== 'RECEIVED'" />
-          <el-table-column prop="kanbanCode" label="看板码" min-width="180" />
+          <el-table-column prop="inventoryTagCode" label="库存标签码" min-width="180" />
           <el-table-column prop="materialCode" label="物料编码" min-width="140" />
           <el-table-column prop="materialName" label="物料名称" min-width="180" />
           <el-table-column prop="qty" label="数量" width="100" align="right" />
@@ -252,11 +252,11 @@ import {
   cancelInboundOrder,
   createInboundOrder,
   fetchInboundOrders,
-  fetchKanbansByOrderId,
+  fetchInventoryTagsByOrderId,
   releaseInboundOrder,
   updateInboundOrder
 } from '../../api/inbound'
-import { cancelKanbansBatch } from '../../api/inventory'
+import { cancelInventoryTagsBatch } from '../../api/inventory'
 import { fetchMasterDataOptions } from '../../api/masterData'
 import InboundOrderFormView from './InboundOrderFormView.vue'
 
@@ -264,14 +264,14 @@ const router = useRouter()
 
 const statusOptions = [
   { value: 'DRAFT', label: '草稿' },
-  { value: 'RELEASED', label: '已释放' },
+  { value: 'READY_TO_RECEIVE', label: '待收货' },
   { value: 'PARTIAL_RECEIVED', label: '部分入库' },
   { value: 'COMPLETED', label: '已完成' },
   { value: 'CANCELLED', label: '已取消' }
 ]
 
 const DRAFT = 'DRAFT'
-const RELEASED = 'RELEASED'
+const READY_TO_RECEIVE = 'READY_TO_RECEIVE'
 const COMPLETED = 'COMPLETED'
 const PARTIAL_RECEIVED = 'PARTIAL_RECEIVED'
 const CANCELLED = 'CANCELLED'
@@ -302,7 +302,7 @@ const pageSize = ref(10)
 // Partial cancel
 const partialCancelVisible = ref(false)
 const partialCancelOrder = ref(null)
-const partialCancelKanbans = ref([])
+const partialCancelInventoryTags = ref([])
 const partialCancelSelectedIds = ref([])
 const partialCancelling = ref(false)
 
@@ -313,7 +313,7 @@ const paginatedOrders = computed(() => {
 
 const statusMap = {
   [DRAFT]: '草稿',
-  [RELEASED]: '已释放',
+  [READY_TO_RECEIVE]: '待收货',
   [PARTIAL_RECEIVED]: '部分入库',
   [COMPLETED]: '已完成',
   [CANCELLED]: '已取消'
@@ -321,18 +321,18 @@ const statusMap = {
 
 const statusTagType = {
   [DRAFT]: 'info',
-  [RELEASED]: 'warning',
+  [READY_TO_RECEIVE]: 'warning',
   [PARTIAL_RECEIVED]: 'success',
   [COMPLETED]: 'success',
   [CANCELLED]: 'danger'
 }
 
-const canEdit = (row) => [DRAFT, RELEASED].includes(row.status)
+const canEdit = (row) => [DRAFT, READY_TO_RECEIVE].includes(row.status)
 const canRelease = (row) => row.status === DRAFT
-const canCancel = (row) => [DRAFT, RELEASED].includes(row.status)
-const canPrint = (row) => [RELEASED, PARTIAL_RECEIVED, COMPLETED].includes(row.status)
-const canPrintKanbans = (row) => [RELEASED, PARTIAL_RECEIVED, COMPLETED].includes(row.status)
-const canPartialCancel = (row) => [RELEASED, PARTIAL_RECEIVED].includes(row.status)
+const canCancel = (row) => [DRAFT, READY_TO_RECEIVE].includes(row.status)
+const canPrint = (row) => [READY_TO_RECEIVE, PARTIAL_RECEIVED, COMPLETED].includes(row.status)
+const canPrintInventoryTags = (row) => [READY_TO_RECEIVE, PARTIAL_RECEIVED, COMPLETED].includes(row.status)
+const canPartialCancel = (row) => [READY_TO_RECEIVE, PARTIAL_RECEIVED].includes(row.status)
 
 function statusType(status) {
   return statusTagType[status] || 'info'
@@ -444,19 +444,19 @@ async function handleSave(payload, mode) {
 async function handleRelease(row) {
   try {
     const result = await releaseInboundOrder(row.id)
-    if (result.kanbanCount) {
-      const totalQty = (result.kanbanCodes || []).length > 0 && result.order
+    if (result.inventoryTagCount) {
+      const totalQty = (result.inventoryTagCodes || []).length > 0 && result.order
         ? result.order.plannedQty || 0 : 0
-      const msg = `已生成 ${result.kanbanCount} 个看板`
+      const msg = `已转为待收货并生成 ${result.inventoryTagCount} 个库存标签`
         + (totalQty ? `（共 ${totalQty} 件）` : '')
-        + `: ${(result.kanbanCodes || []).join(', ')}`
+        + `: ${(result.inventoryTagCodes || []).join(', ')}`
       ElMessage({ message: msg, type: 'success', duration: 6000 })
     } else {
-      ElMessage.success('入库单释放成功')
+      ElMessage.success('入库单已转为待收货')
     }
     await loadOrders()
   } catch (error) {
-    ElMessage.error(error.response?.data?.message || '释放失败')
+    ElMessage.error(error.response?.data?.message || '转待收货失败')
   }
 }
 
@@ -474,16 +474,16 @@ function handlePrintOrder(row) {
   router.push('/inbound/' + row.id)
 }
 
-function handlePrintKanbans(row) {
-  router.push('/inbound/' + row.id + '/kanbans')
+function handlePrintInventoryTags(row) {
+  router.push('/inbound/' + row.id + '/inventory-tags')
 }
 
 async function openPartialCancelDialog(row) {
   partialCancelOrder.value = row
   partialCancelSelectedIds.value = []
   try {
-    const kanbans = await fetchKanbansByOrderId(row.id)
-    partialCancelKanbans.value = (kanbans || []).filter(
+    const inventoryTags = await fetchInventoryTagsByOrderId(row.id)
+    partialCancelInventoryTags.value = (inventoryTags || []).filter(
       (k) => k.status === 'PRINTED' || k.status === 'RECEIVED'
     ).map((k) => ({
       ...k,
@@ -491,25 +491,25 @@ async function openPartialCancelDialog(row) {
     }))
     partialCancelVisible.value = true
   } catch (error) {
-    ElMessage.error(error.response?.data?.message || '加载看板列表失败')
+    ElMessage.error(error.response?.data?.message || '加载库存标签列表失败')
   }
 }
 
 function onPartialCancelSelectionChange(selection) {
   partialCancelSelectedIds.value = selection
     .filter((k) => !k._disabled)
-    .map((k) => k.kanbanId)
+    .map((k) => k.inventoryTagId)
 }
 
 async function confirmPartialCancel() {
   if (!partialCancelSelectedIds.value.length) {
-    ElMessage.warning('请选择需要取消的看板')
+    ElMessage.warning('请选择需要取消的库存标签')
     return
   }
   partialCancelling.value = true
   try {
-    await cancelKanbansBatch(partialCancelSelectedIds.value)
-    ElMessage.success('看板取消成功')
+    await cancelInventoryTagsBatch(partialCancelSelectedIds.value)
+    ElMessage.success('库存标签取消成功')
     partialCancelVisible.value = false
     await loadOrders()
   } catch (error) {

@@ -1,7 +1,7 @@
 <template>
   <section class="module-shell">
     <div class="toolbar">
-      <h2>看板详情</h2>
+      <h2>库存标签详情</h2>
       <div class="toolbar-actions">
         <el-button size="default" :disabled="selectedCount === 0" @click="printSelected">
           批量打印选中 ({{ selectedCount }})
@@ -13,7 +13,7 @@
     <el-alert v-if="errorMessage" type="error" :title="errorMessage" show-icon :closable="false" />
 
     <!-- 按库位分组，折叠展示 -->
-    <el-collapse v-if="locationGroups.length" v-model="activeGroups" class="kanban-collapse">
+    <el-collapse v-if="locationGroups.length" v-model="activeGroups" class="inventoryTag-collapse">
       <el-collapse-item
         v-for="grp in locationGroups"
         :key="grp.locationId"
@@ -22,57 +22,57 @@
         <template #title>
           <div class="group-title-row">
             <strong>{{ grp.locationName || '未分配库位' }}</strong>
-            <el-tag size="small" type="info" effect="plain">{{ grp.kanbans.length }} 个看板</el-tag>
+            <el-tag size="small" type="info" effect="plain">{{ grp.inventoryTags.length }} 个库存标签</el-tag>
             <span class="group-piece-sum" v-if="grp.totalPieces > 0">共 {{ grp.totalPieces }} 件</span>
           </div>
         </template>
 
-        <div class="kanban-list">
-          <div v-for="(kanban, i) in grp.kanbans" :key="kanban.kanbanCode" class="kanban-row">
-            <el-checkbox v-model="kanban._checked" class="no-print kanban-check" />
-            <article :class="['kanban-card', { 'printing-card': isPrintable(kanban, kanban._globalIndex) }]">
+        <div class="inventoryTag-list">
+          <div v-for="(inventoryTag, i) in grp.inventoryTags" :key="inventoryTag.inventoryTagCode" class="inventoryTag-row">
+            <el-checkbox v-model="inventoryTag._checked" class="no-print inventoryTag-check" />
+            <article :class="['inventoryTag-card', { 'printing-card': isPrintable(inventoryTag, inventoryTag._globalIndex) }]">
               <div class="card-left">
                 <div class="card-header-row">
-                  <h3>{{ kanban.kanbanCode }}</h3>
+                  <h3>{{ inventoryTag.inventoryTagCode }}</h3>
                 </div>
                 <div class="info-row">
                   <span><strong>状态</strong>
-                    <el-tag :type="statusType(kanban.status)" size="small">{{ statusLabel(kanban.status) }}</el-tag>
+                    <el-tag :type="statusType(inventoryTag.status)" size="small">{{ statusLabel(inventoryTag.status) }}</el-tag>
                   </span>
-                  <span><strong>入库单</strong> {{ kanban.inboundNo }}</span>
+                  <span><strong>入库单</strong> {{ inventoryTag.inboundNo }}</span>
                 </div>
                 <div class="info-row">
-                  <span><strong>供应商</strong> {{ kanban.supplierCode }} {{ kanban.supplierName }}</span>
+                  <span><strong>供应商</strong> {{ inventoryTag.supplierCode }} {{ inventoryTag.supplierName }}</span>
                 </div>
                 <div class="info-row">
-                  <span><strong>物料</strong> {{ kanban.materialCode }} {{ kanban.materialName }}</span>
+                  <span><strong>物料</strong> {{ inventoryTag.materialCode }} {{ inventoryTag.materialName }}</span>
                 </div>
                 <div class="info-row">
                   <span><strong>库位</strong> {{ grp.locationName }}</span>
-                  <span><strong>数量</strong> {{ kanban.qty }}</span>
+                  <span><strong>数量</strong> {{ inventoryTag.qty }}</span>
                 </div>
                 <div class="info-row">
-                  <span><strong>容器</strong> {{ kanban.containerTypeName }}</span>
-                  <span><strong>装箱</strong> {{ kanban._boxLabel }}</span>
+                  <span><strong>容器</strong> {{ inventoryTag.containerTypeName }}</span>
+                  <span><strong>装箱</strong> {{ inventoryTag._boxLabel }}</span>
                 </div>
               </div>
               <div class="card-right">
-                <img v-if="qrCodes[kanban.kanbanCode]" :src="qrCodes[kanban.kanbanCode]" alt="QR" width="80" height="80" />
+                <img v-if="qrCodes[inventoryTag.inventoryTagCode]" :src="qrCodes[inventoryTag.inventoryTagCode]" alt="QR" width="80" height="80" />
               </div>
             </article>
-            <div class="kanban-actions">
-              <el-button size="small" @click="copyCode(kanban.kanbanCode)">复制看板码</el-button>
-              <el-button v-if="kanban.status==='PRINTED'" size="small" type="success"
-                :loading="receivingIdx === kanban._globalIndex" @click="receiveOne(kanban)">一键入库</el-button>
-              <el-button size="small" @click="printOne(kanban._globalIndex)">打印此卡</el-button>
-              <el-button size="small" type="success" @click="saveOne(kanban)">保存为图片</el-button>
+            <div class="inventoryTag-actions">
+              <el-button size="small" @click="copyCode(inventoryTag.inventoryTagCode)">复制库存标签码</el-button>
+              <el-button v-if="inventoryTag.status==='PRINTED'" size="small" type="success"
+                :loading="receivingIdx === inventoryTag._globalIndex" @click="receiveOne(inventoryTag)">一键入库</el-button>
+              <el-button size="small" @click="printOne(inventoryTag._globalIndex)">打印此卡</el-button>
+              <el-button size="small" type="success" @click="saveOne(inventoryTag)">保存为图片</el-button>
             </div>
           </div>
         </div>
       </el-collapse-item>
     </el-collapse>
 
-    <el-empty v-else-if="!loading && !errorMessage" description="暂无看板数据" />
+    <el-empty v-else-if="!loading && !errorMessage" description="暂无库存标签数据" />
   </section>
 </template>
 
@@ -81,14 +81,14 @@ import { computed, onBeforeMount, onBeforeUnmount, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import QRCode from 'qrcode'
-import { fetchKanbansByOrderId } from '../../api/inbound'
+import { fetchInventoryTagsByOrderId } from '../../api/inbound'
 import { scanInbound } from '../../api/inventory'
 import { saveAsImage } from '../../composables/useSaveImage'
 
 const route = useRoute()
 const loading = ref(false)
 const errorMessage = ref('')
-const kanbans = ref([])
+const inventoryTags = ref([])
 const qrCodes = ref({})
 const printingIndex = ref(-1)
 const printingMode = ref('all')
@@ -110,7 +110,7 @@ function computeBoxLabels(list) {
     lineMap[ln].push(k)
   }
   for (const [ln, kans] of Object.entries(lineMap)) {
-    kans.sort((a, b) => (a.kanbanCode || '').localeCompare(b.kanbanCode || ''))
+    kans.sort((a, b) => (a.inventoryTagCode || '').localeCompare(b.inventoryTagCode || ''))
     const total = kans.length
     const cap = kans[0]?.capacityQty || 0
     kans.forEach((k, idx) => {
@@ -129,20 +129,20 @@ function groupByLocation(list) {
     const locId = k.locationId || 0
     const locName = k.locationName || '未分配库位'
     const key = `${locId}:${locName}`
-    if (!map[key]) map[key] = { locationId: locId, locationName: locName, kanbans: [], totalPieces: 0 }
-    map[key].kanbans.push(k)
+    if (!map[key]) map[key] = { locationId: locId, locationName: locName, inventoryTags: [], totalPieces: 0 }
+    map[key].inventoryTags.push(k)
     map[key].totalPieces += Number(k.qty) || 0
   }
   return Object.values(map).sort((a, b) => (a.locationName || '').localeCompare(b.locationName || ''))
 }
 
-const locationGroups = computed(() => groupByLocation(kanbans.value))
+const locationGroups = computed(() => groupByLocation(inventoryTags.value))
 
 async function generateQrCodes(list) {
   const codes = {}
   for (const k of list) {
-    try { codes[k.kanbanCode] = await QRCode.toDataURL(k.kanbanCode, { width: 80 }) }
-    catch { codes[k.kanbanCode] = '' }
+    try { codes[k.inventoryTagCode] = await QRCode.toDataURL(k.inventoryTagCode, { width: 80 }) }
+    catch { codes[k.inventoryTagCode] = '' }
   }
   qrCodes.value = codes
 }
@@ -152,49 +152,49 @@ async function loadData() {
   if (!id) { errorMessage.value = '入库单编号缺失'; return }
   loading.value = true; errorMessage.value = ''
   try {
-    const result = await fetchKanbansByOrderId(id)
-    kanbans.value = (result || []).map((k, i) => ({ ...k, _checked: false, _globalIndex: i }))
-    computeBoxLabels(kanbans.value)
-    if (kanbans.value.length) await generateQrCodes(kanbans.value)
+    const result = await fetchInventoryTagsByOrderId(id)
+    inventoryTags.value = (result || []).map((k, i) => ({ ...k, _checked: false, _globalIndex: i }))
+    computeBoxLabels(inventoryTags.value)
+    if (inventoryTags.value.length) await generateQrCodes(inventoryTags.value)
     activeGroups.value = locationGroups.value.map(g => String(g.locationId))
   } catch (e) {
-    errorMessage.value = e.response?.data?.message || '加载看板数据失败'
+    errorMessage.value = e.response?.data?.message || '加载库存标签数据失败'
   } finally { loading.value = false }
 }
 
 function copyCode(code) {
   navigator.clipboard.writeText(code)
-  ElMessage.success('看板码已复制')
+  ElMessage.success('库存标签码已复制')
 }
 
-async function receiveOne(kanban) {
-  receivingIdx.value = kanban._globalIndex
-  try { await scanInbound(kanban.kanbanCode); ElMessage.success('入库成功'); await loadData() }
+async function receiveOne(inventoryTag) {
+  receivingIdx.value = inventoryTag._globalIndex
+  try { await scanInbound(inventoryTag.inventoryTagCode); ElMessage.success('入库成功'); await loadData() }
   catch (e) { ElMessage.error(e.response?.data?.message || '入库失败') }
   finally { receivingIdx.value = -1 }
 }
 
-const selectedCount = computed(() => kanbans.value.filter(k => k._checked).length)
+const selectedCount = computed(() => inventoryTags.value.filter(k => k._checked).length)
 
-function isPrintable(kanban, i) {
+function isPrintable(inventoryTag, i) {
   if (printingMode.value === 'all') return true
-  if (printingMode.value === 'selected') return kanban._checked
+  if (printingMode.value === 'selected') return inventoryTag._checked
   if (printingMode.value === 'single') return printingIndex.value === i
   return false
 }
 
 function printAll() { printingMode.value = 'all'; setTimeout(() => window.print(), 100) }
 function printSelected() {
-  if (selectedCount.value === 0) { ElMessage.warning('请至少勾选一个看板'); return }
+  if (selectedCount.value === 0) { ElMessage.warning('请至少勾选一个库存标签'); return }
   printingMode.value = 'selected'; setTimeout(() => window.print(), 100)
 }
 function printOne(i) { printingMode.value = 'single'; printingIndex.value = i; setTimeout(() => window.print(), 100) }
 
-async function saveOne(kanban) {
-  const cards = document.querySelectorAll('.kanban-card')
-  const el = cards[kanban._globalIndex]
-  if (!el) { ElMessage.error('未找到看板卡片'); return }
-  try { await saveAsImage(el, kanban.kanbanCode); ElMessage.success('已保存为图片') }
+async function saveOne(inventoryTag) {
+  const cards = document.querySelectorAll('.inventoryTag-card')
+  const el = cards[inventoryTag._globalIndex]
+  if (!el) { ElMessage.error('未找到库存标签卡片'); return }
+  try { await saveAsImage(el, inventoryTag.inventoryTagCode); ElMessage.success('已保存为图片') }
   catch { ElMessage.error('保存失败') }
 }
 
@@ -214,31 +214,31 @@ h2 { margin: 0; }
 }
 .toolbar-actions { display: flex; gap: 8px; }
 
-.kanban-collapse { margin-bottom: 20px; }
+.inventoryTag-collapse { margin-bottom: 20px; }
 .group-title-row { display: flex; align-items: center; gap: 12px; }
 .group-piece-sum { font-size: 13px; color: #909399; }
 
-.kanban-list {
+.inventoryTag-list {
   display: flex; flex-direction: column; align-items: center; gap: 16px;
   padding: 12px 0;
 }
 
-.kanban-row {
+.inventoryTag-row {
   display: flex; align-items: center; gap: 10px;
 }
 
-.kanban-check { flex-shrink: 0; }
+.inventoryTag-check { flex-shrink: 0; }
 
-.kanban-actions {
+.inventoryTag-actions {
   width: 100px; flex-shrink: 0;
   display: flex; flex-direction: column; gap: 4px;
 }
-.kanban-actions :deep(.el-button) {
+.inventoryTag-actions :deep(.el-button) {
   width: 100px !important; margin-left: 0 !important; margin-right: 0 !important;
   justify-content: center;
 }
 
-.kanban-card {
+.inventoryTag-card {
   display: flex; width: 120mm; min-height: 32mm;
   border: 1px solid #111827; background: #fff; padding: 0;
 }
@@ -262,12 +262,12 @@ h2 { margin: 0; }
 }
 
 @media print {
-  .toolbar, .el-alert, .kanban-check { display: none; }
-  .kanban-card { display: none; border: 1px solid #000; }
-  .kanban-card.printing-card { display: flex; margin: 0 auto; page-break-after: always; }
-  .kanban-card:last-child.printing-card { page-break-after: auto; }
+  .toolbar, .el-alert, .inventoryTag-check { display: none; }
+  .inventoryTag-card { display: none; border: 1px solid #000; }
+  .inventoryTag-card.printing-card { display: flex; margin: 0 auto; page-break-after: always; }
+  .inventoryTag-card:last-child.printing-card { page-break-after: auto; }
   .card-right { border-left-color: #000; }
-  .kanban-actions { display: none; }
+  .inventoryTag-actions { display: none; }
   :deep(.el-collapse-item__header) { display: none; }
   :deep(.el-collapse-item__content) { display: block !important; }
 }

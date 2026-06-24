@@ -96,10 +96,10 @@
           <el-table-column label="行号" width="70">
             <template #default="{ row }">{{ row.lineNo }}</template>
           </el-table-column>
-          <el-table-column prop="kanbanCode" label="看板码" min-width="200">
+          <el-table-column prop="inventoryTagCode" label="库存标签码" min-width="200">
             <template #default="{ row }">
-              <code>{{ row.kanbanCode }}</code>
-              <el-button size="small" text type="primary" style="margin-left:4px" @click="copyCode(row.kanbanCode)">
+              <code>{{ row.inventoryTagCode }}</code>
+              <el-button size="small" text type="primary" style="margin-left:4px" @click="copyCode(row.inventoryTagCode)">
                 <el-icon><DocumentCopy /></el-icon>
               </el-button>
             </template>
@@ -108,7 +108,7 @@
           <el-table-column prop="materialName" label="物料名称" min-width="150" />
           <el-table-column prop="locationName" label="库位" width="130" />
           <el-table-column prop="lockQty" label="锁定量" width="100" align="right" />
-          <el-table-column label="看板状态" width="100">
+          <el-table-column label="库存标签状态" width="100">
             <template #default="{ row }">
               <el-tag :type="row.lockStatus==='LOCKED'?'warning':'success'" size="small">
                 {{ row.lockStatus==='LOCKED'?'待拣货':'已出库' }}

@@ -4,12 +4,12 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public record ScanOutboundResponse(
-        String kanbanCode,
+        String inventoryTagCode,
         String materialCode,
         String materialName,
         String locationName,
         BigDecimal pickedQty,
-        String newKanbanStatus,
+        String newInventoryTagStatus,
         LocalDateTime occurredAt,
         Long outboundOrderId,
         Long outboundOrderLineId,

@@ -1,8 +1,8 @@
 package com.scut.wms.inventory;
 
-public class KanbanTraceView {
-    private String kanbanCode;
-    private String kanbanStatus;
+public class InventoryTagTraceView {
+    private String inventoryTagCode;
+    private String inventoryTagStatus;
     private String inboundNo;
     private String materialCode;
     private String materialName;
@@ -11,20 +11,20 @@ public class KanbanTraceView {
     private String scannedAt;
     private String movementNo;
 
-    public String getKanbanCode() {
-        return kanbanCode;
+    public String getInventoryTagCode() {
+        return inventoryTagCode;
     }
 
-    public void setKanbanCode(String kanbanCode) {
-        this.kanbanCode = kanbanCode;
+    public void setInventoryTagCode(String inventoryTagCode) {
+        this.inventoryTagCode = inventoryTagCode;
     }
 
-    public String getKanbanStatus() {
-        return kanbanStatus;
+    public String getInventoryTagStatus() {
+        return inventoryTagStatus;
     }
 
-    public void setKanbanStatus(String kanbanStatus) {
-        this.kanbanStatus = kanbanStatus;
+    public void setInventoryTagStatus(String inventoryTagStatus) {
+        this.inventoryTagStatus = inventoryTagStatus;
     }
 
     public String getInboundNo() {

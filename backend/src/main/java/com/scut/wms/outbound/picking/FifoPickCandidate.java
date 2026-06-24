@@ -4,8 +4,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public class FifoPickCandidate {
-    private Long kanbanId;
-    private String kanbanCode;
+    private Long inventoryTagId;
+    private String inventoryTagCode;
     private BigDecimal boardQty;
     private BigDecimal pickedQty;
     private LocalDateTime receivedAt;
@@ -13,10 +13,10 @@ public class FifoPickCandidate {
     private Long warehouseId;
     private Long storageLocationId;
 
-    public Long getKanbanId() { return kanbanId; }
-    public void setKanbanId(Long kanbanId) { this.kanbanId = kanbanId; }
-    public String getKanbanCode() { return kanbanCode; }
-    public void setKanbanCode(String kanbanCode) { this.kanbanCode = kanbanCode; }
+    public Long getInventoryTagId() { return inventoryTagId; }
+    public void setInventoryTagId(Long inventoryTagId) { this.inventoryTagId = inventoryTagId; }
+    public String getInventoryTagCode() { return inventoryTagCode; }
+    public void setInventoryTagCode(String inventoryTagCode) { this.inventoryTagCode = inventoryTagCode; }
     public BigDecimal getBoardQty() { return boardQty; }
     public void setBoardQty(BigDecimal boardQty) { this.boardQty = boardQty; }
     public BigDecimal getPickedQty() { return pickedQty; }

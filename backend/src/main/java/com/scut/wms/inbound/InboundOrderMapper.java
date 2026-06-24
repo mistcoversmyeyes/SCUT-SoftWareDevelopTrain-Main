@@ -16,9 +16,9 @@ public interface InboundOrderMapper extends BaseMapper<InboundOrder> {
 
     List<InboundPrintLine> selectPrintLines(@Param("id") Long id);
 
-    List<KanbanPrintResponse> selectKanbanPrints(@Param("id") Long id);
+    List<InventoryTagPrintResponse> selectInventoryTagPrints(@Param("id") Long id);
 
-    List<KanbanPrintResponse> selectKanbanPrintsByFilter(
+    List<InventoryTagPrintResponse> selectInventoryTagPrintsByFilter(
             @Param("status") String status,
             @Param("inboundNo") String inboundNo,
             @Param("materialCode") String materialCode
