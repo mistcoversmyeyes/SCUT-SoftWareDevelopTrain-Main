@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
 public class InboundOrderService {
     private static final String ENABLED = "ENABLED";
     private static final String DRAFT = "DRAFT";
-    private static final String RELEASED = "RELEASED";
+    private static final String READY_TO_RECEIVE = "READY_TO_RECEIVE";
     private static final String PARTIAL_RECEIVED = "PARTIAL_RECEIVED";
     private static final String COMPLETED = "COMPLETED";
     private static final String CANCELLED = "CANCELLED";
@@ -121,7 +121,7 @@ public class InboundOrderService {
             replaceOrder(order, request, false);
             return toResponse(id);
         }
-        if (RELEASED.equals(order.getStatus())) {
+        if (READY_TO_RECEIVE.equals(order.getStatus())) {
             if (hasReceived(id)) {
                 throw new BusinessException("已有收货记录的入库单不能修改");
             }
@@ -134,11 +134,11 @@ public class InboundOrderService {
     @Transactional
     public InboundOrderResponse release(Long id) {
         InboundOrder order = requireLockedOrder(id);
-        if (RELEASED.equals(order.getStatus())) {
+        if (READY_TO_RECEIVE.equals(order.getStatus())) {
             return toResponse(id);
         }
         if (!DRAFT.equals(order.getStatus())) {
-            throw new BusinessException("当前状态不允许释放入库单");
+            throw new BusinessException("当前状态不允许转为待收货");
         }
 
         List<InboundOrderLine> lines = linesOf(id);
@@ -152,7 +152,7 @@ public class InboundOrderService {
             insertInventoryTags(order, lines, now);
         }
 
-        order.setStatus(RELEASED);
+        order.setStatus(READY_TO_RECEIVE);
         order.setReleasedAt(now);
         inboundOrderMapper.updateById(order);
         return toResponse(id);

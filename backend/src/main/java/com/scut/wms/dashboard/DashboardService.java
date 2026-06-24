@@ -52,7 +52,7 @@ public class DashboardService {
         long totalMaterials = materialMapper.selectCount(Wrappers.emptyWrapper());
 
         long pendingOrders = inboundOrderMapper.selectCount(Wrappers.<InboundOrder>lambdaQuery()
-                .in(InboundOrder::getStatus, "DRAFT", "RELEASED", "PARTIAL_RECEIVED"));
+                .in(InboundOrder::getStatus, "DRAFT", "READY_TO_RECEIVE", "PARTIAL_RECEIVED"));
 
         List<DashboardStatsResponse.LowStockAlert> lowStockAlerts = new ArrayList<>();
         List<DashboardStatsResponse.HighStockAlert> highStockAlerts = new ArrayList<>();

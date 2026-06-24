@@ -136,15 +136,15 @@ class InboundOrderControllerTest {
     }
 
     @Test
-    void updateReleasedUnreceivedOrderRegeneratesInventoryTagsWithoutDuplicates() throws Exception {
-        Long orderId = createReleasedOrder("PO-TDD-UPDATE-RELEASED");
+    void updateReadyToReceiveOrderRegeneratesInventoryTagsWithoutDuplicates() throws Exception {
+        Long orderId = createReadyToReceiveOrder("PO-TDD-UPDATE-READY");
         assertThat(inventoryTagsOf(orderId)).hasSize(2);
 
         mockMvc.perform(put("/api/inbound-orders/{id}", orderId)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(oneLineUpdateRequest("PO-TDD-RELEASED-UPDATED")))
+                        .content(oneLineUpdateRequest("PO-TDD-READY-UPDATED")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("RELEASED"))
+                .andExpect(jsonPath("$.status").value("READY_TO_RECEIVE"))
                 .andExpect(jsonPath("$.lineCount").value(1))
                 .andExpect(jsonPath("$.plannedQty").value(7.0));
 
@@ -163,8 +163,8 @@ class InboundOrderControllerTest {
     }
 
     @Test
-    void updateRejectsReleasedOrderWithReceivedQuantity() throws Exception {
-        Long orderId = createReleasedOrder("PO-TDD-UPDATE-RECEIVED-QTY");
+    void updateRejectsReadyToReceiveOrderWithReceivedQuantity() throws Exception {
+        Long orderId = createReadyToReceiveOrder("PO-TDD-UPDATE-RECEIVED-QTY");
         InboundOrderLine line = linesOf(orderId).get(0);
         line.setReceivedQty(new BigDecimal("1.000"));
         inboundOrderLineMapper.updateById(line);
@@ -179,8 +179,8 @@ class InboundOrderControllerTest {
     }
 
     @Test
-    void updateRejectsReleasedOrderWithReceivedInventoryTag() throws Exception {
-        Long orderId = createReleasedOrder("PO-TDD-UPDATE-RECEIVED-KB");
+    void updateRejectsReadyToReceiveOrderWithReceivedInventoryTag() throws Exception {
+        Long orderId = createReadyToReceiveOrder("PO-TDD-UPDATE-RECEIVED-KB");
         markFirstInventoryTagReceived(orderId);
 
         mockMvc.perform(put("/api/inbound-orders/{id}", orderId)
@@ -193,18 +193,18 @@ class InboundOrderControllerTest {
     }
 
     @Test
-    void releaseGeneratesInventoryTagRowsAndChangesStatusToReleased() throws Exception {
+    void releaseGeneratesInventoryTagRowsAndChangesStatusToReadyToReceive() throws Exception {
         Long orderId = createOrder("PO-TDD-RELEASE");
 
         mockMvc.perform(post("/api/inbound-orders/{id}/release", orderId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.order.status").value("RELEASED"))
+                .andExpect(jsonPath("$.order.status").value("READY_TO_RECEIVE"))
                 .andExpect(jsonPath("$.order.releasedAt").isNotEmpty());
 
         InboundOrder order = inboundOrderMapper.selectById(orderId);
         List<InventoryTag> inventoryTags = inventoryTagsOf(orderId);
 
-        assertThat(order.getStatus()).isEqualTo("RELEASED");
+        assertThat(order.getStatus()).isEqualTo("READY_TO_RECEIVE");
         assertThat(order.getReleasedAt()).isNotNull();
         assertThat(inventoryTags).hasSize(2);
         assertThat(inventoryTags).extracting(InventoryTag::getStatus).containsOnly("PRINTED");
@@ -220,7 +220,7 @@ class InboundOrderControllerTest {
                 .andExpect(status().isOk());
         mockMvc.perform(post("/api/inbound-orders/{id}/release", orderId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.order.status").value("RELEASED"));
+                .andExpect(jsonPath("$.order.status").value("READY_TO_RECEIVE"));
 
         assertThat(inventoryTagsOf(orderId)).hasSize(2);
     }
@@ -250,7 +250,7 @@ class InboundOrderControllerTest {
     }
 
     @Test
-    void cancelReleasedOrderWithNoReceivedQuantityMarksOrderAndInventoryTagsCancelled() throws Exception {
+    void cancelReadyToReceiveOrderWithNoReceivedQuantityMarksOrderAndInventoryTagsCancelled() throws Exception {
         Long orderId = createOrder("PO-TDD-CANCEL");
         mockMvc.perform(post("/api/inbound-orders/{id}/release", orderId))
                 .andExpect(status().isOk());
@@ -269,7 +269,7 @@ class InboundOrderControllerTest {
 
     @Test
     void cancelRejectsOrderWithReceivedQuantity() throws Exception {
-        Long orderId = createReleasedOrder("PO-TDD-CANCEL-RECEIVED-QTY");
+        Long orderId = createReadyToReceiveOrder("PO-TDD-CANCEL-RECEIVED-QTY");
         InboundOrderLine line = linesOf(orderId).get(0);
         line.setReceivedQty(new BigDecimal("1.000"));
         inboundOrderLineMapper.updateById(line);
@@ -277,19 +277,19 @@ class InboundOrderControllerTest {
         mockMvc.perform(post("/api/inbound-orders/{id}/cancel", orderId))
                 .andExpect(status().isBadRequest());
 
-        assertThat(inboundOrderMapper.selectById(orderId).getStatus()).isEqualTo("RELEASED");
+        assertThat(inboundOrderMapper.selectById(orderId).getStatus()).isEqualTo("READY_TO_RECEIVE");
         assertThat(inventoryTagsOf(orderId)).extracting(InventoryTag::getStatus).containsOnly("PRINTED");
     }
 
     @Test
     void cancelRejectsOrderWithReceivedInventoryTag() throws Exception {
-        Long orderId = createReleasedOrder("PO-TDD-CANCEL-RECEIVED-KB");
+        Long orderId = createReadyToReceiveOrder("PO-TDD-CANCEL-RECEIVED-KB");
         markFirstInventoryTagReceived(orderId);
 
         mockMvc.perform(post("/api/inbound-orders/{id}/cancel", orderId))
                 .andExpect(status().isBadRequest());
 
-        assertThat(inboundOrderMapper.selectById(orderId).getStatus()).isEqualTo("RELEASED");
+        assertThat(inboundOrderMapper.selectById(orderId).getStatus()).isEqualTo("READY_TO_RECEIVE");
     }
 
     @Test
@@ -406,7 +406,7 @@ class InboundOrderControllerTest {
                 .asLong();
     }
 
-    private Long createReleasedOrder(String sourceDocNo) throws Exception {
+    private Long createReadyToReceiveOrder(String sourceDocNo) throws Exception {
         Long orderId = createOrder(sourceDocNo);
         mockMvc.perform(post("/api/inbound-orders/{id}/release", orderId))
                 .andExpect(status().isOk());

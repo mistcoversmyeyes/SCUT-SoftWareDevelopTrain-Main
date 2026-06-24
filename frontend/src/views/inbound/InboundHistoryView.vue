@@ -176,7 +176,7 @@ const paginatedOrders = computed(() => {
 
 const statusMap = {
   DRAFT: '草稿',
-  RELEASED: '已释放',
+  READY_TO_RECEIVE: '待收货',
   PARTIAL_RECEIVED: '部分入库',
   COMPLETED: '已完成',
   CANCELLED: '已取消'
@@ -184,7 +184,7 @@ const statusMap = {
 
 const statusTagType = {
   DRAFT: 'info',
-  RELEASED: 'warning',
+  READY_TO_RECEIVE: 'warning',
   PARTIAL_RECEIVED: 'success',
   COMPLETED: 'success',
   CANCELLED: 'danger'

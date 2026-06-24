@@ -28,7 +28,7 @@ import java.util.UUID;
 public class InventoryService {
     private static final String PRINTED = "PRINTED";
     private static final String RECEIVED = "RECEIVED";
-    private static final String RELEASED = "RELEASED";
+    private static final String READY_TO_RECEIVE = "READY_TO_RECEIVE";
     private static final String PARTIAL_RECEIVED = "PARTIAL_RECEIVED";
     private static final String COMPLETED = "COMPLETED";
     private static final String CANCELLED = "CANCELLED";
@@ -74,7 +74,7 @@ public class InventoryService {
         if (!PRINTED.equals(context.getInventoryTagStatus())) {
             throw new BusinessException("库存标签状态不允许入库");
         }
-        if (!RELEASED.equals(context.getOrderStatus()) && !PARTIAL_RECEIVED.equals(context.getOrderStatus())) {
+        if (!READY_TO_RECEIVE.equals(context.getOrderStatus()) && !PARTIAL_RECEIVED.equals(context.getOrderStatus())) {
             throw new BusinessException("单据状态不允许入库");
         }
 
@@ -185,7 +185,7 @@ public class InventoryService {
 
         InboundOrder order = inboundOrderMapper.selectById(inventoryTag.getInboundOrderId());
         if (order == null) throw new BusinessException("关联入库单不存在");
-        if (!RELEASED.equals(order.getStatus()) && !PARTIAL_RECEIVED.equals(order.getStatus())) {
+        if (!READY_TO_RECEIVE.equals(order.getStatus()) && !PARTIAL_RECEIVED.equals(order.getStatus())) {
             throw new BusinessException("入库单状态不允许取消库存标签");
         }
 
@@ -212,7 +212,7 @@ public class InventoryService {
                 throw new BusinessException("库存标签 %s 状态不允许取消".formatted(inventoryTag.getInventoryTagCode()));
             }
             InboundOrder order = inboundOrderMapper.selectById(inventoryTag.getInboundOrderId());
-            if (!RELEASED.equals(order.getStatus()) && !PARTIAL_RECEIVED.equals(order.getStatus())) {
+            if (!READY_TO_RECEIVE.equals(order.getStatus()) && !PARTIAL_RECEIVED.equals(order.getStatus())) {
                 throw new BusinessException("入库单 %s 状态不允许取消库存标签".formatted(order.getInboundNo()));
             }
             inventoryTag.setStatus(CANCELLED);

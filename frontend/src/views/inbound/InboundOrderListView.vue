@@ -121,7 +121,7 @@
                 :disabled="!canRelease(row)"
                 @click="handleRelease(row)"
               >
-                释放
+                转待收货
               </el-button>
               <el-button
                 type="success"
@@ -264,14 +264,14 @@ const router = useRouter()
 
 const statusOptions = [
   { value: 'DRAFT', label: '草稿' },
-  { value: 'RELEASED', label: '已释放' },
+  { value: 'READY_TO_RECEIVE', label: '待收货' },
   { value: 'PARTIAL_RECEIVED', label: '部分入库' },
   { value: 'COMPLETED', label: '已完成' },
   { value: 'CANCELLED', label: '已取消' }
 ]
 
 const DRAFT = 'DRAFT'
-const RELEASED = 'RELEASED'
+const READY_TO_RECEIVE = 'READY_TO_RECEIVE'
 const COMPLETED = 'COMPLETED'
 const PARTIAL_RECEIVED = 'PARTIAL_RECEIVED'
 const CANCELLED = 'CANCELLED'
@@ -313,7 +313,7 @@ const paginatedOrders = computed(() => {
 
 const statusMap = {
   [DRAFT]: '草稿',
-  [RELEASED]: '已释放',
+  [READY_TO_RECEIVE]: '待收货',
   [PARTIAL_RECEIVED]: '部分入库',
   [COMPLETED]: '已完成',
   [CANCELLED]: '已取消'
@@ -321,18 +321,18 @@ const statusMap = {
 
 const statusTagType = {
   [DRAFT]: 'info',
-  [RELEASED]: 'warning',
+  [READY_TO_RECEIVE]: 'warning',
   [PARTIAL_RECEIVED]: 'success',
   [COMPLETED]: 'success',
   [CANCELLED]: 'danger'
 }
 
-const canEdit = (row) => [DRAFT, RELEASED].includes(row.status)
+const canEdit = (row) => [DRAFT, READY_TO_RECEIVE].includes(row.status)
 const canRelease = (row) => row.status === DRAFT
-const canCancel = (row) => [DRAFT, RELEASED].includes(row.status)
-const canPrint = (row) => [RELEASED, PARTIAL_RECEIVED, COMPLETED].includes(row.status)
-const canPrintInventoryTags = (row) => [RELEASED, PARTIAL_RECEIVED, COMPLETED].includes(row.status)
-const canPartialCancel = (row) => [RELEASED, PARTIAL_RECEIVED].includes(row.status)
+const canCancel = (row) => [DRAFT, READY_TO_RECEIVE].includes(row.status)
+const canPrint = (row) => [READY_TO_RECEIVE, PARTIAL_RECEIVED, COMPLETED].includes(row.status)
+const canPrintInventoryTags = (row) => [READY_TO_RECEIVE, PARTIAL_RECEIVED, COMPLETED].includes(row.status)
+const canPartialCancel = (row) => [READY_TO_RECEIVE, PARTIAL_RECEIVED].includes(row.status)
 
 function statusType(status) {
   return statusTagType[status] || 'info'
@@ -447,16 +447,16 @@ async function handleRelease(row) {
     if (result.inventoryTagCount) {
       const totalQty = (result.inventoryTagCodes || []).length > 0 && result.order
         ? result.order.plannedQty || 0 : 0
-      const msg = `已生成 ${result.inventoryTagCount} 个库存标签`
+      const msg = `已转为待收货并生成 ${result.inventoryTagCount} 个库存标签`
         + (totalQty ? `（共 ${totalQty} 件）` : '')
         + `: ${(result.inventoryTagCodes || []).join(', ')}`
       ElMessage({ message: msg, type: 'success', duration: 6000 })
     } else {
-      ElMessage.success('入库单释放成功')
+      ElMessage.success('入库单已转为待收货')
     }
     await loadOrders()
   } catch (error) {
-    ElMessage.error(error.response?.data?.message || '释放失败')
+    ElMessage.error(error.response?.data?.message || '转待收货失败')
   }
 }
 

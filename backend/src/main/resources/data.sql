@@ -108,7 +108,7 @@ INSERT INTO inventory_movement (id, movement_no, movement_type, source_type, sou
 (4, 'MV-20260520093200-M3N4O5P6', 'INBOUND_RECEIVE', 'INVENTORY_TAG', 5, 5, 2, 1, 2, 2, 80,  '2026-05-20 09:32:00', '张振华');
 
 -- ==========================================================================
--- 入库单 #2 — 5 月 22 日新建，草稿状态（尚未 release）
+-- 入库单 #2 — 5 月 22 日新建，草稿状态（尚未转待收货）
 -- ==========================================================================
 INSERT INTO inbound_order (id, inbound_no, supplier_id, source_doc_no, status, remark, released_at) VALUES
 (2, 'IN-20260522-001', 3, 'PO-20260518-002', 'DRAFT', '首批车身结构件到货预告', NULL);
@@ -118,10 +118,10 @@ INSERT INTO inbound_order_line (id, inbound_order_id, line_no, material_id, supp
 (4, 2, 2, 4, 3, 300, 0, 1, 5, 3);   -- 后轮罩内板 / EP-1200(500件/箱) → release后将生成 1 箱(300)
 
 -- ==========================================================================
--- 入库单 #3 — 6 月 1 日到货，已释放全部待收
+-- 入库单 #3 — 6 月 1 日到货，待收货
 -- ==========================================================================
 INSERT INTO inbound_order (id, inbound_no, supplier_id, source_doc_no, status, remark, released_at) VALUES
-(3, 'IN-20260601-001', 2, 'PO-20260525-003', 'RELEASED', '仪表板横梁 + 加强件 批量到货', '2026-06-01 10:00:00');
+(3, 'IN-20260601-001', 2, 'PO-20260525-003', 'READY_TO_RECEIVE', '仪表板横梁 + 加强件 批量到货', '2026-06-01 10:00:00');
 
 INSERT INTO inbound_order_line (id, inbound_order_id, line_no, material_id, supplier_id, planned_qty, received_qty, target_warehouse_id, target_location_id, container_type_id) VALUES
 (5, 3, 1, 5, 2, 120, 0, 1, 6, 2),   -- 仪表板横梁 / KLT-6422(50件/箱) → 3箱(50+50+20)

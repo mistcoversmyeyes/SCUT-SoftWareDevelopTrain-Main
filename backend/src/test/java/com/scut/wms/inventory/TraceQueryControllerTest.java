@@ -61,7 +61,7 @@ class TraceQueryControllerTest {
 
         inboundOrderMapper.update(null, Wrappers.<InboundOrder>lambdaUpdate()
                 .eq(InboundOrder::getId, DEMO_ORDER_ID)
-                .set(InboundOrder::getStatus, "RELEASED")
+                .set(InboundOrder::getStatus, "READY_TO_RECEIVE")
                 .set(InboundOrder::getCompletedAt, null));
 
         resetLine(DEMO_LINE_ONE_ID);
