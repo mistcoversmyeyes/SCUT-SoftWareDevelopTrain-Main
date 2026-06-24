@@ -6,7 +6,7 @@ WP4-04 首期固定导入对象为 `inventory_flow_history`。
 
 选择原因：
 
-1. `docs/specs/week4-ai-warning-scope.md` 已将 `inventory_flow_history` 定为单对象首选优先级。
+1. `docs/specs/2026-06-23-ai-warning-scope.md` 已将 `inventory_flow_history` 定为单对象首选优先级。
 2. 它能在不改库存余额和出库事务逻辑的前提下，为后续缺货/呆滞规则提供近 7/14/30/60 天的历史输入。
 3. 它允许后续 WP4-03 直接读取独立样例流水，不依赖 WP4-01 正在并行修改的库存/出库事务实现。
 

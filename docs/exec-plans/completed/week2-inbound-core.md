@@ -50,8 +50,8 @@ Execution policy:
 ## Required Context
 
 - Hard constraints: read `FORCE_CONSTRAIN.md` before implementation.
-- Product design: `docs/specs/module-inbound-core-design.md`.
-- Data model review: `docs/specs/module-inbound-data-model-review.md`.
+- Product design: `docs/specs/2026-06-10-inbound-core-design.md`.
+- Data model review: `docs/specs/2026-06-10-inbound-data-model-review.md`.
 - Current commands: `KEY_INFO_REMINDER.md`.
 - Implementation branch: create a feature worktree from `dev/iter2`, for example `.worktrees/week2-inbound-core` on `feature/week2-inbound-core`.
 

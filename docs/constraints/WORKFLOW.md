@@ -17,7 +17,7 @@
 ```text
 产品背景与需求基线
   -> docs/iterations/iterN-*.md
-  -> docs/specs/<wp-or-module>.md
+  -> docs/specs/YYYY-MM-DD-<business-topic>-<doc-kind>.md
   -> docs/exec-plans/active/<plan>.md
   -> implementation + tests
   -> docs/exec-plans/completed/<plan>.md
@@ -30,6 +30,7 @@
 - 周迭代文件只描述阶段目标、工作包、验收方式、边界和已知风险。
 - 周迭代不得承诺“本周就是 MVP”，除非规格明确证明已形成可验收业务闭环。
 - 每个工作包进入实现前，应有足够规格说明：行为、接口、字段口径、验收标准。
+- 规格文件命名统一为 `YYYY-MM-DD-<business-topic>-<doc-kind>.md`；日期取规格内容最初创建日期，文件名不使用 `weekN` 或 `module-*` 作为信息壳。
 - 未决业务语义进入 product debt；可通过编码、测试、重构解决的问题进入 tech debt。
 - 既有 `docs/superpowers/` 文档可作为历史上下文，但新事实应归档到本 workflow 指定位置。
 
@@ -51,4 +52,3 @@
 - TODO(harden): CI 中固定后端、前端测试和构建命令。
 - TODO(harden): 检查新执行计划是否只出现在 `docs/exec-plans/active/` 或 `completed/`。
 - TODO(harden): 检查周迭代文档只进入 `docs/iterations/`。
-

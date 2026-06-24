@@ -4,7 +4,7 @@
 
 本规格服务于 Week 4 周迭代的总体需求基线。当前系统已经具备基础数据、入库单、看板、扫码入库、库存查询、出库单、箱级出库、锁货管理和强制出库审计等能力。Week 4 的目标是在既有后端和 Web 前端基础上补齐关键业务场景，形成更完整的 WMS 演示闭环，并为后续 AI 预警分析准备数据入口。
 
-产品背景第一事实源为 `docs/references/Course PPT/WMS仓储管理系统--产品介绍资料.pdf`。本周已有锁货规格见 `docs/specs/module-week4-lock-goods-design.md`，该规格作为出库锁货能力的专项设计，不覆盖本周全部需求。
+产品背景第一事实源为 `docs/references/Course PPT/WMS仓储管理系统--产品介绍资料.pdf`。本周已有锁货规格见 `docs/specs/2026-06-17-lock-goods-design.md`，该规格作为出库锁货能力的专项设计，不覆盖本周全部需求。
 
 ## 总体目标
 

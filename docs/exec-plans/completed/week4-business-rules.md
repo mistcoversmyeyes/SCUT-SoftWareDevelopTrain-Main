@@ -27,7 +27,7 @@
 
 ## 依赖
 
-- 依赖 `module-week4-lock-goods-design.md` 的既有锁货模型。
+- 依赖 `docs/specs/2026-06-17-lock-goods-design.md` 的既有锁货模型。
 - 影响 WP4-02 手机端出库、WP4-03 监控历史、WP4-05 AI 预警字段。
 
 ## 验证

@@ -51,7 +51,7 @@ inventory_movement
 inventory_balance
 ```
 
-详细 ER 图、原始 11 表 schema、范式审查和化简过程见 `docs/specs/module-inbound-data-model-review.md`。
+详细 ER 图、原始 11 表 schema、范式审查和化简过程见 `docs/specs/2026-06-10-inbound-data-model-review.md`。
 
 关键裁决：
 

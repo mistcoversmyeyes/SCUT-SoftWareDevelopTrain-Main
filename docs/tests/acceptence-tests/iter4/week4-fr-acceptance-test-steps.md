@@ -4,7 +4,7 @@
 
 适用范围：
 
-- `docs/specs/week4-overall-requirements.md` 中的 FR-01 至 FR-09。
+- `docs/specs/2026-06-23-wms-completion-requirements.md` 中的 FR-01 至 FR-09。
 - 本地演示环境与固定种子数据。
 - 课堂演示级验收，不覆盖真实 PDA、真实扫码枪、真实打印机、真实 AI 模型或外部系统集成。
 
@@ -407,7 +407,7 @@ FR 编号：
 
 - 已完成 FR-08 样例 CSV 导入。
 - 已打开 `库存监控 -> AI 数据导入` 和 `库存监控 -> 库存总览`。
-- 对照规格：`docs/specs/week4-ai-warning-scope.md`。
+- 对照规格：`docs/specs/2026-06-23-ai-warning-scope.md`。
 
 ### 操作步骤
 

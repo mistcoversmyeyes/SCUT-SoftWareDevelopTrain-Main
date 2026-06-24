@@ -6,11 +6,11 @@ Week 4 基于 Week 3 出库管理、基础数据 CRUD、入库增强、库存预
 
 相关规格：
 
-- `docs/specs/module-week3-design.md`
-- `docs/specs/module-week4-lock-goods-design.md`
-- `docs/specs/week4-overall-requirements.md`
-- `docs/specs/week4-ai-warning-scope.md`
-- `docs/specs/week4-import-ai-data-template.md`
+- `docs/specs/2026-06-15-outbound-master-data-inbound-enhancement-design.md`
+- `docs/specs/2026-06-17-lock-goods-design.md`
+- `docs/specs/2026-06-23-wms-completion-requirements.md`
+- `docs/specs/2026-06-23-ai-warning-scope.md`
+- `docs/specs/2026-06-23-ai-data-import-template.md`
 
 ## 本周目标
 
