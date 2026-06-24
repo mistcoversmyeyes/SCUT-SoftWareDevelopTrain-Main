@@ -111,6 +111,21 @@ class TraceQueryControllerTest {
     }
 
     @Test
+    void inventoryTagListByInboundNoReturnsPrintableTagRowsAndTagCode() throws Exception {
+        mockMvc.perform(get("/api/inventory/inventory-tags")
+                        .param("status", "PRINTED")
+                        .param("inboundNo", "IN-20260610-001")
+                        .param("materialCode", "5HG.807.109.C"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].inventoryTagCode").value(DEMO_BOARD_ONE_CODE))
+                .andExpect(jsonPath("$[0].status").value("PRINTED"))
+                .andExpect(jsonPath("$[0].materialCode").value("5HG.807.109.C"))
+                .andExpect(jsonPath("$[0].materialName").value("前保险杠安装支架总成"))
+                .andExpect(jsonPath("$[0].locationName").value("高位货架 A 区 01 号"));
+    }
+
+    @Test
     void inventoryTagTraceReturnsPrintedStateBeforeScanAndMovementAfterScan() throws Exception {
         mockMvc.perform(get("/api/inventory-tags/{inventoryTagCode}/trace", DEMO_BOARD_TWO_CODE))
                 .andExpect(status().isOk())

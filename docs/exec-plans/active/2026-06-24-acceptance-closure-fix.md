@@ -17,9 +17,9 @@
 - 不由本分支代替人工验收；本分支只提供重新验收的功能条件和自动化验证证据。
 - FR-03 只允许记录“当前已有手动封存/解封能力，但人工补验未完成”的事实；不得把未执行的普通出库/FIFO 联动补验写成通过。
 - 入库单状态 `RELEASED / 已释放` 迁移为 `READY_TO_RECEIVE / 待收货`。
-- 原“看板”领域对象迁移为“库存标签”。
+- 原“看板/看板单/kanban_board”领域对象迁移为“库存标签”。
 - 库存标签码前缀从 `KB:v1:` 全量改为 `IT:v1:`。
-- 数据库采用破坏式 schema 重建，不提供历史兼容迁移脚本。
+- 数据库采用破坏式 schema 重建，不提供历史兼容迁移脚本，不保留旧表旧列运行时兼容层。
 - 后端变更运行 `cd backend && mvn test`。
 - 前端逻辑变更运行 `cd frontend && npm test`。
 - 前端路由、构建配置、依赖或样式主路径变更运行 `cd frontend && npm run build`。
@@ -343,7 +343,7 @@ Update backend tests:
 - imports use `InventoryTag`.
 - mapper fields use `InventoryTagMapper`.
 - test constants use `IT:v1:...`.
-- JSON expectations use `inventoryTagCode` unless an endpoint is intentionally kept backward-compatible, which this plan does not allow.
+- JSON expectations use `inventoryTagCode`，本轮不保留旧字段兼容映射（包括 endpoint 兼容层）。
 
 - [ ] **Step 5: Run backend tests**
 
@@ -478,7 +478,7 @@ assertThat(tags).extracting(InventoryTag::getStatus).containsOnly("PRINTED");
 
 In `data.sql`, any inbound order previously in `RELEASED` state becomes `READY_TO_RECEIVE`.
 
-`POST /api/inbound-orders/{id}/release` may keep the route name for now only if renaming the endpoint would be out of scope; response and persisted state must be `READY_TO_RECEIVE`.
+`POST /api/inbound-orders/{id}/release` 需保持与入库语义一致；如进行端点重命名，沿用本轮入库状态语义迁移结果，不允许旧/新字段并行兼容。
 
 - [ ] **Step 3: Update frontend status dictionaries**
 
@@ -600,7 +600,7 @@ cd frontend && npm run build
 rg -n "KanbanBoard|KanbanBoardMapper|kanban_board|kanban_code|KB:v1|看板码|已释放|RELEASED" backend/src frontend/src docs/specs docs/tests/acceptence-tests/iter4
 ```
 
-Expected: no active implementation or user-facing terminology remains. Any intentional compatibility or historical mention must be documented inline.
+Expected: no active implementation or user-facing terminology remains. Historical mentions must be documented inline.
 
 - [ ] Check git diff hygiene:
 

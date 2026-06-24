@@ -78,7 +78,6 @@ public class DatabaseMigration implements CommandLineRunner {
             // ====== 锁货功能迁移 ======
             ensureLockTable(conn);
             ensureInventoryHoldTable(conn);
-            ensureInventoryHoldColumns(conn);
 
             ensureColumn(conn, "inventory_tag", "picked_qty",
                     "DECIMAL(18, 3) NOT NULL DEFAULT 0");
@@ -151,9 +150,134 @@ public class DatabaseMigration implements CommandLineRunner {
             } catch (Exception e) {
                 log.warn("添加外键 fk_movement_planned_location 失败: {}", e.getMessage());
             }
+
+            migrateKanbanBoardToInventoryTag(conn);
+            migrateKanbanReferencesToInventoryTag(conn);
         } catch (Exception e) {
             log.warn("数据库列迁移失败（不影响已有功能）: {}", e.getMessage());
         }
+    }
+
+    private void migrateKanbanBoardToInventoryTag(Connection conn) throws Exception {
+        if (!tableExists(conn, "kanban_board")) {
+            return;
+        }
+
+        String idCol = "id";
+        String codeCol = resolveColumn(conn, "kanban_board",
+                "kanban_board_code", "board_code", "inventory_tag_code", "code");
+        String inboundOrderIdCol = resolveColumn(conn, "kanban_board", "inbound_order_id");
+        String inboundOrderLineIdCol = resolveColumn(conn, "kanban_board", "inbound_order_line_id");
+        String qtyCol = resolveColumn(conn, "kanban_board", "board_qty", "qty");
+        String statusCol = resolveColumn(conn, "kanban_board", "status");
+        String printedAtCol = resolveColumn(conn, "kanban_board", "printed_at", "print_at", "printed_time");
+        String receivedAtCol = resolveColumn(conn, "kanban_board", "received_at", "inbound_at", "receive_at");
+        String locationIdCol = resolveColumn(conn, "kanban_board", "location_id", "storage_location_id", "target_location_id");
+        String containerTypeIdCol = resolveColumn(conn, "kanban_board", "container_type_id", "container_id");
+        String lockedByOrderIdCol = resolveColumn(conn, "kanban_board", "locked_by_order_id", "locked_order_id", "hold_order_id");
+        String lockedByOrderLineIdCol = resolveColumn(conn, "kanban_board", "locked_by_order_line_id", "locked_order_line_id", "hold_order_line_id");
+        String createdAtCol = resolveColumn(conn, "kanban_board", "created_at");
+        String updatedAtCol = resolveColumn(conn, "kanban_board", "updated_at");
+
+        if (codeCol == null || inboundOrderIdCol == null || inboundOrderLineIdCol == null || qtyCol == null || statusCol == null) {
+            log.warn("kanban_board 表缺少关键列，跳过迁移");
+            return;
+        }
+
+        String codeExpr = "CASE WHEN kb." + codeCol + " LIKE 'KB:v1:%' THEN CONCAT('IT:v1:', SUBSTRING(kb." + codeCol + ", 7)) ELSE REPLACE(kb." + codeCol + ", 'KB:v1:', 'IT:v1:') END";
+        String locationExpr = locationIdCol == null ? "0" : "COALESCE(kb." + locationIdCol + ", 0)";
+        String containerExpr = containerTypeIdCol == null ? "0" : "COALESCE(kb." + containerTypeIdCol + ", 0)";
+        String lockedByOrderIdExpr = lockedByOrderIdCol == null ? "NULL" : "kb." + lockedByOrderIdCol;
+        String lockedByOrderLineIdExpr = lockedByOrderLineIdCol == null ? "NULL" : "kb." + lockedByOrderLineIdCol;
+        String printedAtExpr = printedAtCol == null ? "NULL" : "kb." + printedAtCol;
+        String receivedAtExpr = receivedAtCol == null ? "NULL" : "kb." + receivedAtCol;
+        String createdAtExpr = createdAtCol == null ? "CURRENT_TIMESTAMP" : "kb." + createdAtCol;
+        String updatedAtExpr = updatedAtCol == null ? "CURRENT_TIMESTAMP" : "kb." + updatedAtCol;
+
+        String sql = "INSERT INTO inventory_tag (" +
+                "id, " +
+                "inventory_tag_code, " +
+                "inbound_order_id, " +
+                "inbound_order_line_id, " +
+                "board_qty, " +
+                "picked_qty, " +
+                "status, " +
+                "printed_at, " +
+                "received_at, " +
+                "location_id, " +
+                "container_type_id, " +
+                "locked_by_order_id, " +
+                "locked_by_order_line_id, " +
+                "created_at, " +
+                "updated_at" +
+                ") SELECT " +
+                "kb." + idCol + ", " +
+                codeExpr + ", " +
+                "kb." + inboundOrderIdCol + ", " +
+                "kb." + inboundOrderLineIdCol + ", " +
+                "kb." + qtyCol + ", " +
+                "0, " +
+                "kb." + statusCol + ", " +
+                printedAtExpr + ", " +
+                receivedAtExpr + ", " +
+                locationExpr + ", " +
+                containerExpr + ", " +
+                lockedByOrderIdExpr + ", " +
+                lockedByOrderLineIdExpr + ", " +
+                createdAtExpr + ", " +
+                updatedAtExpr +
+                " FROM kanban_board kb " +
+                "WHERE NOT EXISTS (SELECT 1 FROM inventory_tag it WHERE it.id = kb." + idCol + ")";
+        log.info("迁移: 从 kanban_board 插入 inventory_tag");
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+        }
+    }
+
+    private void migrateKanbanReferencesToInventoryTag(Connection conn) throws Exception {
+        migrateKanbanForeignKeyColumn(conn, "inventory_hold", "kanban_board_id", "inventory_tag_id");
+        migrateKanbanForeignKeyColumn(conn, "inventory_lock", "kanban_board_id", "inventory_tag_id");
+        migrateKanbanForeignKeyColumn(conn, "inventory_movement", "kanban_board_id", "inventory_tag_id");
+
+        dropTableIfExists(conn, "kanban_board");
+    }
+
+    private void migrateKanbanForeignKeyColumn(Connection conn, String table, String oldColumn, String newColumn) throws Exception {
+        if (!tableExists(conn, table) || !columnExists(conn, table, oldColumn)) {
+            return;
+        }
+
+        ensureColumn(conn, table, newColumn, "BIGINT DEFAULT NULL");
+
+        String sql = "UPDATE " + table + " SET " + newColumn + " = " + oldColumn +
+                " WHERE " + newColumn + " IS NULL AND " + oldColumn + " IS NOT NULL";
+        log.info("迁移: {}", sql);
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+        }
+
+        dropForeignKeysForColumn(conn, table, oldColumn);
+        dropColumnIfExists(conn, table, oldColumn);
+    }
+
+    private void dropTableIfExists(Connection conn, String table) throws Exception {
+        if (!tableExists(conn, table)) {
+            return;
+        }
+        String sql = "DROP TABLE " + table;
+        log.info("迁移: {}", sql);
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+        }
+    }
+
+    private String resolveColumn(Connection conn, String table, String... candidates) throws Exception {
+        for (String candidate : candidates) {
+            if (columnExists(conn, table, candidate)) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     private void ensureColumn(Connection conn, String table, String column, String definition)
@@ -563,43 +687,6 @@ public class DatabaseMigration implements CommandLineRunner {
         log.info("迁移: CREATE TABLE inventory_hold");
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(sql);
-        }
-    }
-
-    private void ensureInventoryHoldColumns(Connection conn) throws Exception {
-        ensureColumn(conn, "inventory_hold", "inventory_tag_id", "BIGINT DEFAULT NULL");
-        migrateInventoryHoldLegacyInventoryTagId(conn);
-        ensureColumn(conn, "inventory_hold", "hold_type", "VARCHAR(32) NOT NULL DEFAULT 'MANUAL_LOCK'");
-        ensureColumn(conn, "inventory_hold", "hold_qty", "DECIMAL(18, 3) NOT NULL DEFAULT 0");
-        ensureColumn(conn, "inventory_hold", "status", "VARCHAR(32) NOT NULL DEFAULT 'ACTIVE'");
-        ensureColumn(conn, "inventory_hold", "reason", "VARCHAR(128) NOT NULL DEFAULT 'migration'");
-        ensureColumn(conn, "inventory_hold", "remark", "VARCHAR(255) DEFAULT NULL");
-        ensureColumn(conn, "inventory_hold", "operator_name", "VARCHAR(64) NOT NULL DEFAULT 'migration'");
-        ensureColumn(conn, "inventory_hold", "released_reason", "VARCHAR(128) DEFAULT NULL");
-        ensureColumn(conn, "inventory_hold", "released_remark", "VARCHAR(255) DEFAULT NULL");
-        ensureColumn(conn, "inventory_hold", "released_by", "VARCHAR(64) DEFAULT NULL");
-        ensureColumn(conn, "inventory_hold", "created_at", "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP");
-        ensureColumn(conn, "inventory_hold", "released_at", "DATETIME DEFAULT NULL");
-        try {
-            ensureForeignKey(conn, "inventory_hold", "inventory_tag_id",
-                    "inventory_tag", "id", "fk_hold_inventory_tag");
-        } catch (Exception e) {
-            log.warn("添加外键 fk_hold_inventory_tag 失败（可能因存在历史无效引用值）: {}", e.getMessage());
-        }
-    }
-
-    private void migrateInventoryHoldLegacyInventoryTagId(Connection conn) throws Exception {
-        if (!columnExists(conn, "inventory_hold", "kanban_board_id")) {
-            return;
-        }
-        String sql = """
-                UPDATE inventory_hold
-                SET inventory_tag_id = kanban_board_id
-                WHERE inventory_tag_id IS NULL
-                """;
-        log.info("迁移: inventory_hold.kanban_board_id -> inventory_hold.inventory_tag_id");
-        try (Statement stmt = conn.createStatement()) {
-            stmt.executeUpdate(sql);
         }
     }
 
