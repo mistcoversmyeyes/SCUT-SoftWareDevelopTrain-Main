@@ -22,6 +22,13 @@
         </button>
       </div>
 
+      <MobileQrScanner
+        reader-id="outbound"
+        :label="scannerLabel"
+        :disabled="loadingOrder || submitting"
+        @decoded="handleOutboundScan"
+      />
+
       <div v-if="mode === 'with-order'" class="field-grid">
         <div class="field-block">
           <label class="field-label" for="mobile-outbound-order">出库单号</label>
@@ -66,7 +73,6 @@
       </div>
 
       <div class="action-row">
-        <el-button size="large" @click="applyDemoCode">模拟扫码</el-button>
         <el-button type="primary" size="large" :loading="submitting" @click="submitOutbound">
           确认出库
         </el-button>
@@ -184,6 +190,8 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { fetchQrInfo, lookupInventoryTag, pickNoOrder, pickWithOrder } from '../../api/outbound'
+import MobileQrScanner from '../../components/mobile/MobileQrScanner.vue'
+import { normalizeInventoryTagCode, normalizeOutboundNo } from '../../utils/scanPayload'
 
 const modeOptions = [
   { value: 'with-order', label: '带单出库' },
@@ -209,6 +217,13 @@ const remainingQty = computed(() => {
     return 0
   }
   return Number(preview.value.boardQty || 0) - Number(preview.value.pickedQty || 0)
+})
+
+const scannerLabel = computed(() => {
+  if (mode.value === 'with-order' && !orderInfo.value?.id) {
+    return '扫描出库单二维码'
+  }
+  return '扫描库存标签码'
 })
 
 watch(inventoryTagCode, (value) => {
@@ -240,10 +255,13 @@ function switchMode(nextMode) {
   }
 }
 
-function applyDemoCode() {
-  if (!inventoryTagCode.value.trim()) {
-    inventoryTagCode.value = 'IT:v1:DEMO:OUTBOUND'
+async function handleOutboundScan(text) {
+  if (mode.value === 'with-order' && !orderInfo.value?.id) {
+    outboundNo.value = normalizeOutboundNo(text)
+    await loadOrder()
+    return
   }
+  inventoryTagCode.value = normalizeInventoryTagCode(text)
 }
 
 async function loadOrder() {
