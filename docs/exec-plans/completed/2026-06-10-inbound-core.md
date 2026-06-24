@@ -691,8 +691,8 @@ git commit -m "feat(frontend): 实现扫码打印和追溯页面"
 ## Task 11: Full Verification And Documentation Closeout
 
 **Files:**
-- Modify: `docs/exec-plans/active/week2-inbound-core.md` while executing checkboxes
-- Move completed plan to `docs/exec-plans/completed/week2-inbound-core.md` after implementation
+- Modify: `docs/exec-plans/active/2026-06-10-inbound-core.md` while executing checkboxes
+- Move completed plan to `docs/exec-plans/completed/2026-06-10-inbound-core.md` after implementation
 - Optionally update `KEY_INFO_REMINDER.md` only if commands or credentials change
 
 - [x] **Step 1: Run backend tests**
@@ -737,7 +737,7 @@ Manual flow:
 - [x] **Step 4: Move plan to completed**
 
 ```bash
-git mv docs/exec-plans/active/week2-inbound-core.md docs/exec-plans/completed/week2-inbound-core.md
+git mv docs/exec-plans/active/2026-06-10-inbound-core.md docs/exec-plans/completed/2026-06-10-inbound-core.md
 git commit -m "docs(inbound): 完成采购入库执行计划"
 ```
 

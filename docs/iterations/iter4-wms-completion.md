@@ -44,12 +44,12 @@ Week 4 基于 Week 3 出库管理、基础数据 CRUD、入库增强、库存预
 
 | WP | 状态 | 执行者 | 分支 | 执行计划 | 验证状态 | 当前风险 |
 | --- | --- | --- | --- | --- | --- | --- |
-| WP4-01 | 已完成 | subagent + main agent | `feature/week4-business-rules` -> `dev/iter4` | `docs/exec-plans/completed/week4-business-rules.md` | `mvn test` 通过；前端测试与构建通过 | FIFO 例外策略仍记录为 `PD-014` |
-| WP4-02 | 已完成 | subagent + main agent | `feature/week4-mobile-basic` -> `dev/iter4` | `docs/exec-plans/completed/week4-mobile-basic.md` | `npm test` 通过；`npm run build` 通过 | 真实摄像头扫码/PDA 协议不进入本周 |
-| WP4-03 | 已完成 | subagent + main agent | `feature/week4-monitor-history` -> `dev/iter4` | `docs/exec-plans/completed/week4-monitor-history.md` | `npm test` 通过；`npm run build` 通过 | 历史筛选首期有前端二次过滤 |
-| WP4-04 | 已完成 | subagent + main agent | `feature/week4-import-ai-prep` -> `dev/iter4` | `docs/exec-plans/completed/week4-import-ai-prep.md` | `mvn test` 通过；前端测试与构建通过 | 首期固定 CSV，不做 Excel 自由格式 |
-| WP4-05 | 已完成 | subagent + main agent | `docs/week4-ai-scope` -> `dev/iter4` | `docs/exec-plans/completed/week4-ai-warning-scope.md` | 文档自检与 `git diff --check` 通过 | 真实模型训练和阈值校准进入产品债 |
-| WP4-06 | 已完成 | main agent | `dev/iter4` | `docs/exec-plans/completed/week4-docs-coordination.md` | 文档收口自检；最终门禁见验证记录 | 已完成工作包分支仍保留用于审计，可后续清理 |
+| WP4-01 | 已完成 | subagent + main agent | `feature/week4-business-rules` -> `dev/iter4` | `docs/exec-plans/completed/2026-06-23-business-rules.md` | `mvn test` 通过；前端测试与构建通过 | FIFO 例外策略仍记录为 `PD-014` |
+| WP4-02 | 已完成 | subagent + main agent | `feature/week4-mobile-basic` -> `dev/iter4` | `docs/exec-plans/completed/2026-06-23-mobile-basic.md` | `npm test` 通过；`npm run build` 通过 | 真实摄像头扫码/PDA 协议不进入本周 |
+| WP4-03 | 已完成 | subagent + main agent | `feature/week4-monitor-history` -> `dev/iter4` | `docs/exec-plans/completed/2026-06-23-monitor-history.md` | `npm test` 通过；`npm run build` 通过 | 历史筛选首期有前端二次过滤 |
+| WP4-04 | 已完成 | subagent + main agent | `feature/week4-import-ai-prep` -> `dev/iter4` | `docs/exec-plans/completed/2026-06-23-import-ai-prep.md` | `mvn test` 通过；前端测试与构建通过 | 首期固定 CSV，不做 Excel 自由格式 |
+| WP4-05 | 已完成 | subagent + main agent | `docs/week4-ai-scope` -> `dev/iter4` | `docs/exec-plans/completed/2026-06-23-ai-warning-scope.md` | 文档自检与 `git diff --check` 通过 | 真实模型训练和阈值校准进入产品债 |
+| WP4-06 | 已完成 | main agent | `dev/iter4` | `docs/exec-plans/completed/2026-06-23-docs-coordination.md` | 文档收口自检；最终门禁见验证记录 | 已完成工作包分支仍保留用于审计，可后续清理 |
 
 ## 依赖关系
 

@@ -28,7 +28,7 @@ iter4/<topic>.md
 
 - `./iter4-wms-completion.md`：Week 4 周迭代目标、工作包拆解、依赖、验收标准和验证记录，覆盖 WMS 业务补全、移动端、监控历史、批量导入和 AI 预警准备。
 - Week 1 规格已归档至 `docs/specs/2026-06-03-wms-login-tabs-design.md`。
-- Week 1 执行计划已归档至 `docs/exec-plans/completed/2026-06-03-week1-wms-login-tabs.md`。
-- Week 2 规格见 `docs/specs/2026-06-10-inbound-core-design.md`，执行计划见 `docs/exec-plans/completed/week2-inbound-core.md`。
+- Week 1 执行计划已归档至 `docs/exec-plans/completed/2026-06-03-wms-login-tabs.md`。
+- Week 2 规格见 `docs/specs/2026-06-10-inbound-core-design.md`，执行计划见 `docs/exec-plans/completed/2026-06-10-inbound-core.md`。
 - Week 3 规格见 `docs/specs/2026-06-15-outbound-master-data-inbound-enhancement-design.md`。
 - Week 4 规格见 `docs/specs/2026-06-17-lock-goods-design.md`。
