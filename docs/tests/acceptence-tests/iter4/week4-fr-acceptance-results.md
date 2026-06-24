@@ -93,7 +93,7 @@ FR 编号：FR-04
 
 FR-04 证据截图：
 
-![FR-04 手动锁库后看板状态](images/fr04-01-manual-lock-kanban-list.png)
+![FR-04 手动锁库后库存标签状态](images/fr04-01-manual-lock-kanban-list.png)
 
 ![FR-04 手动锁库后当前库存](images/fr04-02-manual-lock-inventory.png)
 
@@ -122,13 +122,13 @@ FR-05 证据截图：
 
 ![FR-05 Web 入库单创建并释放](images/fr05-01-inbound-order-released.png)
 
-![FR-05 Web 看板详情和二维码](images/fr05-02-kanban-detail-printed.png)
+![FR-05 Web 库存标签详情和二维码](images/fr05-02-kanban-detail-printed.png)
 
-![FR-05 手机端入库预览 PRINTED 看板](images/fr05-03-mobile-inbound-preview.png)
+![FR-05 手机端入库预览 PRINTED 库存标签](images/fr05-03-mobile-inbound-preview.png)
 
 ![FR-05 手机端入库完成](images/fr05-04-mobile-inbound-completed.png)
 
-![FR-05 手机端看板查询 RECEIVED](images/fr05-05-mobile-kanban-query-received.png)
+![FR-05 手机端库存标签查询 RECEIVED](images/fr05-05-mobile-kanban-query-received.png)
 
 ![FR-05 当前库存出现新入库踏板组件](images/fr05-06-current-inventory-after-inbound.png)
 
@@ -180,19 +180,19 @@ FR-07 证据截图：
 
 ![FR-07 按库存标签码定位 FR-05 库存标签](images/fr07-01-filter-by-kanban-code.png)
 
-![FR-07 按物料筛选看板](images/fr07-02-filter-by-material.png)
+![FR-07 按物料筛选库存标签](images/fr07-02-filter-by-material.png)
 
-![FR-07 按入库单筛选看板](images/fr07-03-filter-by-inbound-order.png)
+![FR-07 按入库单筛选库存标签](images/fr07-03-filter-by-inbound-order.png)
 
-![FR-07 按已入库状态筛选看板](images/fr07-04-filter-by-received-status.png)
+![FR-07 按已入库状态筛选库存标签](images/fr07-04-filter-by-received-status.png)
 
-![FR-07 全量列表包含已取消看板](images/fr07-05-list-all-with-cancelled.png)
+![FR-07 全量列表包含已取消库存标签](images/fr07-05-list-all-with-cancelled.png)
 
 ![FR-07 按封存主动占用筛选为空](images/fr07-06-filter-by-seal-empty.png)
 
 ![FR-07 按手动锁库主动占用筛选为空](images/fr07-07-filter-by-manual-lock-empty.png)
 
-![FR-07 看板详情](images/fr07-08-kanban-detail.png)
+![FR-07 库存标签详情](images/fr07-08-kanban-detail.png)
 
 ## FR-08 表格批量导入
 

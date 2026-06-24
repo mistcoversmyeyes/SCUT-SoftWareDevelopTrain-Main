@@ -2,7 +2,7 @@
 
 ## 背景输入
 
-本设计服务于 Week 2 周迭代：完成 WMS 采购入库相关功能开发。产品背景第一事实源为 `docs/references/Course PPT/WMS仓储管理系统--产品介绍资料.pdf`。PDF 图片给出的可见参考包括入库单列表、编辑入库单、打印入库单、打印看板、PDA 入库扫码结果、库存看板和看板信息页面。
+本设计服务于 Week 2 周迭代：完成 WMS 采购入库相关功能开发。产品背景第一事实源为 `docs/references/Course PPT/WMS仓储管理系统--产品介绍资料.pdf`。PDF 图片给出的可见参考包括入库单列表、编辑入库单、打印入库单、打印库存标签、PDA 入库扫码结果、库存标签和库存标签信息页面。
 
 当前代码现状：
 
@@ -18,10 +18,10 @@
 
 - 基础信息：供应商、物料、仓库、库位作为内置主数据，支持入库流程下拉选择与展示。
 - 入库单：列表、筛选、创建、修改、释放、取消、打印。
-- 看板：释放入库单后生成唯一看板，支持浏览器打印看板。
+- 库存标签：释放入库单后生成唯一库存标签，支持浏览器打印库存标签。
 - 扫码入库：Web 管理端输入库存标签码，支持手输和扫码枪回车。
 - 库存：扫码成功后写库存流水、更新当前库存余额。
-- 追溯：库存追溯和看板追溯。
+- 追溯：库存追溯和库存标签追溯。
 - 数据持久化：MySQL 8，后端启动时自动执行建表和演示数据初始化 SQL。
 
 明确不做：
@@ -46,7 +46,7 @@ warehouse
 storage_location
 inbound_order
 inbound_order_line
-kanban_board
+inventory_tag
 inventory_movement
 inventory_balance
 ```
@@ -58,7 +58,7 @@ inventory_balance
 - `container_type` 延后，不在本周引入器具容量、装箱规则、拆板或合板语义。
 - `scan_record` 不建。成功扫码直接形成 `inventory_movement`；失败扫码只返回错误。
 - 入库单状态使用 `DRAFT / READY_TO_RECEIVE / PARTIAL_RECEIVED / COMPLETED / CANCELLED`。
-- 看板状态使用 `PRINTED / RECEIVED / CANCELLED`。
+- 库存标签状态使用 `PRINTED / RECEIVED / CANCELLED`。
 - `inventory_movement` 是可扩展库存流水，不写死为只支持入库；规格上保留 `movement_type`、`source_type/source_id` 语义。
 - `inventory_balance` 只保存当前库存余额，唯一粒度为 `material_id + warehouse_id + storage_location_id`。
 - 入库单号、库存标签码、库存流水号全局唯一且不可复用。
@@ -69,8 +69,8 @@ inventory_balance
 后端按领域分包：
 
 - `masterdata`：供应商、物料、仓库、库位只读能力。
-- `inbound`：入库单、入库明细、看板生成、打印数据。
-- `inventory`：扫码入库、库存余额、库存流水、看板追溯。
+- `inbound`：入库单、入库明细、库存标签生成、打印数据。
+- `inventory`：扫码入库、库存余额、库存流水、库存标签追溯。
 
 主要接口：
 
@@ -80,26 +80,26 @@ inventory_balance
 | `GET` | `/api/inbound-orders` | 入库单列表，支持状态、单号、供应商筛选 |
 | `POST` | `/api/inbound-orders` | 创建草稿入库单和明细 |
 | `PUT` | `/api/inbound-orders/{id}` | 修改入库单和明细 |
-| `POST` | `/api/inbound-orders/{id}/release` | 释放入库单并生成看板 |
+| `POST` | `/api/inbound-orders/{id}/release` | 释放入库单并生成库存标签 |
 | `POST` | `/api/inbound-orders/{id}/cancel` | 取消未收货入库单 |
 | `GET` | `/api/inbound-orders/{id}/print` | 返回入库单打印数据 |
-| `GET` | `/api/inbound-orders/{id}/kanbans/print` | 返回看板打印数据 |
+| `GET` | `/api/inbound-orders/{id}/inventory-tags/print` | 返回库存标签打印数据 |
 | `POST` | `/api/inventory/scan-inbound` | 输入库存标签码并执行扫码入库 |
 | `GET` | `/api/inventory/balances` | 当前库存查询 |
 | `GET` | `/api/inventory/movements` | 库存流水追溯 |
-| `GET` | `/api/kanbans/{kanbanCode}/trace` | 看板追溯 |
+| `GET` | `/api/inventory-tags/{inventoryTagCode}/trace` | 库存标签追溯 |
 
 ### 扫码入库事务
 
 `POST /api/inventory/scan-inbound` 是本周最关键事务边界：
 
-1. 按 `kanbanCode` 查询看板并加锁。
-2. 看板不存在：返回错误，不落库。
-3. 看板状态不是 `PRINTED`：返回重复扫码或不可入库错误，不新增流水。
+1. 按 `inventoryTagCode` 查询库存标签并加锁。
+2. 库存标签不存在：返回错误，不落库。
+3. 库存标签状态不是 `PRINTED`：返回重复扫码或不可入库错误，不新增流水。
 4. 校验入库单状态为 `READY_TO_RECEIVE` 或 `PARTIAL_RECEIVED`。
 5. 写入 `inventory_movement`，`movement_type = INBOUND_RECEIVE`。
 6. 按物料、仓库、库位累加 `inventory_balance`。
-7. 更新看板为 `RECEIVED`。
+7. 更新库存标签为 `RECEIVED`。
 8. 累加入库明细 `received_qty`。
 9. 重新计算入库单状态为 `PARTIAL_RECEIVED` 或 `COMPLETED`。
 10. 提交事务并返回扫码结果。
@@ -124,20 +124,20 @@ inventory_balance
 库存监控
   当前库存
   库存追溯
-看板信息
-  看板追溯
+库存标签信息
+  库存标签追溯
 ```
 
 页面：
 
-- `InboundOrderListView`：状态筛选、单号筛选、供应商筛选、入库单表格。操作包括创建、修改、释放/生成看板、打印入库单、打印看板、取消。
+- `InboundOrderListView`：状态筛选、单号筛选、供应商筛选、入库单表格。操作包括创建、修改、释放/生成库存标签、打印入库单、打印库存标签、取消。
 - `InboundOrderFormView`：创建/修改入库单。头部字段包括供应商、来源单号、备注；明细行包括物料、计划数量、目标仓库、目标库位。
 - `InboundPrintView`：入库单浏览器打印页，黑白表格。
-- `KanbanPrintView`：库存标签浏览器打印页，一页多张标签，显示库存标签码、物料、供应商、库位、日期、数量和二维码视觉区域。
+- `InventoryTagPrintView`：库存标签浏览器打印页，一页多张标签，显示库存标签码、物料、供应商、库位、日期、数量和二维码视觉区域。
 - `InboundScanView`：Web 扫码入库页，输入框自动聚焦，支持手输和扫码枪回车，展示成功或失败结果。
 - `InventoryBalanceView`：当前库存查询。
 - `InventoryTraceView`：库存流水追溯。
-- `KanbanTraceView`：按库存标签码展示库存标签状态、入库单、物料、扫码时间和库存流水。
+- `InventoryTagTraceView`：按库存标签码展示库存标签状态、入库单、物料、扫码时间和库存流水。
 
 ## 打印设计
 
@@ -147,10 +147,10 @@ inventory_balance
 - 样式为黑白表格，参考 PDF 中入库单样式。
 - 内容包括供应商、入库类型、来源单号、日期、物料明细、数量、库位、合计、备注。
 
-看板打印：
+库存标签打印：
 
 - 使用浏览器打印。
-- 一页多张看板标签。
+- 一页多张库存标签。
 - 每张库存标签显示库存标签码、物料编码/名称、供应商、库位、日期、数量和状态。
 - 本周可先展示二维码视觉块和可复制库存标签码；若依赖可控，再接前端二维码库。
 
@@ -160,9 +160,9 @@ inventory_balance
 
 - 查询 `inventory_movement`。
 - 支持按物料、仓库、库位、入库单号、库存标签码、时间筛选。
-- 展示流水号、物料、库位、数量、来源看板、发生时间。
+- 展示流水号、物料、库位、数量、来源库存标签、发生时间。
 
-看板追溯：
+库存标签追溯：
 
 - 输入库存标签码。
 - 展示库存标签状态、所属入库单、供应商、物料、计划数量、是否已入库、扫码时间和库存流水。
@@ -172,7 +172,7 @@ inventory_balance
 
 - 入库单创建/修改时，供应商、物料、数量、库位必填；数量必须大于 0。
 - 非 `DRAFT` 且已有收货的入库单不允许随意修改明细。
-- 只有 `DRAFT` 入库单允许释放并生成看板。
+- 只有 `DRAFT` 入库单允许释放并生成库存标签。
 - 释放接口必须幂等：待收货入库单重复释放不得重复生成库存标签。
 - 库存标签码不存在时，扫码接口返回“未找到库存标签”。
 - 库存标签已入库时，扫码接口返回“重复扫码”，不新增库存流水。
@@ -185,7 +185,7 @@ inventory_balance
 后端：
 
 - 运行 `mvn test`。
-- 覆盖入库单创建、修改、释放生成看板、扫码入库、重复扫码、库存余额更新、库存追溯、看板追溯。
+- 覆盖入库单创建、修改、释放生成库存标签、扫码入库、重复扫码、库存余额更新、库存追溯、库存标签追溯。
 
 前端：
 
@@ -197,9 +197,9 @@ inventory_balance
 
 1. 登录系统。
 2. 创建入库单。
-3. 释放入库单并生成看板。
+3. 释放入库单并生成库存标签。
 4. 打印入库单。
-5. 打印看板。
+5. 打印库存标签。
 6. 使用库存标签码扫码入库。
 7. 查看当前库存。
 8. 查看库存追溯。
@@ -210,7 +210,7 @@ inventory_balance
 - MySQL 持久化可用，刷新页面后数据仍存在。
 - 后端启动后能自动建表并初始化演示数据。
 - 入库单能创建、修改、释放、取消和打印。
-- 看板能生成、打印、扫码入库。
+- 库存标签能生成、打印、扫码入库。
 - 重复扫码不会重复增加库存。
 - 库存余额与库存流水一致。
 - 库存标签追溯能从库存标签码追到入库单、物料和库存流水。
