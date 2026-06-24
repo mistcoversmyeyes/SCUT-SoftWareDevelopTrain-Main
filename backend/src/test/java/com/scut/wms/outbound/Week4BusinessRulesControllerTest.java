@@ -68,6 +68,32 @@ class Week4BusinessRulesControllerTest {
     }
 
     @Test
+    void createsOutboundOrderWithContainerTypeFromAcceptancePayload() throws Exception {
+        mockMvc.perform(post("/api/outbound-orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "purpose": "PICKING",
+                                  "sourceDocNo": null,
+                                  "remark": "iter4-fr02-regression",
+                                  "lines": [
+                                    {
+                                      "supplierId": 1,
+                                      "materialId": 2,
+                                      "plannedQty": 1000,
+                                      "containerTypeId": 2
+                                    }
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andExpect(jsonPath("$.lineCount").value(1))
+                .andExpect(jsonPath("$.plannedQty").value(1000.0))
+                .andExpect(jsonPath("$.lines[0].containerTypeId").value(2));
+    }
+
+    @Test
     void sealedKanbanIsExcludedFromAutoLockUntilUnsealed() throws Exception {
         mockMvc.perform(post("/api/kanbans/{kanbanId}/seal", MATERIAL_ONE_FIFO_BOARD_ID)
                         .contentType(MediaType.APPLICATION_JSON)
