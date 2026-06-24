@@ -14,3 +14,4 @@
 - `2026-06-23-wms-completion-requirements.md`：Week 4 总体需求规格，覆盖业务补全、散件出库、封存解封、手机端、监控历史、批量导入和 AI 预警准备。
 - `2026-06-23-ai-warning-scope.md`：Week 4 WP4-05 AI 预警方向规格，覆盖方向取舍、字段清单、规则型预警雏形、导入联动和后续产品债出口。
 - `2026-06-23-ai-data-import-template.md`：Week 4 WP4-04 首期 AI 数据导入模板规格，冻结 inventory_flow_history CSV 模板、校验规则、独立落表和样例文件位置。
+- `2026-06-24-acceptance-closure-fix-design.md`：Iteration 4 验收闭环修复设计，覆盖 FR-02 出库阻断、FR-03 封存出库联动、库存标签命名迁移和入库单待收货状态迁移。
