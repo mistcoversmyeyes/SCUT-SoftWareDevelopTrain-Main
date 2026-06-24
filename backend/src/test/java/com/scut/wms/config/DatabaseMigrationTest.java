@@ -38,6 +38,28 @@ class DatabaseMigrationTest {
         assertThat(columnExists(dataSource, "inventory_tag", "picked_qty")).isTrue();
     }
 
+    @Test
+    void addsInventoryTagIdWhenInventoryHoldAlreadyExistsWithoutIt() throws Exception {
+        DataSource dataSource = legacyDataSource();
+        try (Connection conn = dataSource.getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.execute("""
+                    CREATE TABLE inventory_hold (
+                      id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                      hold_type VARCHAR(32) NOT NULL,
+                      status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+                      reason VARCHAR(128) NOT NULL,
+                      operator_name VARCHAR(64) NOT NULL,
+                      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    )
+                    """);
+        }
+
+        new DatabaseMigration(dataSource).run();
+
+        assertThat(columnExists(dataSource, "inventory_hold", "inventory_tag_id")).isTrue();
+    }
+
     private DataSource legacyDataSource() {
         DriverManagerDataSource dataSource = new DriverManagerDataSource();
         dataSource.setDriverClassName("org.h2.Driver");

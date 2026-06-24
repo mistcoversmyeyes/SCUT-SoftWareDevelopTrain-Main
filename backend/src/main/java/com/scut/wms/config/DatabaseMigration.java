@@ -78,6 +78,7 @@ public class DatabaseMigration implements CommandLineRunner {
             // ====== 锁货功能迁移 ======
             ensureLockTable(conn);
             ensureInventoryHoldTable(conn);
+            ensureInventoryHoldColumns(conn);
 
             ensureColumn(conn, "inventory_tag", "picked_qty",
                     "DECIMAL(18, 3) NOT NULL DEFAULT 0");
@@ -562,6 +563,27 @@ public class DatabaseMigration implements CommandLineRunner {
         log.info("迁移: CREATE TABLE inventory_hold");
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(sql);
+        }
+    }
+
+    private void ensureInventoryHoldColumns(Connection conn) throws Exception {
+        ensureColumn(conn, "inventory_hold", "inventory_tag_id", "BIGINT DEFAULT NULL");
+        ensureColumn(conn, "inventory_hold", "hold_type", "VARCHAR(32) NOT NULL DEFAULT 'MANUAL_LOCK'");
+        ensureColumn(conn, "inventory_hold", "hold_qty", "DECIMAL(18, 3) NOT NULL DEFAULT 0");
+        ensureColumn(conn, "inventory_hold", "status", "VARCHAR(32) NOT NULL DEFAULT 'ACTIVE'");
+        ensureColumn(conn, "inventory_hold", "reason", "VARCHAR(128) NOT NULL DEFAULT 'migration'");
+        ensureColumn(conn, "inventory_hold", "remark", "VARCHAR(255) DEFAULT NULL");
+        ensureColumn(conn, "inventory_hold", "operator_name", "VARCHAR(64) NOT NULL DEFAULT 'migration'");
+        ensureColumn(conn, "inventory_hold", "released_reason", "VARCHAR(128) DEFAULT NULL");
+        ensureColumn(conn, "inventory_hold", "released_remark", "VARCHAR(255) DEFAULT NULL");
+        ensureColumn(conn, "inventory_hold", "released_by", "VARCHAR(64) DEFAULT NULL");
+        ensureColumn(conn, "inventory_hold", "created_at", "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP");
+        ensureColumn(conn, "inventory_hold", "released_at", "DATETIME DEFAULT NULL");
+        try {
+            ensureForeignKey(conn, "inventory_hold", "inventory_tag_id",
+                    "inventory_tag", "id", "fk_hold_inventory_tag");
+        } catch (Exception e) {
+            log.warn("添加外键 fk_hold_inventory_tag 失败（可能因存在历史无效引用值）: {}", e.getMessage());
         }
     }
 
