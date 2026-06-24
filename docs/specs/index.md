@@ -15,3 +15,4 @@
 - `2026-06-23-ai-warning-scope.md`：Week 4 WP4-05 AI 预警方向规格，覆盖方向取舍、字段清单、规则型预警雏形、导入联动和后续产品债出口。
 - `2026-06-23-ai-data-import-template.md`：Week 4 WP4-04 首期表格导入模板规格（历史文件名沿用 ai-data-import-template），冻结 inventory_flow_history CSV 模板、校验规则、独立落表和样例文件位置。
 - `2026-06-24-acceptance-closure-fix-design.md`：Iteration 4 验收闭环修复设计，覆盖 FR-02 出库阻断、FR-03 封存出库联动、库存标签命名迁移和入库单待收货状态迁移。
+- `2026-06-24-mobile-real-scan-design.md`：手机端真实扫码设计，覆盖库存标签码和出库单二维码的摄像头扫描、图片识别、手动兜底、异常处理和验收方式。
