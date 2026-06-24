@@ -17,7 +17,7 @@ public class InventoryLock {
     private Long id;
     private Long outboundOrderId;
     private Long outboundOrderLineId;
-    private Long kanbanBoardId;
+    private Long inventoryTagId;
     private Long materialId;
     private BigDecimal lockQty;
     private String status;
@@ -33,8 +33,8 @@ public class InventoryLock {
     public void setOutboundOrderId(Long outboundOrderId) { this.outboundOrderId = outboundOrderId; }
     public Long getOutboundOrderLineId() { return outboundOrderLineId; }
     public void setOutboundOrderLineId(Long outboundOrderLineId) { this.outboundOrderLineId = outboundOrderLineId; }
-    public Long getKanbanBoardId() { return kanbanBoardId; }
-    public void setKanbanBoardId(Long kanbanBoardId) { this.kanbanBoardId = kanbanBoardId; }
+    public Long getInventoryTagId() { return inventoryTagId; }
+    public void setInventoryTagId(Long inventoryTagId) { this.inventoryTagId = inventoryTagId; }
     public Long getMaterialId() { return materialId; }
     public void setMaterialId(Long materialId) { this.materialId = materialId; }
     public BigDecimal getLockQty() { return lockQty; }

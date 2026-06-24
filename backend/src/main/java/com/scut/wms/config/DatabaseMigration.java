@@ -10,6 +10,7 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.util.Objects;
 
 /**
  * 启动时自动补齐数据库缺失列（幂等，已存在的列跳过）。
@@ -32,6 +33,7 @@ public class DatabaseMigration implements CommandLineRunner {
             // Step 0: Ensure ALL base tables exist (fresh DB)
             // ═══════════════════════════════════════════════
             ensureTables(conn);
+            ensureAiImportTables(conn);
 
     // 确保 inventory_movement 出库关联列存在
             ensureColumn(conn, "inventory_movement", "outbound_order_id",
@@ -75,10 +77,13 @@ public class DatabaseMigration implements CommandLineRunner {
 
             // ====== 锁货功能迁移 ======
             ensureLockTable(conn);
+            ensureInventoryHoldTable(conn);
 
-            ensureColumn(conn, "kanban_board", "locked_by_order_id",
+            ensureColumn(conn, "inventory_tag", "picked_qty",
+                    "DECIMAL(18, 3) NOT NULL DEFAULT 0");
+            ensureColumn(conn, "inventory_tag", "locked_by_order_id",
                     "BIGINT DEFAULT NULL");
-            ensureColumn(conn, "kanban_board", "locked_by_order_line_id",
+            ensureColumn(conn, "inventory_tag", "locked_by_order_line_id",
                     "BIGINT DEFAULT NULL");
 
             ensureColumn(conn, "inventory_movement", "force_outbound",
@@ -116,18 +121,18 @@ public class DatabaseMigration implements CommandLineRunner {
             dropForeignKeysForColumn(conn, "material", "container_type_id");
             dropColumnIfExists(conn, "material", "container_type_id");
 
-            // 3. kanban_board add location_id + container_type_id (NOT NULL, D24)
-            ensureColumn(conn, "kanban_board", "location_id", "BIGINT NOT NULL DEFAULT 0");
+            // 3. inventory_tag add location_id + container_type_id (NOT NULL, D24)
+            ensureColumn(conn, "inventory_tag", "location_id", "BIGINT NOT NULL DEFAULT 0");
             try {
-                ensureForeignKey(conn, "kanban_board", "location_id", "storage_location", "id", "fk_kanban_location");
+                ensureForeignKey(conn, "inventory_tag", "location_id", "storage_location", "id", "fk_inventory_tag_location");
             } catch (Exception e) {
-                log.warn("添加外键 fk_kanban_location 失败（可能因存在无效引用值，重建数据后自动修复）: {}", e.getMessage());
+                log.warn("添加外键 fk_inventory_tag_location 失败（可能因存在无效引用值，重建数据后自动修复）: {}", e.getMessage());
             }
-            ensureColumn(conn, "kanban_board", "container_type_id", "BIGINT NOT NULL DEFAULT 0");
+            ensureColumn(conn, "inventory_tag", "container_type_id", "BIGINT NOT NULL DEFAULT 0");
             try {
-                ensureForeignKey(conn, "kanban_board", "container_type_id", "container_type", "id", "fk_kanban_container");
+                ensureForeignKey(conn, "inventory_tag", "container_type_id", "container_type", "id", "fk_inventory_tag_container");
             } catch (Exception e) {
-                log.warn("添加外键 fk_kanban_container 失败（可能因存在无效引用值）: {}", e.getMessage());
+                log.warn("添加外键 fk_inventory_tag_container 失败（可能因存在无效引用值）: {}", e.getMessage());
             }
 
             // 4. inbound_order_line add container_type_id (NOT NULL, D24)
@@ -145,9 +150,134 @@ public class DatabaseMigration implements CommandLineRunner {
             } catch (Exception e) {
                 log.warn("添加外键 fk_movement_planned_location 失败: {}", e.getMessage());
             }
+
+            migrateKanbanBoardToInventoryTag(conn);
+            migrateKanbanReferencesToInventoryTag(conn);
         } catch (Exception e) {
             log.warn("数据库列迁移失败（不影响已有功能）: {}", e.getMessage());
         }
+    }
+
+    private void migrateKanbanBoardToInventoryTag(Connection conn) throws Exception {
+        if (!tableExists(conn, "kanban_board")) {
+            return;
+        }
+
+        String idCol = "id";
+        String codeCol = resolveColumn(conn, "kanban_board",
+                "kanban_board_code", "board_code", "inventory_tag_code", "code");
+        String inboundOrderIdCol = resolveColumn(conn, "kanban_board", "inbound_order_id");
+        String inboundOrderLineIdCol = resolveColumn(conn, "kanban_board", "inbound_order_line_id");
+        String qtyCol = resolveColumn(conn, "kanban_board", "board_qty", "qty");
+        String statusCol = resolveColumn(conn, "kanban_board", "status");
+        String printedAtCol = resolveColumn(conn, "kanban_board", "printed_at", "print_at", "printed_time");
+        String receivedAtCol = resolveColumn(conn, "kanban_board", "received_at", "inbound_at", "receive_at");
+        String locationIdCol = resolveColumn(conn, "kanban_board", "location_id", "storage_location_id", "target_location_id");
+        String containerTypeIdCol = resolveColumn(conn, "kanban_board", "container_type_id", "container_id");
+        String lockedByOrderIdCol = resolveColumn(conn, "kanban_board", "locked_by_order_id", "locked_order_id", "hold_order_id");
+        String lockedByOrderLineIdCol = resolveColumn(conn, "kanban_board", "locked_by_order_line_id", "locked_order_line_id", "hold_order_line_id");
+        String createdAtCol = resolveColumn(conn, "kanban_board", "created_at");
+        String updatedAtCol = resolveColumn(conn, "kanban_board", "updated_at");
+
+        if (codeCol == null || inboundOrderIdCol == null || inboundOrderLineIdCol == null || qtyCol == null || statusCol == null) {
+            log.warn("kanban_board 表缺少关键列，跳过迁移");
+            return;
+        }
+
+        String codeExpr = "CASE WHEN kb." + codeCol + " LIKE 'KB:v1:%' THEN CONCAT('IT:v1:', SUBSTRING(kb." + codeCol + ", 7)) ELSE REPLACE(kb." + codeCol + ", 'KB:v1:', 'IT:v1:') END";
+        String locationExpr = locationIdCol == null ? "0" : "COALESCE(kb." + locationIdCol + ", 0)";
+        String containerExpr = containerTypeIdCol == null ? "0" : "COALESCE(kb." + containerTypeIdCol + ", 0)";
+        String lockedByOrderIdExpr = lockedByOrderIdCol == null ? "NULL" : "kb." + lockedByOrderIdCol;
+        String lockedByOrderLineIdExpr = lockedByOrderLineIdCol == null ? "NULL" : "kb." + lockedByOrderLineIdCol;
+        String printedAtExpr = printedAtCol == null ? "NULL" : "kb." + printedAtCol;
+        String receivedAtExpr = receivedAtCol == null ? "NULL" : "kb." + receivedAtCol;
+        String createdAtExpr = createdAtCol == null ? "CURRENT_TIMESTAMP" : "kb." + createdAtCol;
+        String updatedAtExpr = updatedAtCol == null ? "CURRENT_TIMESTAMP" : "kb." + updatedAtCol;
+
+        String sql = "INSERT INTO inventory_tag (" +
+                "id, " +
+                "inventory_tag_code, " +
+                "inbound_order_id, " +
+                "inbound_order_line_id, " +
+                "board_qty, " +
+                "picked_qty, " +
+                "status, " +
+                "printed_at, " +
+                "received_at, " +
+                "location_id, " +
+                "container_type_id, " +
+                "locked_by_order_id, " +
+                "locked_by_order_line_id, " +
+                "created_at, " +
+                "updated_at" +
+                ") SELECT " +
+                "kb." + idCol + ", " +
+                codeExpr + ", " +
+                "kb." + inboundOrderIdCol + ", " +
+                "kb." + inboundOrderLineIdCol + ", " +
+                "kb." + qtyCol + ", " +
+                "0, " +
+                "kb." + statusCol + ", " +
+                printedAtExpr + ", " +
+                receivedAtExpr + ", " +
+                locationExpr + ", " +
+                containerExpr + ", " +
+                lockedByOrderIdExpr + ", " +
+                lockedByOrderLineIdExpr + ", " +
+                createdAtExpr + ", " +
+                updatedAtExpr +
+                " FROM kanban_board kb " +
+                "WHERE NOT EXISTS (SELECT 1 FROM inventory_tag it WHERE it.id = kb." + idCol + ")";
+        log.info("迁移: 从 kanban_board 插入 inventory_tag");
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+        }
+    }
+
+    private void migrateKanbanReferencesToInventoryTag(Connection conn) throws Exception {
+        migrateKanbanForeignKeyColumn(conn, "inventory_hold", "kanban_board_id", "inventory_tag_id");
+        migrateKanbanForeignKeyColumn(conn, "inventory_lock", "kanban_board_id", "inventory_tag_id");
+        migrateKanbanForeignKeyColumn(conn, "inventory_movement", "kanban_board_id", "inventory_tag_id");
+
+        dropTableIfExists(conn, "kanban_board");
+    }
+
+    private void migrateKanbanForeignKeyColumn(Connection conn, String table, String oldColumn, String newColumn) throws Exception {
+        if (!tableExists(conn, table) || !columnExists(conn, table, oldColumn)) {
+            return;
+        }
+
+        ensureColumn(conn, table, newColumn, "BIGINT DEFAULT NULL");
+
+        String sql = "UPDATE " + table + " SET " + newColumn + " = " + oldColumn +
+                " WHERE " + newColumn + " IS NULL AND " + oldColumn + " IS NOT NULL";
+        log.info("迁移: {}", sql);
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+        }
+
+        dropForeignKeysForColumn(conn, table, oldColumn);
+        dropColumnIfExists(conn, table, oldColumn);
+    }
+
+    private void dropTableIfExists(Connection conn, String table) throws Exception {
+        if (!tableExists(conn, table)) {
+            return;
+        }
+        String sql = "DROP TABLE " + table;
+        log.info("迁移: {}", sql);
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+        }
+    }
+
+    private String resolveColumn(Connection conn, String table, String... candidates) throws Exception {
+        for (String candidate : candidates) {
+            if (columnExists(conn, table, candidate)) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     private void ensureColumn(Connection conn, String table, String column, String definition)
@@ -176,17 +306,13 @@ public class DatabaseMigration implements CommandLineRunner {
 
     private void dropForeignKeysForColumn(Connection conn, String table, String column)
             throws Exception {
-        String findFk = """
-                SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE
-                WHERE TABLE_SCHEMA = (SELECT DATABASE())
-                  AND TABLE_NAME = '%s'
-                  AND COLUMN_NAME = '%s'
-                  AND REFERENCED_TABLE_NAME IS NOT NULL
-                """.formatted(table, column);
-        try (Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(findFk)) {
+        DatabaseMetaData meta = conn.getMetaData();
+        try (ResultSet rs = meta.getImportedKeys(conn.getCatalog(), null, table)) {
             while (rs.next()) {
-                String fkName = rs.getString("CONSTRAINT_NAME");
+                if (!Objects.equals(column, rs.getString("FKCOLUMN_NAME"))) {
+                    continue;
+                }
+                String fkName = rs.getString("FK_NAME");
                 String sql = "ALTER TABLE " + table + " DROP FOREIGN KEY " + fkName;
                 log.info("迁移: {}", sql);
                 try (Statement dropStmt = conn.createStatement()) {
@@ -377,10 +503,10 @@ public class DatabaseMigration implements CommandLineRunner {
             )
             """);
 
-        ensureTable(conn, "kanban_board", """
-            CREATE TABLE kanban_board (
+        ensureTable(conn, "inventory_tag", """
+            CREATE TABLE inventory_tag (
               id BIGINT PRIMARY KEY AUTO_INCREMENT,
-              kanban_code VARCHAR(128) NOT NULL UNIQUE,
+              inventory_tag_code VARCHAR(128) NOT NULL UNIQUE,
               inbound_order_id BIGINT NOT NULL,
               inbound_order_line_id BIGINT NOT NULL,
               location_id BIGINT NOT NULL DEFAULT 0,
@@ -392,10 +518,10 @@ public class DatabaseMigration implements CommandLineRunner {
               received_at DATETIME,
               created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
               updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-              CONSTRAINT fk_kanban_order FOREIGN KEY (inbound_order_id) REFERENCES inbound_order(id),
-              CONSTRAINT fk_kanban_line FOREIGN KEY (inbound_order_line_id) REFERENCES inbound_order_line(id),
-              INDEX idx_kanban_line_status (inbound_order_line_id, status),
-              INDEX idx_kanban_location_status (location_id, status)
+              CONSTRAINT fk_inventory_tag_order FOREIGN KEY (inbound_order_id) REFERENCES inbound_order(id),
+              CONSTRAINT fk_inventory_tag_line FOREIGN KEY (inbound_order_line_id) REFERENCES inbound_order_line(id),
+              INDEX idx_inventory_tag_line_status (inbound_order_line_id, status),
+              INDEX idx_inventory_tag_location_status (location_id, status)
             )
             """);
 
@@ -406,7 +532,7 @@ public class DatabaseMigration implements CommandLineRunner {
               movement_type VARCHAR(32) NOT NULL,
               source_type VARCHAR(32) NOT NULL,
               source_id BIGINT,
-              kanban_board_id BIGINT,
+              inventory_tag_id BIGINT,
               material_id BIGINT NOT NULL,
               warehouse_id BIGINT NOT NULL,
               storage_location_id BIGINT NOT NULL,
@@ -437,6 +563,43 @@ public class DatabaseMigration implements CommandLineRunner {
             """);
     }
 
+    private void ensureAiImportTables(Connection conn) throws Exception {
+        ensureTable(conn, "ai_import_batch", """
+            CREATE TABLE ai_import_batch (
+              id BIGINT PRIMARY KEY AUTO_INCREMENT,
+              import_type VARCHAR(64) NOT NULL,
+              file_name VARCHAR(255) NOT NULL,
+              template_version VARCHAR(64) NOT NULL,
+              total_rows INT NOT NULL DEFAULT 0,
+              success_rows INT NOT NULL DEFAULT 0,
+              failed_rows INT NOT NULL DEFAULT 0,
+              imported_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              INDEX idx_ai_import_type_time (import_type, imported_at)
+            )
+            """);
+
+        ensureTable(conn, "ai_inventory_flow_history", """
+            CREATE TABLE ai_inventory_flow_history (
+              id BIGINT PRIMARY KEY AUTO_INCREMENT,
+              batch_id BIGINT NOT NULL,
+              import_row_no INT NOT NULL,
+              business_date DATE NOT NULL,
+              material_code VARCHAR(64) NOT NULL,
+              warehouse_code VARCHAR(64) NOT NULL,
+              location_code VARCHAR(64) NOT NULL,
+              board_code VARCHAR(128) NOT NULL,
+              movement_type VARCHAR(32) NOT NULL,
+              quantity DECIMAL(18, 3) NOT NULL,
+              source_order_no VARCHAR(64) NOT NULL,
+              quality_status VARCHAR(32),
+              imported_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              CONSTRAINT fk_ai_flow_batch FOREIGN KEY (batch_id) REFERENCES ai_import_batch(id),
+              INDEX idx_ai_flow_batch_row (batch_id, import_row_no),
+              INDEX idx_ai_flow_material_date (material_code, business_date),
+              INDEX idx_ai_flow_movement_date (movement_type, business_date)
+            )
+            """);
+    }
     private void ensureTable(Connection conn, String tableName, String createSql) throws Exception {
         if (tableExists(conn, tableName)) return;
         log.info("迁移: 创建表 {}", tableName);
@@ -454,16 +617,14 @@ public class DatabaseMigration implements CommandLineRunner {
 
     private boolean foreignKeyExists(Connection conn, String table, String fkName)
             throws Exception {
-        String sql = """
-                SELECT 1 FROM information_schema.TABLE_CONSTRAINTS
-                WHERE TABLE_SCHEMA = (SELECT DATABASE())
-                  AND TABLE_NAME = '%s'
-                  AND CONSTRAINT_NAME = '%s'
-                  AND CONSTRAINT_TYPE = 'FOREIGN KEY'
-                """.formatted(table, fkName);
-        try (Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            return rs.next();
+        DatabaseMetaData meta = conn.getMetaData();
+        try (ResultSet rs = meta.getImportedKeys(conn.getCatalog(), null, table)) {
+            while (rs.next()) {
+                if (Objects.equals(fkName, rs.getString("FK_NAME"))) {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 
@@ -476,7 +637,7 @@ public class DatabaseMigration implements CommandLineRunner {
                   id BIGINT PRIMARY KEY AUTO_INCREMENT,
                   outbound_order_id BIGINT NOT NULL,
                   outbound_order_line_id BIGINT NOT NULL,
-                  kanban_board_id BIGINT NOT NULL,
+                  inventory_tag_id BIGINT NOT NULL,
                   material_id BIGINT NOT NULL,
                   lock_qty DECIMAL(18, 3) NOT NULL,
                   status VARCHAR(32) NOT NULL DEFAULT 'LOCKED',
@@ -487,13 +648,43 @@ public class DatabaseMigration implements CommandLineRunner {
                   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                   CONSTRAINT fk_lock_order FOREIGN KEY (outbound_order_id) REFERENCES outbound_order(id),
                   CONSTRAINT fk_lock_line FOREIGN KEY (outbound_order_line_id) REFERENCES outbound_order_line(id),
-                  CONSTRAINT fk_lock_kanban FOREIGN KEY (kanban_board_id) REFERENCES kanban_board(id),
+                  CONSTRAINT fk_lock_inventory_tag FOREIGN KEY (inventory_tag_id) REFERENCES inventory_tag(id),
                   INDEX idx_lock_order (outbound_order_id),
-                  INDEX idx_lock_kanban (kanban_board_id),
+                  INDEX idx_lock_inventory_tag (inventory_tag_id),
                   INDEX idx_lock_status (status)
                 )
                 """;
         log.info("迁移: CREATE TABLE inventory_lock");
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+        }
+    }
+
+    private void ensureInventoryHoldTable(Connection conn) throws Exception {
+        if (tableExists(conn, "inventory_hold")) {
+            return;
+        }
+        String sql = """
+                CREATE TABLE inventory_hold (
+                  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                  inventory_tag_id BIGINT NOT NULL,
+                  hold_type VARCHAR(32) NOT NULL,
+                  hold_qty DECIMAL(18, 3) NOT NULL,
+                  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+                  reason VARCHAR(128) NOT NULL,
+                  remark VARCHAR(255),
+                  operator_name VARCHAR(64) NOT NULL,
+                  released_reason VARCHAR(128) DEFAULT NULL,
+                  released_remark VARCHAR(255) DEFAULT NULL,
+                  released_by VARCHAR(64) DEFAULT NULL,
+                  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                  released_at DATETIME DEFAULT NULL,
+                  CONSTRAINT fk_hold_inventory_tag FOREIGN KEY (inventory_tag_id) REFERENCES inventory_tag(id),
+                  INDEX idx_hold_inventory_tag_status (inventory_tag_id, status),
+                  INDEX idx_hold_type_status (hold_type, status)
+                )
+                """;
+        log.info("迁移: CREATE TABLE inventory_hold");
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(sql);
         }

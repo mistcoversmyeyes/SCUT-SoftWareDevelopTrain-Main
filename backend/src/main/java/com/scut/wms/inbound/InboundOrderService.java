@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
 public class InboundOrderService {
     private static final String ENABLED = "ENABLED";
     private static final String DRAFT = "DRAFT";
-    private static final String RELEASED = "RELEASED";
+    private static final String READY_TO_RECEIVE = "READY_TO_RECEIVE";
     private static final String PARTIAL_RECEIVED = "PARTIAL_RECEIVED";
     private static final String COMPLETED = "COMPLETED";
     private static final String CANCELLED = "CANCELLED";
@@ -47,7 +47,7 @@ public class InboundOrderService {
 
     private final InboundOrderMapper inboundOrderMapper;
     private final InboundOrderLineMapper inboundOrderLineMapper;
-    private final KanbanBoardMapper kanbanBoardMapper;
+    private final InventoryTagMapper inventoryTagMapper;
     private final SupplierMapper supplierMapper;
     private final MaterialMapper materialMapper;
     private final WarehouseMapper warehouseMapper;
@@ -58,7 +58,7 @@ public class InboundOrderService {
     public InboundOrderService(
             InboundOrderMapper inboundOrderMapper,
             InboundOrderLineMapper inboundOrderLineMapper,
-            KanbanBoardMapper kanbanBoardMapper,
+            InventoryTagMapper inventoryTagMapper,
             SupplierMapper supplierMapper,
             MaterialMapper materialMapper,
             WarehouseMapper warehouseMapper,
@@ -68,7 +68,7 @@ public class InboundOrderService {
     ) {
         this.inboundOrderMapper = inboundOrderMapper;
         this.inboundOrderLineMapper = inboundOrderLineMapper;
-        this.kanbanBoardMapper = kanbanBoardMapper;
+        this.inventoryTagMapper = inventoryTagMapper;
         this.supplierMapper = supplierMapper;
         this.materialMapper = materialMapper;
         this.warehouseMapper = warehouseMapper;
@@ -121,7 +121,7 @@ public class InboundOrderService {
             replaceOrder(order, request, false);
             return toResponse(id);
         }
-        if (RELEASED.equals(order.getStatus())) {
+        if (READY_TO_RECEIVE.equals(order.getStatus())) {
             if (hasReceived(id)) {
                 throw new BusinessException("已有收货记录的入库单不能修改");
             }
@@ -134,11 +134,11 @@ public class InboundOrderService {
     @Transactional
     public InboundOrderResponse release(Long id) {
         InboundOrder order = requireLockedOrder(id);
-        if (RELEASED.equals(order.getStatus())) {
+        if (READY_TO_RECEIVE.equals(order.getStatus())) {
             return toResponse(id);
         }
         if (!DRAFT.equals(order.getStatus())) {
-            throw new BusinessException("当前状态不允许释放入库单");
+            throw new BusinessException("当前状态不允许转为待收货");
         }
 
         List<InboundOrderLine> lines = linesOf(id);
@@ -147,12 +147,12 @@ public class InboundOrderService {
         }
 
         LocalDateTime now = LocalDateTime.now();
-        List<KanbanBoard> existing = kanbansOf(id);
+        List<InventoryTag> existing = inventoryTagsOf(id);
         if (existing.isEmpty()) {
-            insertKanbans(order, lines, now);
+            insertInventoryTags(order, lines, now);
         }
 
-        order.setStatus(RELEASED);
+        order.setStatus(READY_TO_RECEIVE);
         order.setReleasedAt(now);
         inboundOrderMapper.updateById(order);
         return toResponse(id);
@@ -175,9 +175,9 @@ public class InboundOrderService {
         order.setStatus(CANCELLED);
         inboundOrderMapper.updateById(order);
 
-        for (KanbanBoard kanban : kanbansOf(id)) {
-            kanban.setStatus(CANCELLED);
-            kanbanBoardMapper.updateById(kanban);
+        for (InventoryTag inventoryTag : inventoryTagsOf(id)) {
+            inventoryTag.setStatus(CANCELLED);
+            inventoryTagMapper.updateById(inventoryTag);
         }
         return toResponse(id);
     }
@@ -199,31 +199,31 @@ public class InboundOrderService {
         );
     }
 
-    public List<KanbanPrintResponse> printKanbans(Long id) {
+    public List<InventoryTagPrintResponse> printInventoryTags(Long id) {
         requireOrder(id);
-        return inboundOrderMapper.selectKanbanPrints(id);
+        return inboundOrderMapper.selectInventoryTagPrints(id);
     }
 
-    public List<KanbanPrintResponse> listKanbanPrints(String status, String inboundNo, String materialCode) {
-        return inboundOrderMapper.selectKanbanPrintsByFilter(status, inboundNo, materialCode);
+    public List<InventoryTagPrintResponse> listInventoryTagPrints(String status, String inboundNo, String materialCode) {
+        return inboundOrderMapper.selectInventoryTagPrintsByFilter(status, inboundNo, materialCode);
     }
 
-    private void replaceOrder(InboundOrder order, InboundOrderRequest request, boolean rebuildKanbans) {
+    private void replaceOrder(InboundOrder order, InboundOrderRequest request, boolean rebuildInventoryTags) {
         order.setSupplierId(request.lines().isEmpty() ? null : request.lines().get(0).supplierId());
         order.setSourceDocNo(request.sourceDocNo());
         order.setRemark(request.remark());
         inboundOrderMapper.updateById(order);
 
-        if (rebuildKanbans) {
-            kanbanBoardMapper.delete(Wrappers.<KanbanBoard>lambdaQuery()
-                    .eq(KanbanBoard::getInboundOrderId, order.getId()));
+        if (rebuildInventoryTags) {
+            inventoryTagMapper.delete(Wrappers.<InventoryTag>lambdaQuery()
+                    .eq(InventoryTag::getInboundOrderId, order.getId()));
         }
         inboundOrderLineMapper.delete(Wrappers.<InboundOrderLine>lambdaQuery()
                 .eq(InboundOrderLine::getInboundOrderId, order.getId()));
         insertLines(order.getId(), request.lines());
 
-        if (rebuildKanbans) {
-            insertKanbans(order, linesOf(order.getId()), LocalDateTime.now());
+        if (rebuildInventoryTags) {
+            insertInventoryTags(order, linesOf(order.getId()), LocalDateTime.now());
         }
     }
 
@@ -250,14 +250,14 @@ public class InboundOrderService {
                     && location.getMaxCapacity() != null) {
                 int capacity = ct.getCapacityQty().intValue();
                 int planned = line.plannedQty().intValue();
-                int newKanbans = planned / capacity + (planned % capacity > 0 ? 1 : 0);
-                long currentBoxes = kanbanBoardMapper.selectCount(Wrappers.<KanbanBoard>lambdaQuery()
-                        .eq(KanbanBoard::getLocationId, location.getId())
-                        .in(KanbanBoard::getStatus, "RECEIVED", "LOCKED"));
-                if (currentBoxes + newKanbans > location.getMaxCapacity().longValue()) {
+                int newInventoryTags = planned / capacity + (planned % capacity > 0 ? 1 : 0);
+                long currentBoxes = inventoryTagMapper.selectCount(Wrappers.<InventoryTag>lambdaQuery()
+                        .eq(InventoryTag::getLocationId, location.getId())
+                        .in(InventoryTag::getStatus, "RECEIVED", "LOCKED"));
+                if (currentBoxes + newInventoryTags > location.getMaxCapacity().longValue()) {
                     throw new BusinessException(String.format(
                             "库位 %s 放不下！当前占用 %d 箱，本次入库 %d 箱，最大容量 %d 箱",
-                            location.getLocationName(), currentBoxes, newKanbans, location.getMaxCapacity().longValue()));
+                            location.getLocationName(), currentBoxes, newInventoryTags, location.getMaxCapacity().longValue()));
                 }
             }
         }
@@ -328,7 +328,7 @@ public class InboundOrderService {
         return order;
     }
 
-    private void insertKanbans(InboundOrder order, List<InboundOrderLine> lines, LocalDateTime printedAt) {
+    private void insertInventoryTags(InboundOrder order, List<InboundOrderLine> lines, LocalDateTime printedAt) {
         for (InboundOrderLine line : lines) {
             // Get capacity from container type
             var ct = containerTypeMapper.selectById(line.getContainerTypeId());
@@ -339,11 +339,11 @@ public class InboundOrderService {
             int plannedQty = line.getPlannedQty().intValue();
             int fullBoxes = plannedQty / capacityQty;
             int remainder = plannedQty % capacityQty;
-            int totalKanbans = fullBoxes + (remainder > 0 ? 1 : 0);
+            int totalInventoryTags = fullBoxes + (remainder > 0 ? 1 : 0);
 
-            for (int seq = 1; seq <= totalKanbans; seq++) {
-                KanbanBoard board = new KanbanBoard();
-                board.setKanbanCode("KB:v1:%s:%d:%d".formatted(order.getInboundNo(), line.getLineNo(), seq));
+            for (int seq = 1; seq <= totalInventoryTags; seq++) {
+                InventoryTag board = new InventoryTag();
+                board.setInventoryTagCode("IT:v1:%s:%d:%d".formatted(order.getInboundNo(), line.getLineNo(), seq));
                 board.setInboundOrderId(order.getId());
                 board.setInboundOrderLineId(line.getId());
                 board.setLocationId(line.getTargetLocationId());
@@ -355,7 +355,7 @@ public class InboundOrderService {
                 }
                 board.setStatus(PRINTED);
                 board.setPrintedAt(printedAt);
-                kanbanBoardMapper.insert(board);
+                inventoryTagMapper.insert(board);
             }
         }
     }
@@ -368,8 +368,8 @@ public class InboundOrderService {
         if (hasReceivedLine) {
             return true;
         }
-        return kanbansOf(orderId).stream()
-                .anyMatch(kanban -> kanban.getReceivedAt() != null || RECEIVED.equals(kanban.getStatus()));
+        return inventoryTagsOf(orderId).stream()
+                .anyMatch(inventoryTag -> inventoryTag.getReceivedAt() != null || RECEIVED.equals(inventoryTag.getStatus()));
     }
 
     private List<InboundOrderLine> linesOf(Long orderId) {
@@ -378,10 +378,10 @@ public class InboundOrderService {
                 .orderByAsc(InboundOrderLine::getLineNo));
     }
 
-    private List<KanbanBoard> kanbansOf(Long orderId) {
-        return kanbanBoardMapper.selectList(Wrappers.<KanbanBoard>lambdaQuery()
-                .eq(KanbanBoard::getInboundOrderId, orderId)
-                .orderByAsc(KanbanBoard::getId));
+    private List<InventoryTag> inventoryTagsOf(Long orderId) {
+        return inventoryTagMapper.selectList(Wrappers.<InventoryTag>lambdaQuery()
+                .eq(InventoryTag::getInboundOrderId, orderId)
+                .orderByAsc(InventoryTag::getId));
     }
 
     private InboundOrderResponse toResponse(Long id) {
@@ -393,7 +393,7 @@ public class InboundOrderService {
         List<InboundOrderLine> lines = linesOf(order.getId());
         BigDecimal plannedQty = sum(lines, InboundOrderLine::getPlannedQty);
         BigDecimal receivedQty = sum(lines, InboundOrderLine::getReceivedQty);
-        int kanbanCount = kanbansOf(order.getId()).size();
+        int inventoryTagCount = inventoryTagsOf(order.getId()).size();
 
         return new InboundOrderResponse(
                 order.getId(),
@@ -429,7 +429,7 @@ public class InboundOrderService {
                                 line.getContainerTypeId());
                         })
                         .toList(),
-                kanbanCount
+                inventoryTagCount
         );
     }
 

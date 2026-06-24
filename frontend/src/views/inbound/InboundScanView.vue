@@ -9,7 +9,7 @@
     </div>
 
     <el-alert type="info" :closable="false" show-icon style="margin-bottom:20px"
-      title="扫描看板二维码，核对信息后点击确认入库。如需覆盖计划库位，请在下拉框中选择目标库位。" />
+      title="扫描库存标签二维码，核对信息后点击确认入库。如需覆盖计划库位，请在下拉框中选择目标库位。" />
 
     <!-- ═══════ 扫码主卡片 ═══════ -->
     <el-card class="scan-main" shadow="hover">
@@ -39,10 +39,10 @@
       </el-divider>
 
       <div class="manual-input">
-        <el-input ref="scanInputRef" v-model="kanbanCode" size="large"
-          placeholder="请输入看板码" :disabled="scanning" clearable
+        <el-input ref="scanInputRef" v-model="inventoryTagCode" size="large"
+          placeholder="请输入库存标签码" :disabled="scanning" clearable
           style="width:260px" @keyup.enter="handleScan">
-          <template #prepend>看板码</template>
+          <template #prepend>库存标签码</template>
         </el-input>
         <el-select v-model="selectedLocationId" placeholder="留空则按计划库位入库"
           clearable filterable size="large" style="width:280px">
@@ -55,22 +55,22 @@
         </el-button>
       </div>
 
-      <!-- ═══════ 看板预览（紧凑单行） ═══════ -->
-      <div v-if="kanbanPreview" class="kanban-preview">
+      <!-- ═══════ 库存标签预览（紧凑单行） ═══════ -->
+      <div v-if="inventoryTagPreview" class="inventoryTag-preview">
         <div class="preview-row">
-          <span class="preview-material">{{ kanbanPreview.materialCode }} {{ kanbanPreview.materialName }}</span>
+          <span class="preview-material">{{ inventoryTagPreview.materialCode }} {{ inventoryTagPreview.materialName }}</span>
           <span class="preview-sep">·</span>
-          <span class="preview-loc">{{ kanbanPreview.locationName || '—' }}</span>
+          <span class="preview-loc">{{ inventoryTagPreview.locationName || '—' }}</span>
           <span class="preview-sep">·</span>
-          <el-tag :type="kanbanPreview.kanbanStatus === 'RECEIVED' ? 'success' : 'info'" size="small">
-            {{ kanbanPreview.kanbanStatus === 'RECEIVED' ? '已入库' : kanbanPreview.kanbanStatus === 'PRINTED' ? '待入库' : kanbanPreview.kanbanStatus }}
+          <el-tag :type="inventoryTagPreview.inventoryTagStatus === 'RECEIVED' ? 'success' : 'info'" size="small">
+            {{ inventoryTagPreview.inventoryTagStatus === 'RECEIVED' ? '已入库' : inventoryTagPreview.inventoryTagStatus === 'PRINTED' ? '待入库' : inventoryTagPreview.inventoryTagStatus }}
           </el-tag>
           <span class="preview-sep">·</span>
           <span class="preview-qty">
-            总量 <strong>{{ kanbanPreview.boardQty }}</strong>
+            总量 <strong>{{ inventoryTagPreview.boardQty }}</strong>
           </span>
-          <span v-if="kanbanPreview.inboundNo" class="preview-sep">·</span>
-          <span v-if="kanbanPreview.inboundNo" class="preview-order">{{ kanbanPreview.inboundNo }}</span>
+          <span v-if="inventoryTagPreview.inboundNo" class="preview-sep">·</span>
+          <span v-if="inventoryTagPreview.inboundNo" class="preview-order">{{ inventoryTagPreview.inboundNo }}</span>
         </div>
       </div>
 
@@ -88,8 +88,8 @@
         </div>
       </template>
       <el-descriptions :column="2" border>
-        <el-descriptions-item label="看板码">
-          <code>{{ scanResult.kanbanCode }}</code>
+        <el-descriptions-item label="库存标签码">
+          <code>{{ scanResult.inventoryTagCode }}</code>
         </el-descriptions-item>
         <el-descriptions-item label="入库单号">
           {{ scanResult.inboundNo }}
@@ -125,7 +125,7 @@
       </template>
       <div class="history-list">
         <div v-for="(item, i) in scanHistory" :key="i" class="history-item">
-          <span class="history-code">{{ item.kanbanCode }}</span>
+          <span class="history-code">{{ item.inventoryTagCode }}</span>
           <span class="history-arrow">→</span>
           <span class="history-material">{{ item.materialCode }} {{ item.materialName }}</span>
           <span class="history-qty">入库 {{ item.receivedQty }} 件</span>
@@ -141,10 +141,10 @@ import { nextTick, watch, ref, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Camera } from '@element-plus/icons-vue'
 import { Html5Qrcode } from 'html5-qrcode'
-import { scanInbound, lookupKanbanInbound } from '../../api/inventory'
+import { scanInbound, lookupInventoryTagInbound } from '../../api/inventory'
 import { fetchMasterDataOptions } from '../../api/masterData'
 
-const kanbanCode = ref('')
+const inventoryTagCode = ref('')
 const scanning = ref(false)
 const scanResult = ref(null)
 const errorMessage = ref('')
@@ -158,14 +158,14 @@ const cameraActive = ref(false)
 const scannerError = ref('')
 let html5QrCode = null
 
-// ---- 看板预览 ----
-const kanbanPreview = ref(null)
+// ---- 库存标签预览 ----
+const inventoryTagPreview = ref(null)
 let lookupTimer = null
 
 async function handleScan() {
-  const code = kanbanCode.value.trim()
+  const code = inventoryTagCode.value.trim()
   if (!code) {
-    errorMessage.value = '请先输入看板码'
+    errorMessage.value = '请先输入库存标签码'
     scanResult.value = null
     return
   }
@@ -178,15 +178,15 @@ async function handleScan() {
     const result = await scanInbound(code, selectedLocationId.value)
     scanResult.value = result
     scanHistory.value.unshift({
-      kanbanCode: result.kanbanCode,
+      inventoryTagCode: result.inventoryTagCode,
       materialCode: result.materialCode,
       materialName: result.materialName,
       receivedQty: result.receivedQty,
       time: formatDateTime(result.receivedAt)
     })
-    kanbanCode.value = ''
+    inventoryTagCode.value = ''
     selectedLocationId.value = null
-    kanbanPreview.value = null
+    inventoryTagPreview.value = null
   } catch (error) {
     errorMessage.value =
       error.response?.data?.message ||
@@ -200,18 +200,18 @@ async function handleScan() {
   }
 }
 
-// 看板码输入 → 实时预览
-watch(kanbanCode, (code) => {
+// 库存标签码输入 → 实时预览
+watch(inventoryTagCode, (code) => {
   clearTimeout(lookupTimer)
-  kanbanPreview.value = null
+  inventoryTagPreview.value = null
   if (errorMessage.value) errorMessage.value = ''
   const trimmed = code.trim()
   if (!trimmed) return
   lookupTimer = setTimeout(async () => {
     try {
-      kanbanPreview.value = await lookupKanbanInbound(trimmed)
+      inventoryTagPreview.value = await lookupInventoryTagInbound(trimmed)
     } catch {
-      kanbanPreview.value = null
+      inventoryTagPreview.value = null
     }
   }, 400)
 })
@@ -233,7 +233,7 @@ async function startCamera() {
       { facingMode: 'environment' },
       { fps: 10, qrbox: { width: 250, height: 250 } },
       (decodedText) => {
-        kanbanCode.value = decodedText
+        inventoryTagCode.value = decodedText
         ElMessage.success('扫描成功: ' + decodedText)
         stopCamera()
       },
@@ -267,7 +267,7 @@ function openFilePicker() {
       const result = await h5.scanFile(file, true)
       document.body.removeChild(tmp)
       if (result) {
-        kanbanCode.value = result
+        inventoryTagCode.value = result
         ElMessage.success('识别成功: ' + result)
       }
     } catch (err) {
@@ -341,8 +341,8 @@ onBeforeUnmount(() => {
   justify-content: center; flex-wrap: wrap; margin-bottom: 12px;
 }
 
-/* ---- 看板预览 ---- */
-.kanban-preview {
+/* ---- 库存标签预览 ---- */
+.inventoryTag-preview {
   background: var(--el-color-primary-light-9); border-radius: 8px;
   padding: 10px 16px; margin: 0 0 8px;
 }

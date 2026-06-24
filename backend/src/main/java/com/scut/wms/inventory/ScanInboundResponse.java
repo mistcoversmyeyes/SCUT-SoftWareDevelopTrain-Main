@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public record ScanInboundResponse(
-        String kanbanCode,
+        String inventoryTagCode,
         String inboundNo,
         String materialCode,
         String materialName,

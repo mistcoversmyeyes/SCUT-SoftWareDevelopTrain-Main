@@ -1,7 +1,7 @@
 import { http } from './http'
 
-export async function scanInbound(kanbanCode, locationId) {
-  const payload = { kanbanCode }
+export async function scanInbound(inventoryTagCode, locationId) {
+  const payload = { inventoryTagCode }
   if (locationId) {
     payload.locationId = locationId
   }
@@ -9,18 +9,18 @@ export async function scanInbound(kanbanCode, locationId) {
   return response.data
 }
 
-export async function cancelKanban(kanbanId) {
-  const response = await http.post(`/inventory/kanbans/${kanbanId}/cancel`)
+export async function cancelInventoryTag(inventoryTagId) {
+  const response = await http.post(`/inventory/inventory-tags/${inventoryTagId}/cancel`)
   return response.data
 }
 
-export async function cancelKanbansBatch(ids) {
-  const response = await http.post('/inventory/kanbans/cancel', { ids })
+export async function cancelInventoryTagsBatch(ids) {
+  const response = await http.post('/inventory/inventory-tags/cancel', { ids })
   return response.data
 }
 
-export async function lookupKanbanInbound(kanbanCode) {
-  const response = await http.get('/outbound/kanban-lookup', { params: { kanbanCode } })
+export async function lookupInventoryTagInbound(inventoryTagCode) {
+  const response = await http.get('/inventory/inventory-tag-lookup', { params: { inventoryTagCode } })
   return response.data
 }
 

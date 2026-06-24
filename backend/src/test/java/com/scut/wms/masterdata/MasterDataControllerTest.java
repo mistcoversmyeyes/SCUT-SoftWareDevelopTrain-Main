@@ -23,7 +23,7 @@ class MasterDataControllerTest {
         mockMvc.perform(get("/api/master-data/options"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.suppliers[0].code").value("8KH"))
-                .andExpect(jsonPath("$.materials[0].code").value("5HG 807 109 C"))
+                .andExpect(jsonPath("$.materials[0].code").value("5HG.807.109.C"))
                 .andExpect(jsonPath("$.warehouses[0].code").value("WH-JY"))
                 .andExpect(jsonPath("$.locations[0].warehouseId").value(1))
                 .andExpect(jsonPath("$.locations[0].code").value("A-01"));

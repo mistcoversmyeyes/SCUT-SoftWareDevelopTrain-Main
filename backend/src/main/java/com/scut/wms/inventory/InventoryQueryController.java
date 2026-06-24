@@ -2,9 +2,9 @@ package com.scut.wms.inventory;
 
 import com.scut.wms.inbound.InboundOrderResponse;
 import com.scut.wms.inbound.InboundOrderService;
-import com.scut.wms.inbound.KanbanBoard;
-import com.scut.wms.inbound.KanbanBoardMapper;
-import com.scut.wms.inbound.KanbanPrintResponse;
+import com.scut.wms.inbound.InventoryTag;
+import com.scut.wms.inbound.InventoryTagMapper;
+import com.scut.wms.inbound.InventoryTagPrintResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,12 +18,12 @@ import java.util.List;
 public class InventoryQueryController {
     private final InventoryService inventoryService;
     private final InboundOrderService inboundOrderService;
-    private final KanbanBoardMapper kanbanBoardMapper;
+    private final InventoryTagMapper inventoryTagMapper;
 
-    public InventoryQueryController(InventoryService inventoryService, InboundOrderService inboundOrderService, KanbanBoardMapper kanbanBoardMapper) {
+    public InventoryQueryController(InventoryService inventoryService, InboundOrderService inboundOrderService, InventoryTagMapper inventoryTagMapper) {
         this.inventoryService = inventoryService;
         this.inboundOrderService = inboundOrderService;
-        this.kanbanBoardMapper = kanbanBoardMapper;
+        this.inventoryTagMapper = inventoryTagMapper;
     }
 
     @GetMapping("/balances")
@@ -41,9 +41,14 @@ public class InventoryQueryController {
             @RequestParam(required = false) String warehouseCode,
             @RequestParam(required = false) String locationCode,
             @RequestParam(required = false) String inboundNo,
-            @RequestParam(required = false) String kanbanCode
+            @RequestParam(required = false) String inventoryTagCode
     ) {
-        return inventoryService.listMovements(materialCode, warehouseCode, locationCode, inboundNo, kanbanCode);
+        return inventoryService.listMovements(materialCode, warehouseCode, locationCode, inboundNo, inventoryTagCode);
+    }
+
+    @GetMapping("/inventory-tag-lookup")
+    public ScanInventoryTagContext lookupInventoryTag(@RequestParam String inventoryTagCode) {
+        return inventoryService.lookupInventoryTag(inventoryTagCode);
     }
 
     @GetMapping("/inbound-orders/{id}")
@@ -51,18 +56,18 @@ public class InventoryQueryController {
         return inboundOrderService.getById(id);
     }
 
-    @GetMapping("/kanbans")
-    public List<KanbanPrintResponse> getKanbans(
+    @GetMapping("/inventory-tags")
+    public List<InventoryTagPrintResponse> getInventoryTags(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String inboundNo,
             @RequestParam(required = false) String materialCode
     ) {
-        return inboundOrderService.listKanbanPrints(status, inboundNo, materialCode);
+        return inboundOrderService.listInventoryTagPrints(status, inboundNo, materialCode);
     }
 
-    @GetMapping("/inbound-orders/{id}/kanbans")
-    public List<KanbanPrintResponse> getOrderKanbans(@PathVariable Long id) {
-        return inboundOrderService.printKanbans(id);
+    @GetMapping("/inbound-orders/{id}/inventory-tags")
+    public List<InventoryTagPrintResponse> getOrderInventoryTags(@PathVariable Long id) {
+        return inboundOrderService.printInventoryTags(id);
     }
 
 }

@@ -19,11 +19,22 @@ docs/
 ├── specs/
 │   ├── index.md                  <- 需求、设计、WP 行为规格索引
 │   └── ...
+├── tests/
+│   ├── index.md                  <- V 模型测试文档索引
+│   └── acceptence-tests/         <- 验收测试步骤、预期结果和判定标准
 ├── exec-plans/
 │   ├── active/                   <- 进行中的实现计划
 │   ├── completed/                <- 已完成的实现计划
 │   ├── tech-debt-tracker.md      <- 技术债
 │   └── product-debt-tracker.md   <- 产品语义债
+├── mantainence/
+│   ├── index.md                  <- 项目运维文档族索引
+│   ├── environment.md            <- 本地运行前提、端口和 WSL/npm 注意事项
+│   ├── startup.md                <- 一键启动、手动启动、访问入口和日志路径
+│   ├── database.md               <- 数据库配置、初始化、重置和测试库
+│   ├── verification.md           <- 启动后接口、前端、数据库和日志检查
+│   ├── cleanup.md                <- 停止服务、停止容器和清理数据卷
+│   └── troubleshooting.md        <- Docker/MySQL/npm/端口常见故障
 ├── references/
 │   ├── index.md                  <- 本地外部参考索引
 │   └── ...

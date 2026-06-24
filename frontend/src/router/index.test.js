@@ -9,10 +9,14 @@ import DashboardView from '../views/DashboardView.vue'
 import InboundOrderListView from '../views/inbound/InboundOrderListView.vue'
 import InboundScanView from '../views/inbound/InboundScanView.vue'
 import InboundPrintView from '../views/inbound/InboundPrintView.vue'
-import KanbanPrintView from '../views/inbound/KanbanPrintView.vue'
+import InventoryTagPrintView from '../views/inbound/InventoryTagPrintView.vue'
 import InventoryBalanceView from '../views/inventory/InventoryBalanceView.vue'
+import InventoryAiImportView from '../views/inventory/InventoryAiImportView.vue'
 import InventoryTraceView from '../views/inventory/InventoryTraceView.vue'
-import KanbanTraceView from '../views/kanban/KanbanTraceView.vue'
+import InventoryTagTraceView from '../views/inventory-tag/InventoryTagTraceView.vue'
+import MobileInboundView from '../views/mobile/MobileInboundView.vue'
+import MobileInventoryTagQueryView from '../views/mobile/MobileInventoryTagQueryView.vue'
+import MobileOutboundView from '../views/mobile/MobileOutboundView.vue'
 
 vi.mock('../api/auth', () => ({
   login: vi.fn(),
@@ -101,6 +105,11 @@ describe('router auth guard', () => {
         component: InboundScanView
       },
       {
+        path: '/inventory/ai-import',
+        name: 'inventory-ai-import',
+        component: InventoryAiImportView
+      },
+      {
         path: '/inventory/balances',
         name: 'inventory-balances',
         component: InventoryBalanceView
@@ -111,9 +120,9 @@ describe('router auth guard', () => {
         component: InventoryTraceView
       },
       {
-        path: '/kanbans/trace',
-        name: 'kanbans-trace',
-        component: KanbanTraceView
+        path: '/inventory-tags/trace',
+        name: 'inventory-tags-trace',
+        component: InventoryTagTraceView
       },
       {
         path: '/inbound/10/print',
@@ -121,9 +130,24 @@ describe('router auth guard', () => {
         component: InboundPrintView
       },
       {
-        path: '/inbound/10/kanbans/print',
-        name: 'kanban-print',
-        component: KanbanPrintView
+        path: '/inbound/10/inventory-tags/print',
+        name: 'inventory-tag-print',
+        component: InventoryTagPrintView
+      },
+      {
+        path: '/mobile/inbound',
+        name: 'mobile-inbound',
+        component: MobileInboundView
+      },
+      {
+        path: '/mobile/outbound',
+        name: 'mobile-outbound',
+        component: MobileOutboundView
+      },
+      {
+        path: '/mobile/inventory-tag',
+        name: 'mobile-inventory-tag',
+        component: MobileInventoryTagQueryView
       }
     ]
 
@@ -144,5 +168,18 @@ describe('router auth guard', () => {
     await router.push('/dashboard')
 
     expect(router.currentRoute.value.matched.at(-1).components.default).toBe(DashboardView)
+  })
+
+  it('redirects /mobile to the default mobile inbound route', async () => {
+    localStorage.setItem('wms-token', 'valid-token')
+    authApi.fetchMe.mockResolvedValue({
+      username: 'admin',
+      displayName: '系统管理员'
+    })
+
+    await router.push('/mobile')
+
+    expect(router.currentRoute.value.name).toBe('mobile-inbound')
+    expect(router.currentRoute.value.path).toBe('/mobile/inbound')
   })
 })

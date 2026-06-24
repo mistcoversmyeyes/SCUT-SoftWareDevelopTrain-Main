@@ -9,12 +9,13 @@
                oo.outbound_no AS outboundNo,
                COALESCE(s.supplier_name, '') AS supplierName,
                oo.status,
-               COALESCE(SUM(il.lock_qty), 0) AS totalLockQty,
+               COALESCE(SUM(LEAST(il.lock_qty, GREATEST(kb.board_qty - COALESCE(kb.picked_qty, 0), 0))), 0) AS totalLockQty,
                COALESCE(SUM(ol.picked_qty), 0) AS totalPickedQty,
                COALESCE(MAX(CASE WHEN il.status = 'FORCE_STOLEN' THEN 1 ELSE 0 END), 0) = 1 AS hasForceStolen,
                oo.created_at AS createdAt
         FROM outbound_order oo
                  INNER JOIN inventory_lock il ON il.outbound_order_id = oo.id
+                 INNER JOIN inventory_tag kb ON kb.id = il.inventory_tag_id
                  LEFT JOIN outbound_order_line ol ON ol.id = il.outbound_order_line_id
                  LEFT JOIN supplier s ON s.id = oo.supplier_id
         WHERE 1=1
@@ -35,15 +36,15 @@
 
     <select id="selectLockDetails" resultType="com.scut.wms.lock.LockDetailView">
         SELECT il.id AS lockId,
-               kb.kanban_code AS kanbanCode,
+               kb.inventory_tag_code AS inventoryTagCode,
                m.material_code AS materialCode,
                m.material_name AS materialName,
                sl.location_name AS locationName,
-               il.lock_qty AS lockQty,
+               LEAST(il.lock_qty, GREATEST(kb.board_qty - COALESCE(kb.picked_qty, 0), 0)) AS lockQty,
                kb.status AS lockStatus,
                il.outbound_order_line_id AS lineNo
         FROM inventory_lock il
-                 JOIN kanban_board kb ON kb.id = il.kanban_board_id
+                 JOIN inventory_tag kb ON kb.id = il.inventory_tag_id
                  JOIN material m ON m.id = il.material_id
                  LEFT JOIN storage_location sl ON sl.id = kb.location_id
         WHERE il.outbound_order_id = #{outboundOrderId}
@@ -52,7 +53,7 @@
     </select>
 
     <select id="selectForceLogs" resultType="com.scut.wms.lock.ForceLogView">
-        SELECT kb.kanban_code AS kanbanCode,
+        SELECT kb.inventory_tag_code AS inventoryTagCode,
                m.material_code AS materialCode,
                m.material_name AS materialName,
                il.lock_qty AS qty,
@@ -60,7 +61,7 @@
                COALESCE(sbo.outbound_no, '') AS stolenByOutboundNo,
                il.stolen_at AS stolenAt
         FROM inventory_lock il
-                 JOIN kanban_board kb ON kb.id = il.kanban_board_id
+                 JOIN inventory_tag kb ON kb.id = il.inventory_tag_id
                  JOIN material m ON m.id = il.material_id
                  LEFT JOIN outbound_order oo ON oo.id = il.outbound_order_id
                  LEFT JOIN outbound_order sbo ON sbo.id = il.stolen_by_order_id
@@ -72,21 +73,21 @@
         ORDER BY il.stolen_at DESC
     </select>
 
-    <select id="selectKanbanLocks" resultType="com.scut.wms.lock.KanbanLockView">
+    <select id="selectInventoryTagLocks" resultType="com.scut.wms.lock.InventoryTagLockView">
         SELECT il.id AS lockId,
-               kb.kanban_code AS kanbanCode,
+               kb.inventory_tag_code AS inventoryTagCode,
                kb.board_qty AS boardQty,
-               kb.status AS kanbanStatus,
+               kb.status AS inventoryTagStatus,
                m.material_code AS materialCode,
                m.material_name AS materialName,
                sl.location_name AS locationName,
-               il.lock_qty AS lockQty,
+               LEAST(il.lock_qty, GREATEST(kb.board_qty - COALESCE(kb.picked_qty, 0), 0)) AS lockQty,
                il.status AS lockStatus,
                COALESCE(oo.outbound_no, '') AS outboundNo,
                oo.id AS outboundOrderId,
                il.created_at AS createdAt
         FROM inventory_lock il
-                 JOIN kanban_board kb ON kb.id = il.kanban_board_id
+                 JOIN inventory_tag kb ON kb.id = il.inventory_tag_id
                  JOIN material m ON m.id = il.material_id
                  LEFT JOIN storage_location sl ON sl.id = kb.location_id
                  LEFT JOIN outbound_order oo ON oo.id = il.outbound_order_id
@@ -103,18 +104,18 @@
         ORDER BY il.created_at DESC
     </select>
 
-    <select id="selectByKanbanForUpdate" resultType="com.scut.wms.lock.InventoryLock">
-        SELECT id, outbound_order_id, outbound_order_line_id, kanban_board_id,
+    <select id="selectByInventoryTagForUpdate" resultType="com.scut.wms.lock.InventoryLock">
+        SELECT id, outbound_order_id, outbound_order_line_id, inventory_tag_id,
                material_id, lock_qty, status, stolen_by_order_id, stolen_at,
                unlocked_at, unlocked_by, created_at
         FROM inventory_lock
-        WHERE kanban_board_id = #{kanbanBoardId}
+        WHERE inventory_tag_id = #{inventoryTagId}
           AND status = 'LOCKED'
         FOR UPDATE
     </select>
 
     <select id="selectByOrderLineForUpdate" resultType="com.scut.wms.lock.InventoryLock">
-        SELECT id, outbound_order_id, outbound_order_line_id, kanban_board_id,
+        SELECT id, outbound_order_id, outbound_order_line_id, inventory_tag_id,
                material_id, lock_qty, status, stolen_by_order_id, stolen_at,
                unlocked_at, unlocked_by, created_at
         FROM inventory_lock

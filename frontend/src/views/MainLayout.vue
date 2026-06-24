@@ -6,6 +6,7 @@
       </div>
       <div class="header-user">
         <span>{{ auth.user?.displayName || '系统管理员' }}</span>
+        <el-button size="small" plain @click="openMobile">手机端</el-button>
         <el-button size="small" @click="logout">退出登录</el-button>
       </div>
     </el-header>
@@ -39,6 +40,10 @@ function logout() {
   auth.logout()
   tabs.resetTabs()
   router.push('/login')
+}
+
+function openMobile() {
+  router.push('/mobile')
 }
 </script>
 

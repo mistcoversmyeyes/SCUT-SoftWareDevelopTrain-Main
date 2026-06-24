@@ -82,10 +82,10 @@
 
           <el-table v-if="recommendations.length" :data="recommendations" border stripe size="small">
             <el-table-column prop="locationName" label="库位" min-width="120" />
-            <el-table-column prop="kanbanCode" label="看板码" min-width="160">
+            <el-table-column prop="inventoryTagCode" label="库存标签码" min-width="160">
               <template #default="{ row }">
-                <span>{{ row.kanbanCode }}</span>
-                <el-button type="primary" link size="small" @click="copyKanban(row.kanbanCode)">
+                <span>{{ row.inventoryTagCode }}</span>
+                <el-button type="primary" link size="small" @click="copyInventoryTag(row.inventoryTagCode)">
                   <el-icon><CopyDocument /></el-icon>
                 </el-button>
               </template>
@@ -113,8 +113,8 @@
                 />
               </el-select>
             </el-form-item>
-            <el-form-item label="看板码">
-              <el-input v-model="scanCode" placeholder="扫描或手输看板码" clearable />
+            <el-form-item label="库存标签码">
+              <el-input v-model="scanCode" placeholder="扫描或手输库存标签码" clearable />
             </el-form-item>
             <el-form-item label="数量（留空默认全量）">
               <el-input-number v-model="scanPickQty" :min="1" :max="activeLineRemaining" :step="1" :precision="0" />
@@ -130,7 +130,7 @@
         <el-card shadow="never" class="section-card">
           <template #header><span>已拣记录</span></template>
           <el-table :data="pickedRecords" border stripe size="small" v-if="pickedRecords.length">
-            <el-table-column prop="kanbanCode" label="看板码" min-width="140" />
+            <el-table-column prop="inventoryTagCode" label="库存标签码" min-width="140" />
             <el-table-column prop="locationCode" label="库位" min-width="120" />
             <el-table-column prop="qty" label="数量" width="120" align="right">
               <template #default="{ row }">{{ formatQty(row.qty) }}</template>
@@ -305,7 +305,7 @@ async function handleRecommend() {
 async function handleScanPick() {
   const code = scanCode.value.trim()
   if (!code) {
-    ElMessage.warning('请先输入看板码')
+    ElMessage.warning('请先输入库存标签码')
     return
   }
   if (!activeLineId.value) {
@@ -317,7 +317,7 @@ async function handleScanPick() {
   scanMessage.value = ''
   try {
     const result = await scanOutbound({
-      kanbanCode: code,
+      inventoryTagCode: code,
       qty: scanPickQty.value || undefined,
       outboundOrderId: getOutboundId(),
       outboundOrderLineId: activeLineId.value
@@ -330,7 +330,7 @@ async function handleScanPick() {
     // 记录本次拣货
     const line = order.value?.lines?.find(l => l.id === activeLineId.value)
     pickedRecords.value.push({
-      kanbanCode: result.kanbanCode,
+      inventoryTagCode: result.inventoryTagCode,
       locationCode: result.locationName,
       qty: result.pickedQty,
       materialCode: result.materialCode,
@@ -379,10 +379,10 @@ async function handleSuspend() {
   }
 }
 
-async function copyKanban(code) {
+async function copyInventoryTag(code) {
   try {
     await navigator.clipboard.writeText(code)
-    ElMessage.success('看板码已复制: ' + code)
+    ElMessage.success('库存标签码已复制: ' + code)
   } catch {
     ElMessage.error('复制失败，请手动复制')
   }
