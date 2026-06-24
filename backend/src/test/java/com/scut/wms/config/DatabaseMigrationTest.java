@@ -13,14 +13,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class DatabaseMigrationTest {
     @Test
-    void addsPickedQtyWhenKanbanBoardAlreadyExistsWithoutIt() throws Exception {
+    void addsPickedQtyWhenInventoryTagAlreadyExistsWithoutIt() throws Exception {
         DataSource dataSource = legacyDataSource();
         try (Connection conn = dataSource.getConnection();
              Statement stmt = conn.createStatement()) {
             stmt.execute("""
-                    CREATE TABLE kanban_board (
+                    CREATE TABLE inventory_tag (
                       id BIGINT PRIMARY KEY AUTO_INCREMENT,
-                      kanban_code VARCHAR(128) NOT NULL UNIQUE,
+                      inventory_tag_code VARCHAR(128) NOT NULL UNIQUE,
                       inbound_order_id BIGINT NOT NULL,
                       inbound_order_line_id BIGINT NOT NULL,
                       board_qty DECIMAL(18, 3) NOT NULL,
@@ -35,7 +35,7 @@ class DatabaseMigrationTest {
 
         new DatabaseMigration(dataSource).run();
 
-        assertThat(columnExists(dataSource, "kanban_board", "picked_qty")).isTrue();
+        assertThat(columnExists(dataSource, "inventory_tag", "picked_qty")).isTrue();
     }
 
     private DataSource legacyDataSource() {

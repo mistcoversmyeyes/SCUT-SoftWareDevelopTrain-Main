@@ -79,11 +79,11 @@ public class DatabaseMigration implements CommandLineRunner {
             ensureLockTable(conn);
             ensureInventoryHoldTable(conn);
 
-            ensureColumn(conn, "kanban_board", "picked_qty",
+            ensureColumn(conn, "inventory_tag", "picked_qty",
                     "DECIMAL(18, 3) NOT NULL DEFAULT 0");
-            ensureColumn(conn, "kanban_board", "locked_by_order_id",
+            ensureColumn(conn, "inventory_tag", "locked_by_order_id",
                     "BIGINT DEFAULT NULL");
-            ensureColumn(conn, "kanban_board", "locked_by_order_line_id",
+            ensureColumn(conn, "inventory_tag", "locked_by_order_line_id",
                     "BIGINT DEFAULT NULL");
 
             ensureColumn(conn, "inventory_movement", "force_outbound",
@@ -121,18 +121,18 @@ public class DatabaseMigration implements CommandLineRunner {
             dropForeignKeysForColumn(conn, "material", "container_type_id");
             dropColumnIfExists(conn, "material", "container_type_id");
 
-            // 3. kanban_board add location_id + container_type_id (NOT NULL, D24)
-            ensureColumn(conn, "kanban_board", "location_id", "BIGINT NOT NULL DEFAULT 0");
+            // 3. inventory_tag add location_id + container_type_id (NOT NULL, D24)
+            ensureColumn(conn, "inventory_tag", "location_id", "BIGINT NOT NULL DEFAULT 0");
             try {
-                ensureForeignKey(conn, "kanban_board", "location_id", "storage_location", "id", "fk_kanban_location");
+                ensureForeignKey(conn, "inventory_tag", "location_id", "storage_location", "id", "fk_inventory_tag_location");
             } catch (Exception e) {
-                log.warn("添加外键 fk_kanban_location 失败（可能因存在无效引用值，重建数据后自动修复）: {}", e.getMessage());
+                log.warn("添加外键 fk_inventory_tag_location 失败（可能因存在无效引用值，重建数据后自动修复）: {}", e.getMessage());
             }
-            ensureColumn(conn, "kanban_board", "container_type_id", "BIGINT NOT NULL DEFAULT 0");
+            ensureColumn(conn, "inventory_tag", "container_type_id", "BIGINT NOT NULL DEFAULT 0");
             try {
-                ensureForeignKey(conn, "kanban_board", "container_type_id", "container_type", "id", "fk_kanban_container");
+                ensureForeignKey(conn, "inventory_tag", "container_type_id", "container_type", "id", "fk_inventory_tag_container");
             } catch (Exception e) {
-                log.warn("添加外键 fk_kanban_container 失败（可能因存在无效引用值）: {}", e.getMessage());
+                log.warn("添加外键 fk_inventory_tag_container 失败（可能因存在无效引用值）: {}", e.getMessage());
             }
 
             // 4. inbound_order_line add container_type_id (NOT NULL, D24)
@@ -378,10 +378,10 @@ public class DatabaseMigration implements CommandLineRunner {
             )
             """);
 
-        ensureTable(conn, "kanban_board", """
-            CREATE TABLE kanban_board (
+        ensureTable(conn, "inventory_tag", """
+            CREATE TABLE inventory_tag (
               id BIGINT PRIMARY KEY AUTO_INCREMENT,
-              kanban_code VARCHAR(128) NOT NULL UNIQUE,
+              inventory_tag_code VARCHAR(128) NOT NULL UNIQUE,
               inbound_order_id BIGINT NOT NULL,
               inbound_order_line_id BIGINT NOT NULL,
               location_id BIGINT NOT NULL DEFAULT 0,
@@ -393,10 +393,10 @@ public class DatabaseMigration implements CommandLineRunner {
               received_at DATETIME,
               created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
               updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-              CONSTRAINT fk_kanban_order FOREIGN KEY (inbound_order_id) REFERENCES inbound_order(id),
-              CONSTRAINT fk_kanban_line FOREIGN KEY (inbound_order_line_id) REFERENCES inbound_order_line(id),
-              INDEX idx_kanban_line_status (inbound_order_line_id, status),
-              INDEX idx_kanban_location_status (location_id, status)
+              CONSTRAINT fk_inventory_tag_order FOREIGN KEY (inbound_order_id) REFERENCES inbound_order(id),
+              CONSTRAINT fk_inventory_tag_line FOREIGN KEY (inbound_order_line_id) REFERENCES inbound_order_line(id),
+              INDEX idx_inventory_tag_line_status (inbound_order_line_id, status),
+              INDEX idx_inventory_tag_location_status (location_id, status)
             )
             """);
 
@@ -407,7 +407,7 @@ public class DatabaseMigration implements CommandLineRunner {
               movement_type VARCHAR(32) NOT NULL,
               source_type VARCHAR(32) NOT NULL,
               source_id BIGINT,
-              kanban_board_id BIGINT,
+              inventory_tag_id BIGINT,
               material_id BIGINT NOT NULL,
               warehouse_id BIGINT NOT NULL,
               storage_location_id BIGINT NOT NULL,
@@ -512,7 +512,7 @@ public class DatabaseMigration implements CommandLineRunner {
                   id BIGINT PRIMARY KEY AUTO_INCREMENT,
                   outbound_order_id BIGINT NOT NULL,
                   outbound_order_line_id BIGINT NOT NULL,
-                  kanban_board_id BIGINT NOT NULL,
+                  inventory_tag_id BIGINT NOT NULL,
                   material_id BIGINT NOT NULL,
                   lock_qty DECIMAL(18, 3) NOT NULL,
                   status VARCHAR(32) NOT NULL DEFAULT 'LOCKED',
@@ -523,9 +523,9 @@ public class DatabaseMigration implements CommandLineRunner {
                   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                   CONSTRAINT fk_lock_order FOREIGN KEY (outbound_order_id) REFERENCES outbound_order(id),
                   CONSTRAINT fk_lock_line FOREIGN KEY (outbound_order_line_id) REFERENCES outbound_order_line(id),
-                  CONSTRAINT fk_lock_kanban FOREIGN KEY (kanban_board_id) REFERENCES kanban_board(id),
+                  CONSTRAINT fk_lock_inventory_tag FOREIGN KEY (inventory_tag_id) REFERENCES inventory_tag(id),
                   INDEX idx_lock_order (outbound_order_id),
-                  INDEX idx_lock_kanban (kanban_board_id),
+                  INDEX idx_lock_inventory_tag (inventory_tag_id),
                   INDEX idx_lock_status (status)
                 )
                 """;
@@ -542,7 +542,7 @@ public class DatabaseMigration implements CommandLineRunner {
         String sql = """
                 CREATE TABLE inventory_hold (
                   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-                  kanban_board_id BIGINT NOT NULL,
+                  inventory_tag_id BIGINT NOT NULL,
                   hold_type VARCHAR(32) NOT NULL,
                   hold_qty DECIMAL(18, 3) NOT NULL,
                   status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
@@ -554,8 +554,8 @@ public class DatabaseMigration implements CommandLineRunner {
                   released_by VARCHAR(64) DEFAULT NULL,
                   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                   released_at DATETIME DEFAULT NULL,
-                  CONSTRAINT fk_hold_kanban FOREIGN KEY (kanban_board_id) REFERENCES kanban_board(id),
-                  INDEX idx_hold_kanban_status (kanban_board_id, status),
+                  CONSTRAINT fk_hold_inventory_tag FOREIGN KEY (inventory_tag_id) REFERENCES inventory_tag(id),
+                  INDEX idx_hold_inventory_tag_status (inventory_tag_id, status),
                   INDEX idx_hold_type_status (hold_type, status)
                 )
                 """;

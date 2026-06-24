@@ -10,12 +10,12 @@ public record ForceCandidateResponse(List<LineCandidates> lines) {
             String materialCode,
             String materialName,
             BigDecimal plannedQty,
-            List<KanbanEntry> kanbans
+            List<InventoryTagEntry> inventoryTags
     ) {}
 
-    public record KanbanEntry(
-            Long kanbanBoardId,
-            String kanbanCode,
+    public record InventoryTagEntry(
+            Long inventoryTagId,
+            String inventoryTagCode,
             String locationName,
             BigDecimal qty,
             boolean locked,

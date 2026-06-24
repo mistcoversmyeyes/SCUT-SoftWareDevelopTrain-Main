@@ -18,7 +18,7 @@ public record InboundOrderResponse(
         BigDecimal plannedQty,
         BigDecimal receivedQty,
         List<LineDisplay> lines,
-        int kanbanCount
+        int inventoryTagCount
 ) {
     public record SupplierDisplay(Long id, String code, String name) {
     }

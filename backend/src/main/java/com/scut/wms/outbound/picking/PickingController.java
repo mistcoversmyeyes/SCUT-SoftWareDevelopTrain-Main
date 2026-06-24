@@ -1,6 +1,6 @@
 package com.scut.wms.outbound.picking;
 
-import com.scut.wms.inventory.ScanKanbanContext;
+import com.scut.wms.inventory.ScanInventoryTagContext;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,9 +18,9 @@ public class PickingController {
         this.outboundPickingService = outboundPickingService;
     }
 
-    @GetMapping("/kanban-lookup")
-    public ScanKanbanContext lookupKanban(@RequestParam String kanbanCode) {
-        return outboundPickingService.lookupKanban(kanbanCode);
+    @GetMapping("/inventory-tag-lookup")
+    public ScanInventoryTagContext lookupInventoryTag(@RequestParam String inventoryTagCode) {
+        return outboundPickingService.lookupInventoryTag(inventoryTagCode);
     }
 
     @PostMapping("/pick-with-order")

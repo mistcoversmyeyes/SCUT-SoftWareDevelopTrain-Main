@@ -1,8 +1,8 @@
 package com.scut.wms.inventory;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.scut.wms.inbound.KanbanBoard;
-import com.scut.wms.inbound.KanbanBoardMapper;
+import com.scut.wms.inbound.InventoryTag;
+import com.scut.wms.inbound.InventoryTagMapper;
 import com.scut.wms.masterdata.*;
 import org.springframework.stereotype.Service;
 
@@ -17,7 +17,7 @@ public class InventoryOverviewService {
     private final SupplierMapper supplierMapper;
     private final MaterialMapper materialMapper;
     private final InventoryBalanceMapper inventoryBalanceMapper;
-    private final KanbanBoardMapper kanbanBoardMapper;
+    private final InventoryTagMapper inventoryTagMapper;
 
     public InventoryOverviewService(
             WarehouseMapper warehouseMapper,
@@ -25,14 +25,14 @@ public class InventoryOverviewService {
             SupplierMapper supplierMapper,
             MaterialMapper materialMapper,
             InventoryBalanceMapper inventoryBalanceMapper,
-            KanbanBoardMapper kanbanBoardMapper
+            InventoryTagMapper inventoryTagMapper
     ) {
         this.warehouseMapper = warehouseMapper;
         this.storageLocationMapper = storageLocationMapper;
         this.supplierMapper = supplierMapper;
         this.materialMapper = materialMapper;
         this.inventoryBalanceMapper = inventoryBalanceMapper;
-        this.kanbanBoardMapper = kanbanBoardMapper;
+        this.inventoryTagMapper = inventoryTagMapper;
     }
 
     public InventoryOverviewResponse overview() {
@@ -43,16 +43,16 @@ public class InventoryOverviewService {
     }
 
     private List<InventoryOverviewResponse.WarehouseOverview> buildWarehouseOverviews() {
-        // Load all RECEIVED/LOCKED kanbans once, group by location_id
-        List<KanbanBoard> activeKanbans = kanbanBoardMapper.selectList(
-                new LambdaQueryWrapper<KanbanBoard>()
-                        .in(KanbanBoard::getStatus, "RECEIVED", "LOCKED")
-                        .gt(KanbanBoard::getLocationId, 0L)
+        // Load all RECEIVED/LOCKED inventoryTags once, group by location_id
+        List<InventoryTag> activeInventoryTags = inventoryTagMapper.selectList(
+                new LambdaQueryWrapper<InventoryTag>()
+                        .in(InventoryTag::getStatus, "RECEIVED", "LOCKED")
+                        .gt(InventoryTag::getLocationId, 0L)
         );
 
         Map<Long, Integer> boxCount = new HashMap<>();
         Map<Long, BigDecimal> pieceSum = new HashMap<>();
-        for (KanbanBoard kb : activeKanbans) {
+        for (InventoryTag kb : activeInventoryTags) {
             Long locId = kb.getLocationId();
             boxCount.merge(locId, 1, Integer::sum);
             BigDecimal boardQty = kb.getBoardQty() != null ? kb.getBoardQty() : BigDecimal.ZERO;

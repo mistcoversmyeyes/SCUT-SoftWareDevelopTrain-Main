@@ -86,26 +86,26 @@ INSERT INTO inbound_order_line (id, inbound_order_id, line_no, material_id, supp
 (1, 1, 1, 1, 1, 250, 200, 1, 1, 1),   -- 前保险杠支架 / KLT-4320(100件/箱) → 3箱(100+100+50)，已收2箱=200
 (2, 1, 2, 2, 1, 180, 180, 1, 2, 1);   -- 加速踏板模块 / KLT-4320(100件/箱) → 2箱(100+80)，全部已收
 
--- 行 1 看板（3 箱）：前 2 箱已入库，第 3 箱待收
-INSERT INTO kanban_board (id, kanban_code, inbound_order_id, inbound_order_line_id, location_id, container_type_id, board_qty, status, printed_at, received_at) VALUES
-(1,  'KB:v1:IN-20260520-001:1:1', 1, 1, 1, 1, 100, 'RECEIVED', '2026-05-20 08:35:00', '2026-05-20 09:12:00'),
-(2,  'KB:v1:IN-20260520-001:1:2', 1, 1, 1, 1, 100, 'RECEIVED', '2026-05-20 08:35:00', '2026-05-20 09:14:00'),
-(3,  'KB:v1:IN-20260520-001:1:3', 1, 1, 1, 1, 50,  'PRINTED',  '2026-05-20 08:35:00', NULL);
+-- 行 1 库存标签（3 箱）：前 2 箱已入库，第 3 箱待收
+INSERT INTO inventory_tag (id, inventory_tag_code, inbound_order_id, inbound_order_line_id, location_id, container_type_id, board_qty, status, printed_at, received_at) VALUES
+(1,  'IT:v1:IN-20260520-001:1:1', 1, 1, 1, 1, 100, 'RECEIVED', '2026-05-20 08:35:00', '2026-05-20 09:12:00'),
+(2,  'IT:v1:IN-20260520-001:1:2', 1, 1, 1, 1, 100, 'RECEIVED', '2026-05-20 08:35:00', '2026-05-20 09:14:00'),
+(3,  'IT:v1:IN-20260520-001:1:3', 1, 1, 1, 1, 50,  'PRINTED',  '2026-05-20 08:35:00', NULL);
 
--- 行 2 看板（2 箱）：全部已入库
-INSERT INTO kanban_board (id, kanban_code, inbound_order_id, inbound_order_line_id, location_id, container_type_id, board_qty, status, printed_at, received_at) VALUES
-(4,  'KB:v1:IN-20260520-001:2:1', 1, 2, 2, 1, 100, 'RECEIVED', '2026-05-20 08:35:00', '2026-05-20 09:30:00'),
-(5,  'KB:v1:IN-20260520-001:2:2', 1, 2, 2, 1, 80,  'RECEIVED', '2026-05-20 08:35:00', '2026-05-20 09:32:00');
+-- 行 2 库存标签（2 箱）：全部已入库
+INSERT INTO inventory_tag (id, inventory_tag_code, inbound_order_id, inbound_order_line_id, location_id, container_type_id, board_qty, status, printed_at, received_at) VALUES
+(4,  'IT:v1:IN-20260520-001:2:1', 1, 2, 2, 1, 100, 'RECEIVED', '2026-05-20 08:35:00', '2026-05-20 09:30:00'),
+(5,  'IT:v1:IN-20260520-001:2:2', 1, 2, 2, 1, 80,  'RECEIVED', '2026-05-20 08:35:00', '2026-05-20 09:32:00');
 
 -- inventory_movement（行 1 已收 2 箱）
-INSERT INTO inventory_movement (id, movement_no, movement_type, source_type, source_id, kanban_board_id, material_id, warehouse_id, storage_location_id, planned_location_id, qty, occurred_at, operator_name) VALUES
-(1, 'MV-20260520091200-A1B2C3D4', 'INBOUND_RECEIVE', 'KANBAN_BOARD', 1, 1, 1, 1, 1, 1, 100, '2026-05-20 09:12:00', '张振华'),
-(2, 'MV-20260520091400-E5F6G7H8', 'INBOUND_RECEIVE', 'KANBAN_BOARD', 2, 2, 1, 1, 1, 1, 100, '2026-05-20 09:14:00', '张振华');
+INSERT INTO inventory_movement (id, movement_no, movement_type, source_type, source_id, inventory_tag_id, material_id, warehouse_id, storage_location_id, planned_location_id, qty, occurred_at, operator_name) VALUES
+(1, 'MV-20260520091200-A1B2C3D4', 'INBOUND_RECEIVE', 'INVENTORY_TAG', 1, 1, 1, 1, 1, 1, 100, '2026-05-20 09:12:00', '张振华'),
+(2, 'MV-20260520091400-E5F6G7H8', 'INBOUND_RECEIVE', 'INVENTORY_TAG', 2, 2, 1, 1, 1, 1, 100, '2026-05-20 09:14:00', '张振华');
 
 -- 行 2 已收 2 箱
-INSERT INTO inventory_movement (id, movement_no, movement_type, source_type, source_id, kanban_board_id, material_id, warehouse_id, storage_location_id, planned_location_id, qty, occurred_at, operator_name) VALUES
-(3, 'MV-20260520093000-I9J0K1L2', 'INBOUND_RECEIVE', 'KANBAN_BOARD', 4, 4, 2, 1, 2, 2, 100, '2026-05-20 09:30:00', '张振华'),
-(4, 'MV-20260520093200-M3N4O5P6', 'INBOUND_RECEIVE', 'KANBAN_BOARD', 5, 5, 2, 1, 2, 2, 80,  '2026-05-20 09:32:00', '张振华');
+INSERT INTO inventory_movement (id, movement_no, movement_type, source_type, source_id, inventory_tag_id, material_id, warehouse_id, storage_location_id, planned_location_id, qty, occurred_at, operator_name) VALUES
+(3, 'MV-20260520093000-I9J0K1L2', 'INBOUND_RECEIVE', 'INVENTORY_TAG', 4, 4, 2, 1, 2, 2, 100, '2026-05-20 09:30:00', '张振华'),
+(4, 'MV-20260520093200-M3N4O5P6', 'INBOUND_RECEIVE', 'INVENTORY_TAG', 5, 5, 2, 1, 2, 2, 80,  '2026-05-20 09:32:00', '张振华');
 
 -- ==========================================================================
 -- 入库单 #2 — 5 月 22 日新建，草稿状态（尚未 release）
@@ -127,18 +127,18 @@ INSERT INTO inbound_order_line (id, inbound_order_id, line_no, material_id, supp
 (5, 3, 1, 5, 2, 120, 0, 1, 6, 2),   -- 仪表板横梁 / KLT-6422(50件/箱) → 3箱(50+50+20)
 (6, 3, 2, 6, 3, 800, 0, 1, 4, 4);   -- 前纵梁加强件 / GLT-6010(200件/箱) → 4箱(200×4)
 
--- 行 1 看板（3 箱）：全部 PRINTED
-INSERT INTO kanban_board (id, kanban_code, inbound_order_id, inbound_order_line_id, location_id, container_type_id, board_qty, status, printed_at) VALUES
-(6,  'KB:v1:IN-20260601-001:1:1', 3, 5, 6, 2, 50, 'PRINTED', '2026-06-01 10:05:00'),
-(7,  'KB:v1:IN-20260601-001:1:2', 3, 5, 6, 2, 50, 'PRINTED', '2026-06-01 10:05:00'),
-(8,  'KB:v1:IN-20260601-001:1:3', 3, 5, 6, 2, 20, 'PRINTED', '2026-06-01 10:05:00');
+-- 行 1 库存标签（3 箱）：全部 PRINTED
+INSERT INTO inventory_tag (id, inventory_tag_code, inbound_order_id, inbound_order_line_id, location_id, container_type_id, board_qty, status, printed_at) VALUES
+(6,  'IT:v1:IN-20260601-001:1:1', 3, 5, 6, 2, 50, 'PRINTED', '2026-06-01 10:05:00'),
+(7,  'IT:v1:IN-20260601-001:1:2', 3, 5, 6, 2, 50, 'PRINTED', '2026-06-01 10:05:00'),
+(8,  'IT:v1:IN-20260601-001:1:3', 3, 5, 6, 2, 20, 'PRINTED', '2026-06-01 10:05:00');
 
--- 行 2 看板（4 箱）：全部 PRINTED
-INSERT INTO kanban_board (id, kanban_code, inbound_order_id, inbound_order_line_id, location_id, container_type_id, board_qty, status, printed_at) VALUES
-(9,  'KB:v1:IN-20260601-001:2:1', 3, 6, 4, 4, 200, 'PRINTED', '2026-06-01 10:05:00'),
-(10, 'KB:v1:IN-20260601-001:2:2', 3, 6, 4, 4, 200, 'PRINTED', '2026-06-01 10:05:00'),
-(11, 'KB:v1:IN-20260601-001:2:3', 3, 6, 4, 4, 200, 'PRINTED', '2026-06-01 10:05:00'),
-(12, 'KB:v1:IN-20260601-001:2:4', 3, 6, 4, 4, 200, 'PRINTED', '2026-06-01 10:05:00');
+-- 行 2 库存标签（4 箱）：全部 PRINTED
+INSERT INTO inventory_tag (id, inventory_tag_code, inbound_order_id, inbound_order_line_id, location_id, container_type_id, board_qty, status, printed_at) VALUES
+(9,  'IT:v1:IN-20260601-001:2:1', 3, 6, 4, 4, 200, 'PRINTED', '2026-06-01 10:05:00'),
+(10, 'IT:v1:IN-20260601-001:2:2', 3, 6, 4, 4, 200, 'PRINTED', '2026-06-01 10:05:00'),
+(11, 'IT:v1:IN-20260601-001:2:3', 3, 6, 4, 4, 200, 'PRINTED', '2026-06-01 10:05:00'),
+(12, 'IT:v1:IN-20260601-001:2:4', 3, 6, 4, 4, 200, 'PRINTED', '2026-06-01 10:05:00');
 
 -- ==========================================================================
 -- 入库单 #4 — 6 月 10 日到货，已完成（全部入库）
@@ -150,25 +150,25 @@ INSERT INTO inbound_order_line (id, inbound_order_id, line_no, material_id, supp
 (7, 4, 1, 1, 1, 200, 200, 1, 1, 1),   -- 前保险杠支架 / KLT-4320 → 2箱(100+100) 全收
 (8, 4, 2, 2, 1, 150, 150, 1, 2, 1);   -- 加速踏板模块 / KLT-4320 → 2箱(100+50) 全收
 
--- 行 1 看板（2 箱）：全部 RECEIVED
-INSERT INTO kanban_board (id, kanban_code, inbound_order_id, inbound_order_line_id, location_id, container_type_id, board_qty, status, printed_at, received_at) VALUES
-(13, 'KB:v1:IN-20260610-001:1:1', 4, 7, 1, 1, 100, 'RECEIVED', '2026-06-10 14:05:00', '2026-06-10 15:20:00'),
-(14, 'KB:v1:IN-20260610-001:1:2', 4, 7, 1, 1, 100, 'RECEIVED', '2026-06-10 14:05:00', '2026-06-10 15:22:00');
+-- 行 1 库存标签（2 箱）：全部 RECEIVED
+INSERT INTO inventory_tag (id, inventory_tag_code, inbound_order_id, inbound_order_line_id, location_id, container_type_id, board_qty, status, printed_at, received_at) VALUES
+(13, 'IT:v1:IN-20260610-001:1:1', 4, 7, 1, 1, 100, 'RECEIVED', '2026-06-10 14:05:00', '2026-06-10 15:20:00'),
+(14, 'IT:v1:IN-20260610-001:1:2', 4, 7, 1, 1, 100, 'RECEIVED', '2026-06-10 14:05:00', '2026-06-10 15:22:00');
 
--- 行 2 看板（2 箱）：全部 RECEIVED
-INSERT INTO kanban_board (id, kanban_code, inbound_order_id, inbound_order_line_id, location_id, container_type_id, board_qty, status, printed_at, received_at) VALUES
-(15, 'KB:v1:IN-20260610-001:2:1', 4, 8, 2, 1, 100, 'RECEIVED', '2026-06-10 14:05:00', '2026-06-10 15:35:00'),
-(16, 'KB:v1:IN-20260610-001:2:2', 4, 8, 2, 1, 50,  'RECEIVED', '2026-06-10 14:05:00', '2026-06-10 15:40:00');
+-- 行 2 库存标签（2 箱）：全部 RECEIVED
+INSERT INTO inventory_tag (id, inventory_tag_code, inbound_order_id, inbound_order_line_id, location_id, container_type_id, board_qty, status, printed_at, received_at) VALUES
+(15, 'IT:v1:IN-20260610-001:2:1', 4, 8, 2, 1, 100, 'RECEIVED', '2026-06-10 14:05:00', '2026-06-10 15:35:00'),
+(16, 'IT:v1:IN-20260610-001:2:2', 4, 8, 2, 1, 50,  'RECEIVED', '2026-06-10 14:05:00', '2026-06-10 15:40:00');
 
 -- movement 记录
-INSERT INTO inventory_movement (id, movement_no, movement_type, source_type, source_id, kanban_board_id, material_id, warehouse_id, storage_location_id, planned_location_id, qty, occurred_at, operator_name) VALUES
-(5, 'MV-20260610152000-Q7R8S9T0', 'INBOUND_RECEIVE', 'KANBAN_BOARD', 13, 13, 1, 1, 1, 1, 100, '2026-06-10 15:20:00', '李伟'),
-(6, 'MV-20260610152200-U1V2W3X4', 'INBOUND_RECEIVE', 'KANBAN_BOARD', 14, 14, 1, 1, 1, 1, 100, '2026-06-10 15:22:00', '李伟'),
-(7, 'MV-20260610153500-Y5Z6A7B8', 'INBOUND_RECEIVE', 'KANBAN_BOARD', 15, 15, 2, 1, 2, 2, 100, '2026-06-10 15:35:00', '李伟'),
-(8, 'MV-20260610154000-C9D0E1F2', 'INBOUND_RECEIVE', 'KANBAN_BOARD', 16, 16, 2, 1, 2, 2, 50,  '2026-06-10 15:40:00', '李伟');
+INSERT INTO inventory_movement (id, movement_no, movement_type, source_type, source_id, inventory_tag_id, material_id, warehouse_id, storage_location_id, planned_location_id, qty, occurred_at, operator_name) VALUES
+(5, 'MV-20260610152000-Q7R8S9T0', 'INBOUND_RECEIVE', 'INVENTORY_TAG', 13, 13, 1, 1, 1, 1, 100, '2026-06-10 15:20:00', '李伟'),
+(6, 'MV-20260610152200-U1V2W3X4', 'INBOUND_RECEIVE', 'INVENTORY_TAG', 14, 14, 1, 1, 1, 1, 100, '2026-06-10 15:22:00', '李伟'),
+(7, 'MV-20260610153500-Y5Z6A7B8', 'INBOUND_RECEIVE', 'INVENTORY_TAG', 15, 15, 2, 1, 2, 2, 100, '2026-06-10 15:35:00', '李伟'),
+(8, 'MV-20260610154000-C9D0E1F2', 'INBOUND_RECEIVE', 'INVENTORY_TAG', 16, 16, 2, 1, 2, 2, 50,  '2026-06-10 15:40:00', '李伟');
 
 -- ==========================================================================
--- 库存余额（汇总已入库看板）
+-- 库存余额（汇总已入库库存标签）
 -- ==========================================================================
 -- 前保险杠支架 / WH-JY / A-01：IN-20260520-001 行1(200件) + IN-20260610-001 行1(200件) = 400
 INSERT INTO inventory_balance (material_id, warehouse_id, storage_location_id, on_hand_qty) VALUES

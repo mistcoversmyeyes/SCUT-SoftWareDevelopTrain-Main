@@ -9,9 +9,9 @@ import com.scut.wms.outbound.picking.PickRecommendation;
 
 @Mapper
 public interface InventoryTransactionMapper {
-    ScanKanbanContext selectScanKanbanForUpdate(@Param("kanbanCode") String kanbanCode);
+    ScanInventoryTagContext selectScanInventoryTagForUpdate(@Param("inventoryTagCode") String inventoryTagCode);
 
-    ScanKanbanContext selectKanbanContext(@Param("kanbanCode") String kanbanCode);
+    ScanInventoryTagContext selectInventoryTagContext(@Param("inventoryTagCode") String inventoryTagCode);
 
     InventoryBalance selectBalanceForUpdate(
             @Param("materialId") Long materialId,
@@ -30,10 +30,10 @@ public interface InventoryTransactionMapper {
             @Param("warehouseCode") String warehouseCode,
             @Param("locationCode") String locationCode,
             @Param("inboundNo") String inboundNo,
-            @Param("kanbanCode") String kanbanCode
+            @Param("inventoryTagCode") String inventoryTagCode
     );
 
-    KanbanTraceView selectKanbanTrace(@Param("kanbanCode") String kanbanCode);
+    InventoryTagTraceView selectInventoryTagTrace(@Param("inventoryTagCode") String inventoryTagCode);
 
     List<FifoPickCandidate> selectFifoCandidateForUpdate(
             @Param("materialId") Long materialId,

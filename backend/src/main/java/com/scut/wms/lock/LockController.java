@@ -71,13 +71,13 @@ public class LockController {
         return Map.of("message", "重新分配成功");
     }
 
-    @GetMapping("/api/locks/kanbans")
-    public List<KanbanLockView> kanbanLocks(
+    @GetMapping("/api/locks/inventory-tags")
+    public List<InventoryTagLockView> inventoryTagLocks(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String materialCode,
             @RequestParam(required = false) String outboundNo
     ) {
-        return lockService.listKanbanLocks(status, materialCode, outboundNo);
+        return lockService.listInventoryTagLocks(status, materialCode, outboundNo);
     }
 
     @GetMapping("/api/locks/force-logs")
@@ -90,29 +90,29 @@ public class LockController {
             @RequestParam(required = false) String holdType,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String materialCode,
-            @RequestParam(required = false) String kanbanCode
+            @RequestParam(required = false) String inventoryTagCode
     ) {
-        return inventoryHoldService.listHolds(holdType, status, materialCode, kanbanCode);
+        return inventoryHoldService.listHolds(holdType, status, materialCode, inventoryTagCode);
     }
 
-    @PostMapping("/api/kanbans/{kanbanId}/seal")
-    public HoldActionResponse seal(@PathVariable Long kanbanId, @Valid @RequestBody HoldRequest request) {
-        return toResponse(inventoryHoldService.seal(kanbanId, request.toCommand()));
+    @PostMapping("/api/inventory-tags/{inventoryTagId}/seal")
+    public HoldActionResponse seal(@PathVariable Long inventoryTagId, @Valid @RequestBody HoldRequest request) {
+        return toResponse(inventoryHoldService.seal(inventoryTagId, request.toCommand()));
     }
 
-    @PostMapping("/api/kanbans/{kanbanId}/unseal")
-    public HoldActionResponse unseal(@PathVariable Long kanbanId, @Valid @RequestBody HoldRequest request) {
-        return toResponse(inventoryHoldService.unseal(kanbanId, request.toCommand()));
+    @PostMapping("/api/inventory-tags/{inventoryTagId}/unseal")
+    public HoldActionResponse unseal(@PathVariable Long inventoryTagId, @Valid @RequestBody HoldRequest request) {
+        return toResponse(inventoryHoldService.unseal(inventoryTagId, request.toCommand()));
     }
 
-    @PostMapping("/api/kanbans/{kanbanId}/manual-lock")
-    public HoldActionResponse manualLock(@PathVariable Long kanbanId, @Valid @RequestBody HoldRequest request) {
-        return toResponse(inventoryHoldService.manualLock(kanbanId, request.toCommand()));
+    @PostMapping("/api/inventory-tags/{inventoryTagId}/manual-lock")
+    public HoldActionResponse manualLock(@PathVariable Long inventoryTagId, @Valid @RequestBody HoldRequest request) {
+        return toResponse(inventoryHoldService.manualLock(inventoryTagId, request.toCommand()));
     }
 
-    @PostMapping("/api/kanbans/{kanbanId}/manual-unlock")
-    public HoldActionResponse manualUnlock(@PathVariable Long kanbanId, @Valid @RequestBody HoldRequest request) {
-        return toResponse(inventoryHoldService.manualUnlock(kanbanId, request.toCommand()));
+    @PostMapping("/api/inventory-tags/{inventoryTagId}/manual-unlock")
+    public HoldActionResponse manualUnlock(@PathVariable Long inventoryTagId, @Valid @RequestBody HoldRequest request) {
+        return toResponse(inventoryHoldService.manualUnlock(inventoryTagId, request.toCommand()));
     }
 
     @GetMapping("/api/outbound-orders/no/{outboundNo}/qr-info")
@@ -130,10 +130,10 @@ public class LockController {
     private HoldActionResponse toResponse(InventoryHoldView view) {
         return new HoldActionResponse(
                 view.holdId(),
-                view.kanbanBoardId(),
+                view.inventoryTagId(),
                 view.holdType(),
                 view.status(),
-                view.kanbanStatus(),
+                view.inventoryTagStatus(),
                 view.reason(),
                 view.remark(),
                 view.operatorName(),
@@ -159,7 +159,7 @@ public class LockController {
 
     public record HoldActionResponse(
             Long holdId,
-            Long kanbanBoardId,
+            Long inventoryTagId,
             String holdType,
             String holdStatus,
             String status,

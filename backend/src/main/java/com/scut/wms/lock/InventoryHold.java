@@ -16,7 +16,7 @@ public class InventoryHold {
 
     @TableId(type = IdType.AUTO)
     private Long id;
-    private Long kanbanBoardId;
+    private Long inventoryTagId;
     private String holdType;
     private BigDecimal holdQty;
     private String status;
@@ -37,12 +37,12 @@ public class InventoryHold {
         this.id = id;
     }
 
-    public Long getKanbanBoardId() {
-        return kanbanBoardId;
+    public Long getInventoryTagId() {
+        return inventoryTagId;
     }
 
-    public void setKanbanBoardId(Long kanbanBoardId) {
-        this.kanbanBoardId = kanbanBoardId;
+    public void setInventoryTagId(Long inventoryTagId) {
+        this.inventoryTagId = inventoryTagId;
     }
 
     public String getHoldType() {

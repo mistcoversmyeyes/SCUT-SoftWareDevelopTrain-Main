@@ -6,7 +6,7 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 @Mapper
-public interface KanbanBoardMapper extends BaseMapper<KanbanBoard> {
-    @Select("SELECT * FROM kanban_board WHERE id = #{id} FOR UPDATE")
-    KanbanBoard selectByIdForUpdate(@Param("id") Long id);
+public interface InventoryTagMapper extends BaseMapper<InventoryTag> {
+    @Select("SELECT * FROM inventory_tag WHERE id = #{id} FOR UPDATE")
+    InventoryTag selectByIdForUpdate(@Param("id") Long id);
 }

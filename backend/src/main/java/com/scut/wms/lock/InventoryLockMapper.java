@@ -19,13 +19,13 @@ public interface InventoryLockMapper extends BaseMapper<InventoryLock> {
 
     List<ForceLogView> selectForceLogs(@Param("outboundNo") String outboundNo);
 
-    List<KanbanLockView> selectKanbanLocks(
+    List<InventoryTagLockView> selectInventoryTagLocks(
             @Param("status") String status,
             @Param("materialCode") String materialCode,
             @Param("outboundNo") String outboundNo
     );
 
-    InventoryLock selectByKanbanForUpdate(@Param("kanbanBoardId") Long kanbanBoardId);
+    InventoryLock selectByInventoryTagForUpdate(@Param("inventoryTagId") Long inventoryTagId);
 
     List<InventoryLock> selectByOrderLineForUpdate(
             @Param("outboundOrderId") Long outboundOrderId,

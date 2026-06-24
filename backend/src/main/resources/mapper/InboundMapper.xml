@@ -34,10 +34,10 @@
         ORDER BY l.line_no ASC
     </select>
 
-    <select id="selectKanbanPrints" resultType="com.scut.wms.inbound.KanbanPrintResponse">
-        SELECT kb.id AS kanban_id,
+    <select id="selectInventoryTagPrints" resultType="com.scut.wms.inbound.InventoryTagPrintResponse">
+        SELECT kb.id AS inventory_tag_id,
                o.id AS inbound_order_id,
-               kb.kanban_code,
+               kb.inventory_tag_code,
                o.inbound_no,
                l.line_no,
                s.supplier_code,
@@ -55,22 +55,22 @@
                kb.printed_at,
                ct.container_name AS container_type_name,
                ct.capacity_qty AS capacity_qty
-        FROM kanban_board kb
+        FROM inventory_tag kb
                  JOIN inbound_order o ON o.id = kb.inbound_order_id
                  JOIN supplier s ON s.id = o.supplier_id
                  JOIN inbound_order_line l ON l.id = kb.inbound_order_line_id
                  JOIN material m ON m.id = l.material_id
                  JOIN storage_location sl ON sl.id = kb.location_id
                  JOIN container_type ct ON ct.id = kb.container_type_id
-                 LEFT JOIN inventory_hold ih ON ih.kanban_board_id = kb.id AND ih.status = 'ACTIVE'
+                 LEFT JOIN inventory_hold ih ON ih.inventory_tag_id = kb.id AND ih.status = 'ACTIVE'
         WHERE kb.inbound_order_id = #{id}
         ORDER BY kb.location_id ASC, kb.id ASC
     </select>
 
-    <select id="selectKanbanPrintsByFilter" resultType="com.scut.wms.inbound.KanbanPrintResponse">
-        SELECT kb.id AS kanban_id,
+    <select id="selectInventoryTagPrintsByFilter" resultType="com.scut.wms.inbound.InventoryTagPrintResponse">
+        SELECT kb.id AS inventory_tag_id,
                o.id AS inbound_order_id,
-               kb.kanban_code,
+               kb.inventory_tag_code,
                o.inbound_no,
                l.line_no,
                s.supplier_code,
@@ -88,14 +88,14 @@
                kb.printed_at,
                ct.container_name AS container_type_name,
                ct.capacity_qty AS capacity_qty
-        FROM kanban_board kb
+        FROM inventory_tag kb
                  JOIN inbound_order o ON o.id = kb.inbound_order_id
                  JOIN supplier s ON s.id = o.supplier_id
                  JOIN inbound_order_line l ON l.id = kb.inbound_order_line_id
                  JOIN material m ON m.id = l.material_id
                  JOIN storage_location sl ON sl.id = kb.location_id
                  JOIN container_type ct ON ct.id = kb.container_type_id
-                 LEFT JOIN inventory_hold ih ON ih.kanban_board_id = kb.id AND ih.status = 'ACTIVE'
+                 LEFT JOIN inventory_hold ih ON ih.inventory_tag_id = kb.id AND ih.status = 'ACTIVE'
         WHERE (#{status} IS NULL OR kb.status = #{status})
           AND (#{inboundNo} IS NULL OR o.inbound_no LIKE CONCAT('%', #{inboundNo}, '%'))
           AND (#{materialCode} IS NULL OR m.material_code = #{materialCode})

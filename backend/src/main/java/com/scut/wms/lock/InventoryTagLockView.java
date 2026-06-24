@@ -3,11 +3,11 @@ package com.scut.wms.lock;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-public record KanbanLockView(
+public record InventoryTagLockView(
         Long lockId,
-        String kanbanCode,
+        String inventoryTagCode,
         BigDecimal boardQty,
-        String kanbanStatus,
+        String inventoryTagStatus,
         String materialCode,
         String materialName,
         String locationName,

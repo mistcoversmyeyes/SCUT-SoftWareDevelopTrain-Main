@@ -6,8 +6,8 @@ import com.scut.wms.inbound.InboundOrder;
 import com.scut.wms.inbound.InboundOrderLine;
 import com.scut.wms.inbound.InboundOrderLineMapper;
 import com.scut.wms.inbound.InboundOrderMapper;
-import com.scut.wms.inbound.KanbanBoard;
-import com.scut.wms.inbound.KanbanBoardMapper;
+import com.scut.wms.inbound.InventoryTag;
+import com.scut.wms.inbound.InventoryTagMapper;
 import com.scut.wms.masterdata.StorageLocationMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -33,7 +33,7 @@ public class InventoryService {
     private static final String COMPLETED = "COMPLETED";
     private static final String CANCELLED = "CANCELLED";
     private static final String INBOUND_RECEIVE = "INBOUND_RECEIVE";
-    private static final String KANBAN_BOARD = "KANBAN_BOARD";
+    private static final String INVENTORY_TAG = "INVENTORY_TAG";
     private static final DateTimeFormatter MOVEMENT_NO_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
     private final InventoryTransactionMapper inventoryTransactionMapper;
@@ -41,7 +41,7 @@ public class InventoryService {
     private final InventoryBalanceMapper inventoryBalanceMapper;
     private final InboundOrderMapper inboundOrderMapper;
     private final InboundOrderLineMapper inboundOrderLineMapper;
-    private final KanbanBoardMapper kanbanBoardMapper;
+    private final InventoryTagMapper inventoryTagMapper;
     private final StorageLocationMapper storageLocationMapper;
 
     public InventoryService(
@@ -50,7 +50,7 @@ public class InventoryService {
             InventoryBalanceMapper inventoryBalanceMapper,
             InboundOrderMapper inboundOrderMapper,
             InboundOrderLineMapper inboundOrderLineMapper,
-            KanbanBoardMapper kanbanBoardMapper,
+            InventoryTagMapper inventoryTagMapper,
             StorageLocationMapper storageLocationMapper
     ) {
         this.inventoryTransactionMapper = inventoryTransactionMapper;
@@ -58,27 +58,27 @@ public class InventoryService {
         this.inventoryBalanceMapper = inventoryBalanceMapper;
         this.inboundOrderMapper = inboundOrderMapper;
         this.inboundOrderLineMapper = inboundOrderLineMapper;
-        this.kanbanBoardMapper = kanbanBoardMapper;
+        this.inventoryTagMapper = inventoryTagMapper;
         this.storageLocationMapper = storageLocationMapper;
     }
 
     @Transactional
     public ScanInboundResponse scanInbound(ScanInboundRequest request) {
-        ScanKanbanContext context = inventoryTransactionMapper.selectScanKanbanForUpdate(request.kanbanCode());
+        ScanInventoryTagContext context = inventoryTransactionMapper.selectScanInventoryTagForUpdate(request.inventoryTagCode());
         if (context == null) {
-            throw new BusinessException("未找到看板");
+            throw new BusinessException("未找到库存标签");
         }
-        if (RECEIVED.equals(context.getKanbanStatus())) {
+        if (RECEIVED.equals(context.getInventoryTagStatus())) {
             throw new BusinessException("重复扫码");
         }
-        if (!PRINTED.equals(context.getKanbanStatus())) {
-            throw new BusinessException("看板状态不允许入库");
+        if (!PRINTED.equals(context.getInventoryTagStatus())) {
+            throw new BusinessException("库存标签状态不允许入库");
         }
         if (!RELEASED.equals(context.getOrderStatus()) && !PARTIAL_RECEIVED.equals(context.getOrderStatus())) {
             throw new BusinessException("单据状态不允许入库");
         }
 
-        // Determine actual location: request override or kanban's default
+        // Determine actual location: request override or inventoryTag's default
         Long actualLocationId = (request.locationId() != null) ? request.locationId() : context.getTargetLocationId();
 
         // If forced inbound (different location), validate warehouse consistency (D27)
@@ -98,13 +98,13 @@ public class InventoryService {
 
         InventoryBalance balance = upsertBalance(context, actualLocationId);
 
-        KanbanBoard board = requireKanban(context.getKanbanId());
+        InventoryTag board = requireInventoryTag(context.getInventoryTagId());
         if (!Objects.equals(board.getLocationId(), actualLocationId)) {
             board.setLocationId(actualLocationId);
         }
         board.setStatus(RECEIVED);
         board.setReceivedAt(now);
-        kanbanBoardMapper.updateById(board);
+        inventoryTagMapper.updateById(board);
 
         InboundOrderLine line = requireLine(context.getLineId());
         line.setReceivedQty(line.getReceivedQty().add(context.getBoardQty()));
@@ -126,7 +126,7 @@ public class InventoryService {
         }
 
         return new ScanInboundResponse(
-                context.getKanbanCode(),
+                context.getInventoryTagCode(),
                 context.getInboundNo(),
                 context.getMaterialCode(),
                 context.getMaterialName(),
@@ -150,68 +150,68 @@ public class InventoryService {
             String warehouseCode,
             String locationCode,
             String inboundNo,
-            String kanbanCode
+            String inventoryTagCode
     ) {
         return inventoryTransactionMapper.selectInventoryMovements(
                 materialCode,
                 warehouseCode,
                 locationCode,
                 inboundNo,
-                kanbanCode
+                inventoryTagCode
         );
     }
 
-    public KanbanTraceView getKanbanTrace(String kanbanCode) {
-        KanbanTraceView trace = inventoryTransactionMapper.selectKanbanTrace(kanbanCode);
+    public InventoryTagTraceView getInventoryTagTrace(String inventoryTagCode) {
+        InventoryTagTraceView trace = inventoryTransactionMapper.selectInventoryTagTrace(inventoryTagCode);
         if (trace == null) {
-            throw new BusinessException(HttpStatus.NOT_FOUND, "未找到看板");
+            throw new BusinessException(HttpStatus.NOT_FOUND, "未找到库存标签");
         }
         return trace;
     }
 
     @Transactional
-    public Map<String, Object> cancelKanban(Long kanbanId) {
-        KanbanBoard kanban = kanbanBoardMapper.selectByIdForUpdate(kanbanId);
-        if (kanban == null) throw new BusinessException(HttpStatus.NOT_FOUND, "看板不存在");
-        if (!PRINTED.equals(kanban.getStatus())) throw new BusinessException("看板状态不允许取消");
+    public Map<String, Object> cancelInventoryTag(Long inventoryTagId) {
+        InventoryTag inventoryTag = inventoryTagMapper.selectByIdForUpdate(inventoryTagId);
+        if (inventoryTag == null) throw new BusinessException(HttpStatus.NOT_FOUND, "库存标签不存在");
+        if (!PRINTED.equals(inventoryTag.getStatus())) throw new BusinessException("库存标签状态不允许取消");
 
-        InboundOrder order = inboundOrderMapper.selectById(kanban.getInboundOrderId());
+        InboundOrder order = inboundOrderMapper.selectById(inventoryTag.getInboundOrderId());
         if (order == null) throw new BusinessException("关联入库单不存在");
         if (!RELEASED.equals(order.getStatus()) && !PARTIAL_RECEIVED.equals(order.getStatus())) {
-            throw new BusinessException("入库单状态不允许取消看板");
+            throw new BusinessException("入库单状态不允许取消库存标签");
         }
 
-        kanban.setStatus(CANCELLED);
-        kanbanBoardMapper.updateById(kanban);
+        inventoryTag.setStatus(CANCELLED);
+        inventoryTagMapper.updateById(inventoryTag);
 
-        recalcPlannedQtyAndRefreshStatus(kanban.getInboundOrderLineId(), kanban.getInboundOrderId());
+        recalcPlannedQtyAndRefreshStatus(inventoryTag.getInboundOrderLineId(), inventoryTag.getInboundOrderId());
 
-        return Map.of("cancelled", true, "kanbanCode", kanban.getKanbanCode());
+        return Map.of("cancelled", true, "inventoryTagCode", inventoryTag.getInventoryTagCode());
     }
 
     @Transactional
-    public Map<String, Object> cancelKanbansBatch(List<Long> ids) {
-        if (ids == null || ids.isEmpty()) throw new BusinessException("请选择要取消的看板");
+    public Map<String, Object> cancelInventoryTagsBatch(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) throw new BusinessException("请选择要取消的库存标签");
 
-        List<KanbanBoard> cancelled = new ArrayList<>();
+        List<InventoryTag> cancelled = new ArrayList<>();
         Set<Long> affectedLineIds = new HashSet<>();
         Set<Long> affectedOrderIds = new HashSet<>();
 
-        for (Long kanbanId : ids) {
-            KanbanBoard kanban = kanbanBoardMapper.selectByIdForUpdate(kanbanId);
-            if (kanban == null) throw new BusinessException("看板不存在: " + kanbanId);
-            if (!PRINTED.equals(kanban.getStatus())) {
-                throw new BusinessException("看板 %s 状态不允许取消".formatted(kanban.getKanbanCode()));
+        for (Long inventoryTagId : ids) {
+            InventoryTag inventoryTag = inventoryTagMapper.selectByIdForUpdate(inventoryTagId);
+            if (inventoryTag == null) throw new BusinessException("库存标签不存在: " + inventoryTagId);
+            if (!PRINTED.equals(inventoryTag.getStatus())) {
+                throw new BusinessException("库存标签 %s 状态不允许取消".formatted(inventoryTag.getInventoryTagCode()));
             }
-            InboundOrder order = inboundOrderMapper.selectById(kanban.getInboundOrderId());
+            InboundOrder order = inboundOrderMapper.selectById(inventoryTag.getInboundOrderId());
             if (!RELEASED.equals(order.getStatus()) && !PARTIAL_RECEIVED.equals(order.getStatus())) {
-                throw new BusinessException("入库单 %s 状态不允许取消看板".formatted(order.getInboundNo()));
+                throw new BusinessException("入库单 %s 状态不允许取消库存标签".formatted(order.getInboundNo()));
             }
-            kanban.setStatus(CANCELLED);
-            kanbanBoardMapper.updateById(kanban);
-            cancelled.add(kanban);
-            affectedLineIds.add(kanban.getInboundOrderLineId());
-            affectedOrderIds.add(kanban.getInboundOrderId());
+            inventoryTag.setStatus(CANCELLED);
+            inventoryTagMapper.updateById(inventoryTag);
+            cancelled.add(inventoryTag);
+            affectedLineIds.add(inventoryTag.getInboundOrderLineId());
+            affectedOrderIds.add(inventoryTag.getInboundOrderId());
         }
 
         for (Long lineId : affectedLineIds) {
@@ -225,11 +225,11 @@ public class InventoryService {
     }
 
     private void recalcPlannedQtyAndRefreshStatus(Long lineId, Long orderId) {
-        List<KanbanBoard> lineKanbans = kanbanBoardMapper.selectList(Wrappers.<KanbanBoard>lambdaQuery()
-                .eq(KanbanBoard::getInboundOrderLineId, lineId)
-                .ne(KanbanBoard::getStatus, CANCELLED));
-        BigDecimal newPlannedQty = lineKanbans.stream()
-                .map(KanbanBoard::getBoardQty)
+        List<InventoryTag> lineInventoryTags = inventoryTagMapper.selectList(Wrappers.<InventoryTag>lambdaQuery()
+                .eq(InventoryTag::getInboundOrderLineId, lineId)
+                .ne(InventoryTag::getStatus, CANCELLED));
+        BigDecimal newPlannedQty = lineInventoryTags.stream()
+                .map(InventoryTag::getBoardQty)
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -243,13 +243,13 @@ public class InventoryService {
         if (order != null) refreshOrderStatus(order, LocalDateTime.now());
     }
 
-    private InventoryMovement createMovement(ScanKanbanContext context, LocalDateTime now) {
+    private InventoryMovement createMovement(ScanInventoryTagContext context, LocalDateTime now) {
         InventoryMovement movement = new InventoryMovement();
         movement.setMovementNo(generateMovementNo(now));
         movement.setMovementType(INBOUND_RECEIVE);
-        movement.setSourceType(KANBAN_BOARD);
-        movement.setSourceId(context.getKanbanId());
-        movement.setKanbanBoardId(context.getKanbanId());
+        movement.setSourceType(INVENTORY_TAG);
+        movement.setSourceId(context.getInventoryTagId());
+        movement.setInventoryTagId(context.getInventoryTagId());
         movement.setMaterialId(context.getMaterialId());
         movement.setPlannedLocationId(context.getTargetLocationId());
         movement.setWarehouseId(context.getTargetWarehouseId());
@@ -260,7 +260,7 @@ public class InventoryService {
         return movement;
     }
 
-    private InventoryBalance upsertBalance(ScanKanbanContext context, Long actualLocationId) {
+    private InventoryBalance upsertBalance(ScanInventoryTagContext context, Long actualLocationId) {
         InventoryBalance balance = inventoryTransactionMapper.selectBalanceForUpdate(
                 context.getMaterialId(),
                 context.getTargetWarehouseId(),
@@ -297,10 +297,10 @@ public class InventoryService {
         return line;
     }
 
-    private KanbanBoard requireKanban(Long kanbanId) {
-        KanbanBoard board = kanbanBoardMapper.selectById(kanbanId);
+    private InventoryTag requireInventoryTag(Long inventoryTagId) {
+        InventoryTag board = inventoryTagMapper.selectById(inventoryTagId);
         if (board == null) {
-            throw new BusinessException(HttpStatus.NOT_FOUND, "看板不存在");
+            throw new BusinessException(HttpStatus.NOT_FOUND, "库存标签不存在");
         }
         return board;
     }

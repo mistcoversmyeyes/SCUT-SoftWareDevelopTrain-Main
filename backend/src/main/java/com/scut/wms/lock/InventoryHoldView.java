@@ -5,12 +5,12 @@ import java.time.LocalDateTime;
 
 public record InventoryHoldView(
         Long holdId,
-        Long kanbanBoardId,
-        String kanbanCode,
+        Long inventoryTagId,
+        String inventoryTagCode,
         String materialCode,
         String materialName,
         String locationName,
-        String kanbanStatus,
+        String inventoryTagStatus,
         String holdType,
         BigDecimal holdQty,
         String status,

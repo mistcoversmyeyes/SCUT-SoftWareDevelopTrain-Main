@@ -7,11 +7,11 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@TableName("kanban_board")
-public class KanbanBoard {
+@TableName("inventory_tag")
+public class InventoryTag {
     @TableId(type = IdType.AUTO)
     private Long id;
-    private String kanbanCode;
+    private String inventoryTagCode;
     private Long inboundOrderId;
     private Long inboundOrderLineId;
     private Long locationId = 0L;
@@ -34,12 +34,12 @@ public class KanbanBoard {
         this.id = id;
     }
 
-    public String getKanbanCode() {
-        return kanbanCode;
+    public String getInventoryTagCode() {
+        return inventoryTagCode;
     }
 
-    public void setKanbanCode(String kanbanCode) {
-        this.kanbanCode = kanbanCode;
+    public void setInventoryTagCode(String inventoryTagCode) {
+        this.inventoryTagCode = inventoryTagCode;
     }
 
     public Long getInboundOrderId() {

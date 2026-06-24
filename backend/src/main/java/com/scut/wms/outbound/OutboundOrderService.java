@@ -223,7 +223,7 @@ public class OutboundOrderService {
             order.setStatus(COMPLETED);
             order.setCompletedAt(LocalDateTime.now());
             outboundOrderMapper.updateById(order);
-            // Release all remaining locked kanbans — order is done, none needed anymore
+            // Release all remaining locked inventoryTags — order is done, none needed anymore
             lockService.releaseOrderLocks(orderId);
         }
     }

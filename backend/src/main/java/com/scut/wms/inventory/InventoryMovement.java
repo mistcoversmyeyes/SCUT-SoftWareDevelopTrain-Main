@@ -15,7 +15,7 @@ public class InventoryMovement {
     private String movementType;
     private String sourceType;
     private Long sourceId;
-    private Long kanbanBoardId;
+    private Long inventoryTagId;
     private Long materialId;
     private Long warehouseId;
     private Long storageLocationId;
@@ -69,12 +69,12 @@ public class InventoryMovement {
         this.sourceId = sourceId;
     }
 
-    public Long getKanbanBoardId() {
-        return kanbanBoardId;
+    public Long getInventoryTagId() {
+        return inventoryTagId;
     }
 
-    public void setKanbanBoardId(Long kanbanBoardId) {
-        this.kanbanBoardId = kanbanBoardId;
+    public void setInventoryTagId(Long inventoryTagId) {
+        this.inventoryTagId = inventoryTagId;
     }
 
     public Long getMaterialId() {
