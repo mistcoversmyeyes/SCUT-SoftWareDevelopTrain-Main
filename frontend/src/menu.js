@@ -18,7 +18,7 @@ export const menuItems = [
       { key: 'inbound-orders', title: '入库单', path: '/inbound/orders',
         description: '查看和管理采购入库单。', fields: ['入库单号', '供应商', '状态'] },
       { key: 'inbound-scan', title: '入库扫码', path: '/inbound/scan',
-        description: '扫码完成在途看板收货并更新库存。', fields: ['看板码', '扫码结果'] },
+        description: '扫码完成在途库存标签收货并更新库存。', fields: ['库存标签码', '扫码结果'] },
       { key: 'inbound-history', title: '入库历史', path: '/inbound/history',
         description: '查看已完成和已取消的入库单记录。', fields: ['入库单号', '完成时间'] }
     ]},
@@ -28,7 +28,7 @@ export const menuItems = [
       { key: 'outbound-pick-with-order', title: '带单出库', path: '/outbound/pick-with-order',
         description: '扫描出库单二维码，按锁定指引执行 FIFO 拣货。', fields: ['出库单号', '锁定物料'] },
       { key: 'outbound-pick-no-order', title: '不带单出库', path: '/outbound/pick-no-order',
-        description: '直接扫描看板码出库（强制出库）。', fields: ['看板码'] },
+        description: '直接扫描库存标签码出库（强制出库）。', fields: ['库存标签码'] },
       { key: 'outbound-locks', title: '锁货管理', path: '/outbound/locks',
         description: '查看、解锁、重新分配出库锁定记录。', fields: ['出库单号', '锁状态'] },
       { key: 'outbound-history', title: '出库历史', path: '/outbound/history',
@@ -44,11 +44,11 @@ export const menuItems = [
       { key: 'inventory-trace', title: '库存追溯', path: '/inventory/trace',
         description: '查看入库流水与库存变更历史。', fields: ['流水号', '入库单号'] }
     ]},
-  { key: 'kanbans', title: '看板信息', icon: Van, children: [
-      { key: 'kanbans-list', title: '看板列表', path: '/kanbans/list',
-        description: '按状态、入库单、物料等维度查看看板。', fields: ['看板码', '状态'] },
-      { key: 'kanbans-trace', title: '看板追溯', path: '/kanbans/trace',
-        description: '输入看板码查询其生成与收货全过程。', fields: ['看板码', '入库单号'] }
+  { key: 'inventory-tags', title: '库存标签信息', icon: Van, children: [
+      { key: 'inventory-tags-list', title: '库存标签列表', path: '/inventory-tags/list',
+        description: '按状态、入库单、物料等维度查看库存标签。', fields: ['库存标签码', '状态'] },
+      { key: 'inventory-tags-trace', title: '库存标签追溯', path: '/inventory-tags/trace',
+        description: '输入库存标签码查询其生成与收货全过程。', fields: ['库存标签码', '入库单号'] }
     ]}
 ]
 

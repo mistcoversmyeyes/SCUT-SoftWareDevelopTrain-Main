@@ -149,7 +149,7 @@
         <el-table-column prop="materialCode" label="物料编码" min-width="160" />
         <el-table-column prop="warehouseCode" label="仓库" width="100" />
         <el-table-column prop="locationCode" label="库位" width="100" />
-        <el-table-column prop="boardCode" label="看板码" min-width="200" />
+        <el-table-column prop="boardCode" label="库存标签码" min-width="200" />
         <el-table-column prop="movementType" label="流水类型" width="110" />
         <el-table-column prop="quantity" label="数量" width="100" />
         <el-table-column prop="qualityStatus" label="质量状态" width="120" />

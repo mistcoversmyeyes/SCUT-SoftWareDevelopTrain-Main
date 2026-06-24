@@ -3,7 +3,7 @@
     <div class="page-hero">
       <div>
         <h2>手机入库</h2>
-        <p>支持手工输入看板码，课堂演示不依赖真实扫码设备。</p>
+        <p>支持手工输入库存标签码，课堂演示不依赖真实扫码设备。</p>
       </div>
       <el-tag type="success">扫码入库</el-tag>
     </div>
@@ -18,13 +18,13 @@
     <section class="panel">
       <div class="field-grid">
         <div class="field-block">
-          <label class="field-label" for="mobile-inbound-code">看板码</label>
+          <label class="field-label" for="mobile-inbound-code">库存标签码</label>
           <el-input
             id="mobile-inbound-code"
-            v-model="kanbanCode"
+            v-model="inventoryTagCode"
             clearable
             size="large"
-            placeholder="请输入看板码"
+            placeholder="请输入库存标签码"
             @keyup.enter="submitInbound"
           />
         </div>
@@ -66,8 +66,8 @@
 
     <section v-if="preview" class="panel">
       <div class="panel-header">
-        <h3>看板预览</h3>
-        <el-tag :type="statusTagType(preview.kanbanStatus)">{{ preview.kanbanStatus }}</el-tag>
+        <h3>库存标签预览</h3>
+        <el-tag :type="statusTagType(preview.inventoryTagStatus)">{{ preview.inventoryTagStatus }}</el-tag>
       </div>
       <dl class="detail-list">
         <div>
@@ -96,8 +96,8 @@
       </div>
       <dl class="detail-list">
         <div>
-          <dt>看板码</dt>
-          <dd><code>{{ result.kanbanCode }}</code></dd>
+          <dt>库存标签码</dt>
+          <dd><code>{{ result.inventoryTagCode }}</code></dd>
         </div>
         <div>
           <dt>收货数量</dt>
@@ -127,9 +127,9 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { fetchMasterDataOptions } from '../../api/masterData'
-import { lookupKanbanInbound, scanInbound } from '../../api/inventory'
+import { lookupInventoryTagInbound, scanInbound } from '../../api/inventory'
 
-const kanbanCode = ref('')
+const inventoryTagCode = ref('')
 const selectedLocationId = ref(null)
 const locationOptions = ref([])
 const preview = ref(null)
@@ -139,7 +139,7 @@ const submitting = ref(false)
 
 let lookupTimer = null
 
-watch(kanbanCode, (value) => {
+watch(inventoryTagCode, (value) => {
   clearTimeout(lookupTimer)
   preview.value = null
   if (errorMessage.value) {
@@ -151,7 +151,7 @@ watch(kanbanCode, (value) => {
   }
   lookupTimer = setTimeout(async () => {
     try {
-      preview.value = await lookupKanbanInbound(trimmed)
+      preview.value = await lookupInventoryTagInbound(trimmed)
     } catch {
       preview.value = null
     }
@@ -159,15 +159,15 @@ watch(kanbanCode, (value) => {
 })
 
 function applyDemoCode() {
-  if (!kanbanCode.value.trim()) {
-    kanbanCode.value = 'KB:DEMO:INPUT'
+  if (!inventoryTagCode.value.trim()) {
+    inventoryTagCode.value = 'IT:v1:DEMO:INPUT'
   }
 }
 
 async function submitInbound() {
-  const code = kanbanCode.value.trim()
+  const code = inventoryTagCode.value.trim()
   if (!code) {
-    errorMessage.value = '请输入看板码'
+    errorMessage.value = '请输入库存标签码'
     return
   }
 
@@ -177,7 +177,7 @@ async function submitInbound() {
 
   try {
     result.value = await scanInbound(code, selectedLocationId.value)
-    kanbanCode.value = ''
+    inventoryTagCode.value = ''
     selectedLocationId.value = null
     preview.value = null
   } catch (error) {

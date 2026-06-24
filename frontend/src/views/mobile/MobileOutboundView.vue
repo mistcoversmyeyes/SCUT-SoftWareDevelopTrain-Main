@@ -41,13 +41,13 @@
 
       <div class="field-grid">
         <div class="field-block">
-          <label class="field-label" for="mobile-outbound-code">看板码</label>
+          <label class="field-label" for="mobile-outbound-code">库存标签码</label>
           <el-input
             id="mobile-outbound-code"
-            v-model="kanbanCode"
+            v-model="inventoryTagCode"
             clearable
             size="large"
-            placeholder="请输入看板码"
+            placeholder="请输入库存标签码"
             @keyup.enter="submitOutbound"
           />
         </div>
@@ -105,9 +105,9 @@
         </div>
       </dl>
       <div v-if="lockedItems.length" class="compact-list">
-        <article v-for="item in lockedItems" :key="item.id || item.kanbanCode" class="compact-item">
+        <article v-for="item in lockedItems" :key="item.id || item.inventoryTagCode" class="compact-item">
           <div>
-            <strong>{{ item.kanbanCode }}</strong>
+            <strong>{{ item.inventoryTagCode }}</strong>
             <p>{{ item.materialCode }} {{ item.materialName }}</p>
           </div>
           <div class="compact-meta">
@@ -120,8 +120,8 @@
 
     <section v-if="preview" class="panel">
       <div class="panel-header">
-        <h3>看板预览</h3>
-        <el-tag :type="statusTagType(preview.kanbanStatus)">{{ preview.kanbanStatus }}</el-tag>
+        <h3>库存标签预览</h3>
+        <el-tag :type="statusTagType(preview.inventoryTagStatus)">{{ preview.inventoryTagStatus }}</el-tag>
       </div>
       <dl class="detail-list">
         <div>
@@ -153,8 +153,8 @@
       </div>
       <dl class="detail-list">
         <div>
-          <dt>看板码</dt>
-          <dd><code>{{ result.kanbanCode }}</code></dd>
+          <dt>库存标签码</dt>
+          <dd><code>{{ result.inventoryTagCode }}</code></dd>
         </div>
         <div>
           <dt>物料</dt>
@@ -166,7 +166,7 @@
         </div>
         <div>
           <dt>结果状态</dt>
-          <dd>{{ result.newKanbanStatus }}</dd>
+          <dd>{{ result.newInventoryTagStatus }}</dd>
         </div>
         <div>
           <dt>出库单号</dt>
@@ -183,7 +183,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { fetchQrInfo, lookupKanban, pickNoOrder, pickWithOrder } from '../../api/outbound'
+import { fetchQrInfo, lookupInventoryTag, pickNoOrder, pickWithOrder } from '../../api/outbound'
 
 const modeOptions = [
   { value: 'with-order', label: '带单出库' },
@@ -194,7 +194,7 @@ const mode = ref('with-order')
 const outboundNo = ref('')
 const orderInfo = ref(null)
 const lockedItems = ref([])
-const kanbanCode = ref('')
+const inventoryTagCode = ref('')
 const qty = ref(undefined)
 const preview = ref(null)
 const result = ref(null)
@@ -211,7 +211,7 @@ const remainingQty = computed(() => {
   return Number(preview.value.boardQty || 0) - Number(preview.value.pickedQty || 0)
 })
 
-watch(kanbanCode, (value) => {
+watch(inventoryTagCode, (value) => {
   clearTimeout(lookupTimer)
   preview.value = null
   if (errorMessage.value) {
@@ -223,7 +223,7 @@ watch(kanbanCode, (value) => {
   }
   lookupTimer = setTimeout(async () => {
     try {
-      preview.value = await lookupKanban(trimmed)
+      preview.value = await lookupInventoryTag(trimmed)
     } catch {
       preview.value = null
     }
@@ -241,8 +241,8 @@ function switchMode(nextMode) {
 }
 
 function applyDemoCode() {
-  if (!kanbanCode.value.trim()) {
-    kanbanCode.value = 'KB:DEMO:OUTBOUND'
+  if (!inventoryTagCode.value.trim()) {
+    inventoryTagCode.value = 'IT:v1:DEMO:OUTBOUND'
   }
 }
 
@@ -269,9 +269,9 @@ async function loadOrder() {
 }
 
 async function submitOutbound() {
-  const code = kanbanCode.value.trim()
+  const code = inventoryTagCode.value.trim()
   if (!code) {
-    errorMessage.value = '请输入看板码'
+    errorMessage.value = '请输入库存标签码'
     return
   }
   if (mode.value === 'with-order' && !orderInfo.value?.id) {
@@ -285,14 +285,14 @@ async function submitOutbound() {
 
   try {
     const payload = {
-      kanbanCode: code,
+      inventoryTagCode: code,
       qty: qty.value || undefined,
       outboundOrderId: mode.value === 'with-order' ? orderInfo.value.id : undefined
     }
     result.value = mode.value === 'with-order'
       ? await pickWithOrder(payload)
       : await pickNoOrder(payload)
-    kanbanCode.value = ''
+    inventoryTagCode.value = ''
     qty.value = undefined
     preview.value = null
     if (mode.value === 'with-order' && outboundNo.value.trim()) {
@@ -321,10 +321,10 @@ function holdSummary(context) {
   if (context.activeHoldType) {
     return `${context.activeHoldType}${context.activeHoldReason ? `：${context.activeHoldReason}` : ''}`
   }
-  if (context.kanbanStatus === 'LOCKED') {
+  if (context.inventoryTagStatus === 'LOCKED') {
     return '已被出库锁定'
   }
-  if (context.kanbanStatus === 'SEALED') {
+  if (context.inventoryTagStatus === 'SEALED') {
     return '已封存'
   }
   return '正常'

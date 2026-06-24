@@ -46,7 +46,7 @@ const tabs = useTabsStore()
 const navItems = [
   { name: 'mobile-inbound', label: '入库', path: '/mobile/inbound', icon: Box },
   { name: 'mobile-outbound', label: '出库', path: '/mobile/outbound', icon: Van },
-  { name: 'mobile-kanban', label: '看板', path: '/mobile/kanban', icon: Search }
+  { name: 'mobile-inventory-tag', label: '库存标签', path: '/mobile/inventory-tag', icon: Search }
 ]
 
 function goDesktop() {

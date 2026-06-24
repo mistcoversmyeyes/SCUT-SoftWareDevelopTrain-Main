@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { http } from './http'
 import { scanInbound } from './inventory'
-import { fetchKanbanTrace } from './kanban'
-import { fetchQrInfo, lookupKanban, pickNoOrder, pickWithOrder } from './outbound'
+import { fetchInventoryTagTrace } from './inventoryTag'
+import { fetchQrInfo, lookupInventoryTag, pickNoOrder, pickWithOrder } from './outbound'
 
 vi.mock('./http', () => ({
   http: {
@@ -19,10 +19,10 @@ describe('mobile-related api wrappers', () => {
   it('submits inbound scan with optional location', async () => {
     http.post.mockResolvedValue({ data: { ok: true } })
 
-    await scanInbound('KB:1', 8)
+    await scanInbound('IT:v1:IN-1:1:1', 8)
 
     expect(http.post).toHaveBeenCalledWith('/inventory/scan-inbound', {
-      kanbanCode: 'KB:1',
+      inventoryTagCode: 'IT:v1:IN-1:1:1',
       locationId: 8
     })
   })
@@ -38,29 +38,29 @@ describe('mobile-related api wrappers', () => {
   it('submits with-order and no-order outbound picks', async () => {
     http.post.mockResolvedValue({ data: { ok: true } })
 
-    await pickWithOrder({ kanbanCode: 'KB:2', qty: 5, outboundOrderId: 3 })
-    await pickNoOrder({ kanbanCode: 'KB:3', qty: 2 })
+    await pickWithOrder({ inventoryTagCode: 'IT:v1:IN-2:1:1', qty: 5, outboundOrderId: 3 })
+    await pickNoOrder({ inventoryTagCode: 'IT:v1:IN-3:1:1', qty: 2 })
 
     expect(http.post).toHaveBeenNthCalledWith(1, '/outbound/pick-with-order', {
-      kanbanCode: 'KB:2',
+      inventoryTagCode: 'IT:v1:IN-2:1:1',
       qty: 5,
       outboundOrderId: 3
     })
     expect(http.post).toHaveBeenNthCalledWith(2, '/outbound/pick-no-order', {
-      kanbanCode: 'KB:3',
+      inventoryTagCode: 'IT:v1:IN-3:1:1',
       qty: 2
     })
   })
 
-  it('loads mobile kanban preview and trace', async () => {
-    http.get.mockResolvedValue({ data: { kanbanCode: 'KB:4' } })
+  it('loads mobile inventory tag preview and trace', async () => {
+    http.get.mockResolvedValue({ data: { inventoryTagCode: 'IT:v1:IN-4:1:1' } })
 
-    await lookupKanban('KB:4')
-    await fetchKanbanTrace('KB:4')
+    await lookupInventoryTag('IT:v1:IN-4:1:1')
+    await fetchInventoryTagTrace('IT:v1:IN-4:1:1')
 
-    expect(http.get).toHaveBeenNthCalledWith(1, '/outbound/kanban-lookup', {
-      params: { kanbanCode: 'KB:4' }
+    expect(http.get).toHaveBeenNthCalledWith(1, '/inventory-tags/lookup', {
+      params: { inventoryTagCode: 'IT:v1:IN-4:1:1' }
     })
-    expect(http.get).toHaveBeenNthCalledWith(2, '/kanbans/KB%3A4/trace')
+    expect(http.get).toHaveBeenNthCalledWith(2, '/inventory-tags/IT%3Av1%3AIN-4%3A1%3A1/trace')
   })
 })

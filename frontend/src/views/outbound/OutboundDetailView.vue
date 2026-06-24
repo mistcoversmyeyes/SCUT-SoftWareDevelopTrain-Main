@@ -101,14 +101,14 @@
         </div>
       </div>
 
-      <!-- ═══════ 锁定看板明细 ═══════ -->
-      <el-card v-if="lockDetails.length" class="kanban-detail-card no-print" shadow="hover">
-        <template #header><span>锁定看板明细</span></template>
+      <!-- ═══════ 锁定库存标签明细 ═══════ -->
+      <el-card v-if="lockDetails.length" class="inventoryTag-detail-card no-print" shadow="hover">
+        <template #header><span>锁定库存标签明细</span></template>
         <el-table :data="lockDetails" border stripe size="small">
-          <el-table-column label="看板码" min-width="240">
+          <el-table-column label="库存标签码" min-width="240">
             <template #default="{ row }">
-              <code>{{ row.kanbanCode }}</code>
-              <el-button size="small" text type="primary" style="margin-left:6px" @click="handleCopyCode(row.kanbanCode)">
+              <code>{{ row.inventoryTagCode }}</code>
+              <el-button size="small" text type="primary" style="margin-left:6px" @click="handleCopyCode(row.inventoryTagCode)">
                 <el-icon><DocumentCopy /></el-icon>
               </el-button>
             </template>
@@ -239,7 +239,7 @@ onBeforeMount(()=>{ loadData() })
 .sheet-table tr.done { background:#f0f9eb; }
 .sheet-summary { text-align:right; font-size:0.9rem; color:#666; }
 
-.kanban-detail-card code { font-family:'Courier New',monospace; font-size:0.82rem; }
+.inventoryTag-detail-card code { font-family:'Courier New',monospace; font-size:0.82rem; }
 
 /* Print */
 @media print {

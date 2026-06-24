@@ -15,11 +15,11 @@
 
     <!-- ═══════ 模式提示 ═══════ -->
     <el-alert v-if="mode==='force'" type="danger" :closable="false" show-icon
-      title="强制模式：扫描看板将强制执行出库，被锁定的看板会被抢锁并算到本出库单。" style="margin-bottom:20px" />
+      title="强制模式：扫描库存标签将强制执行出库，被锁定的库存标签会被抢锁并算到本出库单。" style="margin-bottom:20px" />
     <el-alert v-if="mode==='no-order'" type="warning" :closable="false" show-icon
-      title="不带单模式：直接扫描看板码出库。看板如被锁定将强制抢锁并记录审计日志。" style="margin-bottom:20px" />
+      title="不带单模式：直接扫描库存标签码出库。库存标签如被锁定将强制抢锁并记录审计日志。" style="margin-bottom:20px" />
     <el-alert v-if="mode==='normal' && orderId" type="info" :closable="false" show-icon
-      title="只能扫描已锁定给本出库单的看板。" style="margin-bottom:20px" />
+      title="只能扫描已锁定给本出库单的库存标签。" style="margin-bottom:20px" />
 
     <!-- ═══════ 扫码区（主角） ═══════ -->
     <el-card class="scan-main" shadow="hover">
@@ -50,10 +50,10 @@
       </el-divider>
 
       <div class="manual-input">
-        <el-input ref="scanInputRef" v-model="kanbanCode" size="large"
-          placeholder="请输入看板码" :disabled="scanning" clearable
+        <el-input ref="scanInputRef" v-model="inventoryTagCode" size="large"
+          placeholder="请输入库存标签码" :disabled="scanning" clearable
           style="width:360px" @keyup.enter="handleScan">
-          <template #prepend>看板码</template>
+          <template #prepend>库存标签码</template>
         </el-input>
         <el-button type="primary" size="large" :loading="scanning"
           style="min-width:120px" @click="handleScan">
@@ -61,20 +61,20 @@
         </el-button>
       </div>
 
-      <!-- ═══════ 看板预览（紧凑单行） ═══════ -->
-      <div v-if="kanbanPreview" class="kanban-preview">
+      <!-- ═══════ 库存标签预览（紧凑单行） ═══════ -->
+      <div v-if="inventoryTagPreview" class="inventoryTag-preview">
         <div class="preview-row">
-          <span class="preview-material">{{ kanbanPreview.materialCode }} {{ kanbanPreview.materialName }}</span>
+          <span class="preview-material">{{ inventoryTagPreview.materialCode }} {{ inventoryTagPreview.materialName }}</span>
           <span class="preview-sep">·</span>
-          <span class="preview-loc">{{ kanbanPreview.locationName }}</span>
+          <span class="preview-loc">{{ inventoryTagPreview.locationName }}</span>
           <span class="preview-sep">·</span>
-          <el-tag :type="kanbanPreview.kanbanStatus === 'LOCKED' ? 'danger' : 'success'" size="small">
-            {{ kanbanPreview.kanbanStatus === 'LOCKED' ? '已锁定' : '空闲' }}
+          <el-tag :type="inventoryTagPreview.inventoryTagStatus === 'LOCKED' ? 'danger' : 'success'" size="small">
+            {{ inventoryTagPreview.inventoryTagStatus === 'LOCKED' ? '已锁定' : '空闲' }}
           </el-tag>
           <span class="preview-sep">·</span>
           <span class="preview-qty">
-            剩余 <strong>{{ kanbanPreview.boardQty - (kanbanPreview.pickedQty || 0) }}</strong>
-            / 总量 {{ kanbanPreview.boardQty }}
+            剩余 <strong>{{ inventoryTagPreview.boardQty - (inventoryTagPreview.pickedQty || 0) }}</strong>
+            / 总量 {{ inventoryTagPreview.boardQty }}
           </span>
         </div>
       </div>
@@ -94,7 +94,7 @@
       </template>
       <div class="history-list">
         <div v-for="(item, i) in scanHistory" :key="i" class="history-item">
-          <span class="history-code">{{ item.kanbanCode }}</span>
+          <span class="history-code">{{ item.inventoryTagCode }}</span>
           <span class="history-arrow">→</span>
           <span class="history-material">{{ item.materialCode }} {{ item.materialName }}</span>
           <span class="history-qty">已出 {{ item.pickedQty }}</span>
@@ -120,10 +120,10 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="看板码" min-width="240">
+        <el-table-column label="库存标签码" min-width="240">
           <template #default="{ row }">
-            <code>{{ row.kanbanCode }}</code>
-            <el-button size="small" text type="primary" style="margin-left:6px" @click="copyText(row.kanbanCode)">
+            <code>{{ row.inventoryTagCode }}</code>
+            <el-button size="small" text type="primary" style="margin-left:6px" @click="copyText(row.inventoryTagCode)">
               <el-icon><DocumentCopy /></el-icon>
             </el-button>
           </template>
@@ -151,10 +151,10 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="看板码" min-width="240">
+        <el-table-column label="库存标签码" min-width="240">
           <template #default="{ row }">
-            <code>{{ row.kanbanCode }}</code>
-            <el-button size="small" text type="primary" style="margin-left:6px" @click="copyText(row.kanbanCode)">
+            <code>{{ row.inventoryTagCode }}</code>
+            <el-button size="small" text type="primary" style="margin-left:6px" @click="copyText(row.inventoryTagCode)">
               <el-icon><DocumentCopy /></el-icon>
             </el-button>
           </template>
@@ -183,7 +183,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Camera, DocumentCopy } from '@element-plus/icons-vue'
 import { Html5Qrcode } from 'html5-qrcode'
 import {
-  lookupKanban, pickWithOrder, pickWithOrderForce, pickNoOrder,
+  lookupInventoryTag, pickWithOrder, pickWithOrderForce, pickNoOrder,
   fetchQrInfo, fetchForceCandidates
 } from '../../api/outbound'
 
@@ -193,9 +193,9 @@ const mode = computed(() => route.query.mode || 'normal')
 const orderId = computed(() => route.query.orderId ? Number(route.query.orderId) : null)
 const outboundNo = computed(() => route.query.outboundNo || '')
 
-const kanbanCode = ref('')
+const inventoryTagCode = ref('')
 const scanning = ref(false)
-const kanbanPreview = ref(null)
+const inventoryTagPreview = ref(null)
 const errorMessage = ref('')
 const scanInputRef = ref()
 
@@ -210,15 +210,15 @@ const forceTable = ref([])
 const pickedCount = computed(() => materialTable.value.filter(r => r._picked).length)
 const forcePickedCount = computed(() => forceTable.value.filter(r => r._picked).length)
 
-const pickedKanbanCodes = ref(new Set())
+const pickedInventoryTagCodes = ref(new Set())
 
 function markPicked(code) {
-  pickedKanbanCodes.value = new Set([...pickedKanbanCodes.value, code])
+  pickedInventoryTagCodes.value = new Set([...pickedInventoryTagCodes.value, code])
 }
 
 function applyPickedStatus(table) {
   for (const row of table) {
-    row._picked = pickedKanbanCodes.value.has(row.kanbanCode)
+    row._picked = pickedInventoryTagCodes.value.has(row.inventoryTagCode)
   }
 }
 
@@ -226,7 +226,7 @@ function checkAllDone() {
   const table = mode.value === 'force' ? forceTable.value : materialTable.value
   if (!table.length) return
   if (table.every(r => r._picked)) {
-    ElMessage.success('本单全部看板已出库完成！')
+    ElMessage.success('本单全部库存标签已出库完成！')
     setTimeout(() => router.push('/outbound/orders'), 1500)
   }
 }
@@ -237,7 +237,7 @@ async function loadMaterialTable() {
   try {
     const result = await fetchQrInfo(outboundNo.value)
     materialTable.value = (result.lockedItems || []).map(item => ({
-      kanbanCode: item.kanbanCode, materialCode: item.materialCode,
+      inventoryTagCode: item.inventoryTagCode, materialCode: item.materialCode,
       materialName: item.materialName, locationName: item.locationName, qty: item.lockQty,
       _picked: false
     }))
@@ -252,9 +252,9 @@ async function loadForceTable() {
     const result = await fetchForceCandidates(orderId.value)
     const all = []
     for (const line of (result.lines || [])) {
-      for (const kb of (line.kanbans || [])) {
+      for (const kb of (line.inventoryTags || [])) {
         all.push({
-          kanbanCode: kb.kanbanCode, materialCode: line.materialCode,
+          inventoryTagCode: kb.inventoryTagCode, materialCode: line.materialCode,
           materialName: line.materialName, locationName: kb.locationName,
           qty: kb.qty, locked: kb.locked, _picked: false
         })
@@ -271,15 +271,15 @@ async function copyText(text) {
   catch { ElMessage.error('复制失败') }
 }
 
-// Watch kanban code for preview
+// Watch inventoryTag code for preview
 let lookupTimer = null
-watch(kanbanCode, (code) => {
+watch(inventoryTagCode, (code) => {
   clearTimeout(lookupTimer)
-  kanbanPreview.value = null
+  inventoryTagPreview.value = null
   const trimmed = code.trim()
   if (!trimmed) return
   lookupTimer = setTimeout(async () => {
-    try { kanbanPreview.value = await lookupKanban(trimmed) } catch { kanbanPreview.value = null }
+    try { inventoryTagPreview.value = await lookupInventoryTag(trimmed) } catch { inventoryTagPreview.value = null }
   }, 400)
 })
 
@@ -300,7 +300,7 @@ async function startCamera() {
       { facingMode: 'environment' },
       { fps: 10, qrbox: { width: 250, height: 250 } },
       (decodedText) => {
-        kanbanCode.value = decodedText
+        inventoryTagCode.value = decodedText
         ElMessage.success('扫描成功: ' + decodedText)
         stopCamera()
       },
@@ -333,7 +333,7 @@ function openFilePicker() {
       const h5 = new Html5Qrcode('qr-reader-tmp')
       const result = await h5.scanFile(file, true)
       document.body.removeChild(tmp)
-      if (result) { kanbanCode.value = result; ElMessage.success('识别成功: ' + result) }
+      if (result) { inventoryTagCode.value = result; ElMessage.success('识别成功: ' + result) }
     } catch (err) {
       scannerError.value = '二维码识别失败: ' + (err.message || err)
     }
@@ -342,11 +342,11 @@ function openFilePicker() {
 }
 
 async function handleScan() {
-  const code = kanbanCode.value.trim()
-  if (!code) { errorMessage.value = '请先输入看板码'; return }
+  const code = inventoryTagCode.value.trim()
+  if (!code) { errorMessage.value = '请先输入库存标签码'; return }
   scanning.value = true; errorMessage.value = ''
   try {
-    const payload = { kanbanCode: code, outboundOrderId: orderId.value || undefined }
+    const payload = { inventoryTagCode: code, outboundOrderId: orderId.value || undefined }
     let result
     if (mode.value === 'no-order') result = await pickNoOrder(payload)
     else if (mode.value === 'force') result = await pickWithOrderForce(payload)
@@ -354,14 +354,14 @@ async function handleScan() {
 
     // Add to history
     scanHistory.value.unshift({
-      kanbanCode: result.kanbanCode,
+      inventoryTagCode: result.inventoryTagCode,
       materialCode: result.materialCode,
       materialName: result.materialName,
       pickedQty: result.pickedQty,
       time: formatDateTime(result.occurredAt)
     })
-    markPicked(result.kanbanCode)
-    kanbanCode.value = ''; kanbanPreview.value = null
+    markPicked(result.inventoryTagCode)
+    inventoryTagCode.value = ''; inventoryTagPreview.value = null
     loadMaterialTable(); loadForceTable()
   } catch (error) {
     errorMessage.value = error.response?.data?.message || error.message || '扫码失败'
@@ -435,8 +435,8 @@ onBeforeUnmount(() => { stopCamera(); clearTimeout(lookupTimer) })
   justify-content: center; flex-wrap: wrap; margin-bottom: 12px;
 }
 
-/* ---- 看板预览 ---- */
-.kanban-preview {
+/* ---- 库存标签预览 ---- */
+.inventoryTag-preview {
   background: var(--el-color-primary-light-9); border-radius: 8px;
   padding: 10px 16px; margin: 0 0 8px;
 }

@@ -9,13 +9,13 @@ import DashboardView from '../views/DashboardView.vue'
 import InboundOrderListView from '../views/inbound/InboundOrderListView.vue'
 import InboundScanView from '../views/inbound/InboundScanView.vue'
 import InboundPrintView from '../views/inbound/InboundPrintView.vue'
-import KanbanPrintView from '../views/inbound/KanbanPrintView.vue'
+import InventoryTagPrintView from '../views/inbound/InventoryTagPrintView.vue'
 import InventoryBalanceView from '../views/inventory/InventoryBalanceView.vue'
 import InventoryAiImportView from '../views/inventory/InventoryAiImportView.vue'
 import InventoryTraceView from '../views/inventory/InventoryTraceView.vue'
-import KanbanTraceView from '../views/kanban/KanbanTraceView.vue'
+import InventoryTagTraceView from '../views/inventory-tag/InventoryTagTraceView.vue'
 import MobileInboundView from '../views/mobile/MobileInboundView.vue'
-import MobileKanbanQueryView from '../views/mobile/MobileKanbanQueryView.vue'
+import MobileInventoryTagQueryView from '../views/mobile/MobileInventoryTagQueryView.vue'
 import MobileOutboundView from '../views/mobile/MobileOutboundView.vue'
 
 vi.mock('../api/auth', () => ({
@@ -120,9 +120,9 @@ describe('router auth guard', () => {
         component: InventoryTraceView
       },
       {
-        path: '/kanbans/trace',
-        name: 'kanbans-trace',
-        component: KanbanTraceView
+        path: '/inventory-tags/trace',
+        name: 'inventory-tags-trace',
+        component: InventoryTagTraceView
       },
       {
         path: '/inbound/10/print',
@@ -130,9 +130,9 @@ describe('router auth guard', () => {
         component: InboundPrintView
       },
       {
-        path: '/inbound/10/kanbans/print',
-        name: 'kanban-print',
-        component: KanbanPrintView
+        path: '/inbound/10/inventory-tags/print',
+        name: 'inventory-tag-print',
+        component: InventoryTagPrintView
       },
       {
         path: '/mobile/inbound',
@@ -145,9 +145,9 @@ describe('router auth guard', () => {
         component: MobileOutboundView
       },
       {
-        path: '/mobile/kanban',
-        name: 'mobile-kanban',
-        component: MobileKanbanQueryView
+        path: '/mobile/inventory-tag',
+        name: 'mobile-inventory-tag',
+        component: MobileInventoryTagQueryView
       }
     ]
 

@@ -1,16 +1,16 @@
 <template>
-  <section class="kanban-list-page">
+  <section class="inventoryTag-list-page">
     <el-card>
       <template #header>
         <div class="card-header">
-          <h2>看板列表</h2>
+          <h2>库存标签列表</h2>
         </div>
       </template>
 
       <div class="summary-grid">
         <div class="summary-card">
-          <span class="summary-label">总看板</span>
-          <strong>{{ filteredKanbans.length }}</strong>
+          <span class="summary-label">总库存标签</span>
+          <strong>{{ filteredInventoryTags.length }}</strong>
         </div>
         <div class="summary-card">
           <span class="summary-label">在库 / 锁定</span>
@@ -46,8 +46,8 @@
           <el-input v-model="query.materialCode" placeholder="支持模糊输入" clearable />
         </el-form-item>
 
-        <el-form-item label="看板/物料">
-          <el-input v-model="query.keyword" placeholder="看板码 / 物料名称" clearable />
+        <el-form-item label="库存标签/物料">
+          <el-input v-model="query.keyword" placeholder="库存标签码 / 物料名称" clearable />
         </el-form-item>
 
         <el-form-item label="主动占用">
@@ -73,15 +73,15 @@
 
       <el-table
         v-loading="loading"
-        :data="paginatedKanbans"
+        :data="paginatedInventoryTags"
         border
         stripe
         size="small"
-        class="kanban-table"
+        class="inventoryTag-table"
       >
-        <el-table-column prop="kanbanCode" label="看板码" min-width="190">
+        <el-table-column prop="inventoryTagCode" label="库存标签码" min-width="190">
           <template #default="{ row }">
-            <span class="mono">{{ row.kanbanCode }}</span>
+            <span class="mono">{{ row.inventoryTagCode }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="inboundNo" label="入库单号" min-width="150" />
@@ -134,7 +134,7 @@
                 查看详情
               </el-button>
               <el-button type="info" size="small" text @click="handleCopyCode(row)">
-                复制看板码
+                复制库存标签码
               </el-button>
               <el-dropdown
                 v-if="availableActionsForRow(row).length"
@@ -160,18 +160,18 @@
         </el-table-column>
       </el-table>
 
-      <div v-if="filteredKanbans.length > pageSize" class="pagination-wrapper">
+      <div v-if="filteredInventoryTags.length > pageSize" class="pagination-wrapper">
         <el-pagination
           v-model:current-page="currentPage"
           v-model:page-size="pageSize"
           :page-sizes="[10, 15, 20, 50]"
-          :total="filteredKanbans.length"
+          :total="filteredInventoryTags.length"
           layout="total, sizes, prev, pager, next, jumper"
           background
         />
       </div>
 
-      <el-empty v-if="!loading && !filteredKanbans.length" description="暂无看板数据" />
+      <el-empty v-if="!loading && !filteredInventoryTags.length" description="暂无库存标签数据" />
     </el-card>
 
     <el-dialog
@@ -182,8 +182,8 @@
       @closed="resetHoldDialog"
     >
       <el-form ref="holdFormRef" :model="holdForm" :rules="holdRules" label-width="72px">
-        <el-form-item label="看板码">
-          <span class="mono">{{ holdDialog.row?.kanbanCode || '—' }}</span>
+        <el-form-item label="库存标签码">
+          <span class="mono">{{ holdDialog.row?.inventoryTagCode || '—' }}</span>
         </el-form-item>
         <el-form-item label="原因" prop="reason">
           <el-input v-model="holdForm.reason" maxlength="64" show-word-limit />
@@ -208,13 +208,13 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
-  fetchKanbanList,
-  manualLockKanban,
-  manualUnlockKanban,
-  sealKanban,
-  unsealKanban
-} from '../../api/kanban'
-import { filterKanbanRows } from '../../utils/monitoring'
+  fetchInventoryTags,
+  manualLockInventoryTag,
+  manualUnlockInventoryTag,
+  sealInventoryTag,
+  unsealInventoryTag
+} from '../../api/inventoryTag'
+import { filterInventoryTagRows } from '../../utils/monitoring'
 
 const router = useRouter()
 const holdFormRef = ref()
@@ -236,7 +236,7 @@ const query = reactive({
   holdType: ''
 })
 
-const kanbans = ref([])
+const inventoryTags = ref([])
 const loading = ref(false)
 const loadError = ref('')
 const currentPage = ref(1)
@@ -259,18 +259,18 @@ const holdRules = {
   reason: [{ required: true, message: '请输入原因', trigger: 'blur' }]
 }
 
-const filteredKanbans = computed(() => filterKanbanRows(kanbans.value, {
+const filteredInventoryTags = computed(() => filterInventoryTagRows(inventoryTags.value, {
   status: query.status,
   holdType: query.holdType,
   keyword: query.keyword
 }))
 
-const paginatedKanbans = computed(() => {
+const paginatedInventoryTags = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
-  return filteredKanbans.value.slice(start, start + pageSize.value)
+  return filteredInventoryTags.value.slice(start, start + pageSize.value)
 })
 
-const summary = computed(() => filteredKanbans.value.reduce((acc, row) => {
+const summary = computed(() => filteredInventoryTags.value.reduce((acc, row) => {
   acc.remainingQty += Number(row.availableQty || row.qty || 0)
   if (row.status === 'RECEIVED') acc.received += 1
   if (row.status === 'LOCKED') acc.locked += 1
@@ -287,7 +287,7 @@ const summary = computed(() => filteredKanbans.value.reduce((acc, row) => {
 
 const holdDialogTitleMap = {
   seal: '人工封存',
-  unseal: '解封看板',
+  unseal: '解封库存标签',
   'manual-lock': '手动锁库',
   'manual-unlock': '手动解锁'
 }
@@ -392,11 +392,11 @@ async function loadData() {
       inboundNo: query.inboundNo || undefined,
       materialCode: query.materialCode || undefined
     }
-    kanbans.value = await fetchKanbanList(payload)
+    inventoryTags.value = await fetchInventoryTags(payload)
     currentPage.value = 1
   } catch (error) {
-    loadError.value = error.response?.data?.message || '看板列表加载失败'
-    kanbans.value = []
+    loadError.value = error.response?.data?.message || '库存标签列表加载失败'
+    inventoryTags.value = []
   } finally {
     loading.value = false
   }
@@ -412,13 +412,13 @@ function resetFilters() {
 }
 
 function handleView(row) {
-  router.push('/inbound/' + row.inboundOrderId + '/kanbans')
+  router.push('/inbound/' + row.inboundOrderId + '/inventory-tags')
 }
 
 async function handleCopyCode(row) {
   try {
-    await navigator.clipboard.writeText(row.kanbanCode)
-    ElMessage.success('看板码已复制: ' + row.kanbanCode)
+    await navigator.clipboard.writeText(row.inventoryTagCode)
+    ElMessage.success('库存标签码已复制: ' + row.inventoryTagCode)
   } catch {
     ElMessage.error('复制失败，请手动复制')
   }
@@ -455,16 +455,16 @@ async function submitHoldAction() {
       operator: holdForm.operator || 'web'
     }
     if (holdDialog.mode === 'seal') {
-      await sealKanban(holdDialog.row.kanbanId, payload)
+      await sealInventoryTag(holdDialog.row.inventoryTagId, payload)
       ElMessage.success('封存成功')
     } else if (holdDialog.mode === 'unseal') {
-      await unsealKanban(holdDialog.row.kanbanId, payload)
+      await unsealInventoryTag(holdDialog.row.inventoryTagId, payload)
       ElMessage.success('解封成功')
     } else if (holdDialog.mode === 'manual-lock') {
-      await manualLockKanban(holdDialog.row.kanbanId, payload)
+      await manualLockInventoryTag(holdDialog.row.inventoryTagId, payload)
       ElMessage.success('手动锁库成功')
     } else if (holdDialog.mode === 'manual-unlock') {
-      await manualUnlockKanban(holdDialog.row.kanbanId, payload)
+      await manualUnlockInventoryTag(holdDialog.row.inventoryTagId, payload)
       ElMessage.success('手动解锁成功')
     }
     holdDialog.visible = false
@@ -482,7 +482,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.kanban-list-page :deep(.el-card__body) {
+.inventoryTag-list-page :deep(.el-card__body) {
   padding-top: 12px;
 }
 
@@ -521,7 +521,7 @@ onMounted(() => {
   margin-bottom: 16px;
 }
 
-.kanban-table {
+.inventoryTag-table {
   min-height: 260px;
 }
 

@@ -10,8 +10,8 @@ export async function fetchInboundOrderById(id) {
   return response.data
 }
 
-export async function fetchKanbansByOrderId(id) {
-  const response = await http.get(`/inbound-orders/${id}/kanbans`)
+export async function fetchInventoryTagsByOrderId(id) {
+  const response = await http.get(`/inbound-orders/${id}/inventory-tags`)
   return response.data
 }
 
@@ -40,7 +40,7 @@ export async function printInboundOrder(id) {
   return response.data
 }
 
-export async function printKanbans(id) {
-  const response = await http.get(`/inbound-orders/${id}/kanbans/print`)
+export async function printInventoryTags(id) {
+  const response = await http.get(`/inbound-orders/${id}/inventory-tags/print`)
   return response.data
 }

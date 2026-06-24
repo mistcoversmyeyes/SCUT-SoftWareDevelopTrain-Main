@@ -14,8 +14,8 @@ import InboundScanView from '../views/inbound/InboundScanView.vue'
 import InboundDetailView from '../views/inbound/InboundDetailView.vue'
 import InboundHistoryView from '../views/inbound/InboundHistoryView.vue'
 import InboundPrintView from '../views/inbound/InboundPrintView.vue'
-import KanbanPrintView from '../views/inbound/KanbanPrintView.vue'
-import KanbanDetailView from '../views/inbound/KanbanDetailView.vue'
+import InventoryTagPrintView from '../views/inbound/InventoryTagPrintView.vue'
+import InventoryTagDetailView from '../views/inbound/InventoryTagDetailView.vue'
 import OutboundOrderListView from '../views/outbound/OutboundOrderListView.vue'
 import OutboundScanView from '../views/outbound/OutboundScanView.vue'
 import OutboundDetailView from '../views/outbound/OutboundDetailView.vue'
@@ -27,12 +27,12 @@ import InventoryBalanceView from '../views/inventory/InventoryBalanceView.vue'
 import InventoryTraceView from '../views/inventory/InventoryTraceView.vue'
 import InventoryOverviewView from '../views/inventory/InventoryOverviewView.vue'
 import InventoryAiImportView from '../views/inventory/InventoryAiImportView.vue'
-import KanbanListView from '../views/kanban/KanbanListView.vue'
-import KanbanTraceView from '../views/kanban/KanbanTraceView.vue'
+import InventoryTagListView from '../views/inventory-tag/InventoryTagListView.vue'
+import InventoryTagTraceView from '../views/inventory-tag/InventoryTagTraceView.vue'
 import MobileLayout from '../views/mobile/MobileLayout.vue'
 import MobileInboundView from '../views/mobile/MobileInboundView.vue'
 import MobileOutboundView from '../views/mobile/MobileOutboundView.vue'
-import MobileKanbanQueryView from '../views/mobile/MobileKanbanQueryView.vue'
+import MobileInventoryTagQueryView from '../views/mobile/MobileInventoryTagQueryView.vue'
 import PlaceholderPage from '../views/PlaceholderPage.vue'
 
 
@@ -55,8 +55,8 @@ const pageByKey = {
   'inventory-trace': InventoryTraceView,
   'inventory-overview': InventoryOverviewView,
   'inventory-ai-import': InventoryAiImportView,
-  'kanbans-list': KanbanListView,
-  'kanbans-trace': KanbanTraceView
+  'inventory-tags-list': InventoryTagListView,
+  'inventory-tags-trace': InventoryTagTraceView
 }
 
 const routes = [
@@ -107,12 +107,12 @@ const routes = [
         }
       },
       {
-        path: 'inbound/:id/kanbans/print',
-        name: 'kanban-print',
-        component: KanbanPrintView,
+        path: 'inbound/:id/inventory-tags/print',
+        name: 'inventory-tag-print',
+        component: InventoryTagPrintView,
         meta: {
           requiresAuth: true,
-          title: '看板打印'
+          title: '库存标签打印'
         }
       },
       {
@@ -122,10 +122,10 @@ const routes = [
         meta: { requiresAuth: true, tabKey: 'inbound-detail', title: '入库单详情' }
       },
       {
-        path: 'inbound/:id/kanbans',
-        name: 'kanban-detail',
-        component: KanbanDetailView,
-        meta: { requiresAuth: true, tabKey: 'kanban-detail', title: '看板详情' }
+        path: 'inbound/:id/inventory-tags',
+        name: 'inventory-tag-detail',
+        component: InventoryTagDetailView,
+        meta: { requiresAuth: true, tabKey: 'inventory-tag-detail', title: '库存标签详情' }
       },
     ])
   },
@@ -148,10 +148,10 @@ const routes = [
         meta: { requiresAuth: true, title: '手机出库' }
       },
       {
-        path: 'kanban',
-        name: 'mobile-kanban',
-        component: MobileKanbanQueryView,
-        meta: { requiresAuth: true, title: '手机看板查询' }
+        path: 'inventory-tag',
+        name: 'mobile-inventory-tag',
+        component: MobileInventoryTagQueryView,
+        meta: { requiresAuth: true, title: '手机库存标签查询' }
       }
     ]
   },

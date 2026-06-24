@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildInventoryMonitorRows,
   filterInboundHistoryOrders,
-  filterKanbanRows,
+  filterInventoryTagRows,
   filterOutboundHistoryOrders
 } from './monitoring'
 
@@ -112,16 +112,16 @@ describe('buildInventoryMonitorRows', () => {
   })
 })
 
-describe('filterKanbanRows', () => {
-  it('filters kanbans by lifecycle, hold type, and text fields', () => {
+describe('filterInventoryTagRows', () => {
+  it('filters inventoryTags by lifecycle, hold type, and text fields', () => {
     const rows = [
-      { kanbanCode: 'KB-001', status: 'RECEIVED', inboundNo: 'IN-1', materialCode: 'MAT-001', activeHoldType: null },
-      { kanbanCode: 'KB-002', status: 'SEALED', inboundNo: 'IN-2', materialCode: 'MAT-002', activeHoldType: 'SEALED' },
-      { kanbanCode: 'KB-003', status: 'LOCKED', inboundNo: 'IN-3', materialCode: 'MAT-003', activeHoldType: 'MANUAL_LOCK' }
+      { inventoryTagCode: 'IT-001', status: 'RECEIVED', inboundNo: 'IN-1', materialCode: 'MAT-001', activeHoldType: null },
+      { inventoryTagCode: 'IT-002', status: 'SEALED', inboundNo: 'IN-2', materialCode: 'MAT-002', activeHoldType: 'SEALED' },
+      { inventoryTagCode: 'IT-003', status: 'LOCKED', inboundNo: 'IN-3', materialCode: 'MAT-003', activeHoldType: 'MANUAL_LOCK' }
     ]
 
-    expect(filterKanbanRows(rows, { holdType: 'SEALED' })).toEqual([rows[1]])
-    expect(filterKanbanRows(rows, { keyword: 'KB-003', status: 'LOCKED' })).toEqual([rows[2]])
+    expect(filterInventoryTagRows(rows, { holdType: 'SEALED' })).toEqual([rows[1]])
+    expect(filterInventoryTagRows(rows, { keyword: 'IT-003', status: 'LOCKED' })).toEqual([rows[2]])
   })
 })
 

@@ -35,8 +35,8 @@ export async function fetchQrInfo(outboundNo) {
   return response.data
 }
 
-export async function lookupKanban(kanbanCode) {
-  const response = await http.get('/outbound/kanban-lookup', { params: { kanbanCode } })
+export async function lookupInventoryTag(inventoryTagCode) {
+  const response = await http.get('/inventory-tags/lookup', { params: { inventoryTagCode } })
   return response.data
 }
 
@@ -76,8 +76,8 @@ export async function reassignOrder(id) {
   return response.data
 }
 
-export async function fetchKanbanLocks(params) {
-  const response = await http.get('/locks/kanbans', { params })
+export async function fetchInventoryTagLocks(params) {
+  const response = await http.get('/locks/inventory-tags', { params })
   return response.data
 }
 

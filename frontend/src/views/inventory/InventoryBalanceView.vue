@@ -6,7 +6,7 @@
       </template>
 
       <el-alert
-        title="数量口径：可用=RECEIVED 且无 ACTIVE 占用；出库锁定=LOCKED；封存=SEALED；手锁=RECEIVED + MANUAL_LOCK；零头=剩余数量小于原看板数量的在库/占用库存。"
+        title="数量口径：可用=RECEIVED 且无 ACTIVE 占用；出库锁定=LOCKED；封存=SEALED；手锁=RECEIVED + MANUAL_LOCK；零头=剩余数量小于原库存标签数量的在库/占用库存。"
         type="info"
         :closable="false"
         show-icon

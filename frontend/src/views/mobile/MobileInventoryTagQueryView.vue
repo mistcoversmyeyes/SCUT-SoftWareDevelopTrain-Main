@@ -2,28 +2,28 @@
   <section class="mobile-page">
     <div class="page-hero">
       <div>
-        <h2>看板查询</h2>
+        <h2>库存标签查询</h2>
         <p>查询生命周期、位置、数量和锁定/封存状态，支撑课堂演示。</p>
       </div>
-      <el-tag>看板追溯</el-tag>
+      <el-tag>库存标签追溯</el-tag>
     </div>
 
     <section class="panel">
       <div class="field-block">
-        <label class="field-label" for="mobile-kanban-code">看板码</label>
+        <label class="field-label" for="mobile-inventory-tag-code">库存标签码</label>
         <el-input
-          id="mobile-kanban-code"
-          v-model="kanbanCode"
+          id="mobile-inventory-tag-code"
+          v-model="inventoryTagCode"
           clearable
           size="large"
-          placeholder="请输入看板码"
-          @keyup.enter="queryKanban"
+          placeholder="请输入库存标签码"
+          @keyup.enter="queryInventoryTag"
         />
       </div>
 
       <div class="action-row">
         <el-button size="large" @click="applyDemoCode">模拟扫码</el-button>
-        <el-button type="primary" size="large" :loading="loading" @click="queryKanban">
+        <el-button type="primary" size="large" :loading="loading" @click="queryInventoryTag">
           查询
         </el-button>
       </div>
@@ -40,22 +40,22 @@
     <section v-if="traceData" class="panel">
       <div class="panel-header">
         <h3>生命周期</h3>
-        <el-tag :type="statusTagType(traceData.kanbanStatus)">{{ traceData.kanbanStatus }}</el-tag>
+        <el-tag :type="statusTagType(traceData.inventoryTagStatus)">{{ traceData.inventoryTagStatus }}</el-tag>
       </div>
       <div class="status-list">
         <span
           v-for="status in lifecycleStatuses"
           :key="status"
           class="status-chip"
-          :class="{ active: traceData.kanbanStatus === status }"
+          :class="{ active: traceData.inventoryTagStatus === status }"
         >
           {{ status }}
         </span>
       </div>
       <dl class="detail-list">
         <div>
-          <dt>看板码</dt>
-          <dd><code>{{ traceData.kanbanCode }}</code></dd>
+          <dt>库存标签码</dt>
+          <dd><code>{{ traceData.inventoryTagCode }}</code></dd>
         </div>
         <div>
           <dt>入库单号</dt>
@@ -95,12 +95,12 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { fetchKanbanTrace } from '../../api/kanban'
-import { lookupKanban } from '../../api/outbound'
+import { fetchInventoryTagTrace } from '../../api/inventoryTag'
+import { lookupInventoryTag } from '../../api/outbound'
 
 const lifecycleStatuses = ['PRINTED', 'RECEIVED', 'LOCKED', 'SEALED', 'SHIPPED', 'CANCELLED']
 
-const kanbanCode = ref('')
+const inventoryTagCode = ref('')
 const loading = ref(false)
 const errorMessage = ref('')
 const traceData = ref(null)
@@ -120,25 +120,25 @@ const holdSummary = computed(() => {
   if (previewData.value.activeHoldType) {
     return `${previewData.value.activeHoldType}${previewData.value.activeHoldReason ? `：${previewData.value.activeHoldReason}` : ''}`
   }
-  if (previewData.value.kanbanStatus === 'LOCKED') {
+  if (previewData.value.inventoryTagStatus === 'LOCKED') {
     return '已锁定'
   }
-  if (previewData.value.kanbanStatus === 'SEALED') {
+  if (previewData.value.inventoryTagStatus === 'SEALED') {
     return '已封存'
   }
   return '正常'
 })
 
 function applyDemoCode() {
-  if (!kanbanCode.value.trim()) {
-    kanbanCode.value = 'KB:DEMO:QUERY'
+  if (!inventoryTagCode.value.trim()) {
+    inventoryTagCode.value = 'IT:v1:DEMO:QUERY'
   }
 }
 
-async function queryKanban() {
-  const code = kanbanCode.value.trim()
+async function queryInventoryTag() {
+  const code = inventoryTagCode.value.trim()
   if (!code) {
-    errorMessage.value = '请输入看板码'
+    errorMessage.value = '请输入库存标签码'
     return
   }
 
@@ -148,9 +148,9 @@ async function queryKanban() {
   previewData.value = null
 
   try {
-    traceData.value = await fetchKanbanTrace(code)
+    traceData.value = await fetchInventoryTagTrace(code)
     try {
-      previewData.value = await lookupKanban(code)
+      previewData.value = await lookupInventoryTag(code)
     } catch {
       previewData.value = null
     }
