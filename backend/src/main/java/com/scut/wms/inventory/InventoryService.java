@@ -161,6 +161,14 @@ public class InventoryService {
         );
     }
 
+    public ScanInventoryTagContext lookupInventoryTag(String inventoryTagCode) {
+        ScanInventoryTagContext context = inventoryTransactionMapper.selectInventoryTagContext(inventoryTagCode);
+        if (context == null) {
+            throw new BusinessException("未找到库存标签");
+        }
+        return context;
+    }
+
     public InventoryTagTraceView getInventoryTagTrace(String inventoryTagCode) {
         InventoryTagTraceView trace = inventoryTransactionMapper.selectInventoryTagTrace(inventoryTagCode);
         if (trace == null) {

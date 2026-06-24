@@ -139,6 +139,20 @@ class TraceQueryControllerTest {
                 .andExpect(jsonPath("$.movementNo").isNotEmpty());
     }
 
+    @Test
+    void inventoryLookupReturnsInventoryTagPreviewForInboundScan() throws Exception {
+        mockMvc.perform(get("/api/inventory/inventory-tag-lookup")
+                        .param("inventoryTagCode", DEMO_BOARD_TWO_CODE))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.inventoryTagCode").value(DEMO_BOARD_TWO_CODE))
+                .andExpect(jsonPath("$.inventoryTagStatus").value("PRINTED"))
+                .andExpect(jsonPath("$.inboundNo").value("IN-20260610-001"))
+                .andExpect(jsonPath("$.materialCode").value("5WD.723.913.C"))
+                .andExpect(jsonPath("$.materialName").value("加速踏板模块总成"))
+                .andExpect(jsonPath("$.targetLocationId").value(2))
+                .andExpect(jsonPath("$.locationName").value("高位货架 A 区 02 号"));
+    }
+
     private void scanInbound(String inventoryTagCode) throws Exception {
         mockMvc.perform(post("/api/inventory/scan-inbound")
                         .contentType(MediaType.APPLICATION_JSON)

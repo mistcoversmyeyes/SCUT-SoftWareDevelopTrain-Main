@@ -6,7 +6,7 @@ export async function fetchInventoryTagTrace(inventoryTagCode) {
 }
 
 export async function fetchInventoryTags(params) {
-  const response = await http.get('/inventory/tags', { params })
+  const response = await http.get('/inventory/inventory-tags', { params })
   return response.data
 }
 

@@ -36,7 +36,7 @@ export async function fetchQrInfo(outboundNo) {
 }
 
 export async function lookupInventoryTag(inventoryTagCode) {
-  const response = await http.get('/inventory-tags/lookup', { params: { inventoryTagCode } })
+  const response = await http.get('/outbound/inventory-tag-lookup', { params: { inventoryTagCode } })
   return response.data
 }
 

@@ -46,6 +46,11 @@ public class InventoryQueryController {
         return inventoryService.listMovements(materialCode, warehouseCode, locationCode, inboundNo, inventoryTagCode);
     }
 
+    @GetMapping("/inventory-tag-lookup")
+    public ScanInventoryTagContext lookupInventoryTag(@RequestParam String inventoryTagCode) {
+        return inventoryService.lookupInventoryTag(inventoryTagCode);
+    }
+
     @GetMapping("/inbound-orders/{id}")
     public InboundOrderResponse getInboundOrder(@PathVariable Long id) {
         return inboundOrderService.getById(id);

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { http } from './http'
-import { scanInbound } from './inventory'
-import { fetchInventoryTagTrace } from './inventoryTag'
+import { cancelInventoryTag, cancelInventoryTagsBatch, lookupInventoryTagInbound, scanInbound } from './inventory'
+import { fetchInventoryTags, fetchInventoryTagTrace } from './inventoryTag'
 import { fetchQrInfo, lookupInventoryTag, pickNoOrder, pickWithOrder } from './outbound'
 
 vi.mock('./http', () => ({
@@ -58,9 +58,33 @@ describe('mobile-related api wrappers', () => {
     await lookupInventoryTag('IT:v1:IN-4:1:1')
     await fetchInventoryTagTrace('IT:v1:IN-4:1:1')
 
-    expect(http.get).toHaveBeenNthCalledWith(1, '/inventory-tags/lookup', {
+    expect(http.get).toHaveBeenNthCalledWith(1, '/outbound/inventory-tag-lookup', {
       params: { inventoryTagCode: 'IT:v1:IN-4:1:1' }
     })
     expect(http.get).toHaveBeenNthCalledWith(2, '/inventory-tags/IT%3Av1%3AIN-4%3A1%3A1/trace')
+  })
+
+  it('cancels inventory tags through inventory controller routes', async () => {
+    http.post.mockResolvedValue({ data: { ok: true } })
+
+    await cancelInventoryTag(7)
+    await cancelInventoryTagsBatch([7, 8])
+
+    expect(http.post).toHaveBeenNthCalledWith(1, '/inventory/inventory-tags/7/cancel')
+    expect(http.post).toHaveBeenNthCalledWith(2, '/inventory/inventory-tags/cancel', { ids: [7, 8] })
+  })
+
+  it('uses inventory controller routes for inbound inventory tag lookup and list', async () => {
+    http.get.mockResolvedValue({ data: [] })
+
+    await lookupInventoryTagInbound('IT:v1:IN-5:1:1')
+    await fetchInventoryTags({ status: 'RECEIVED' })
+
+    expect(http.get).toHaveBeenNthCalledWith(1, '/inventory/inventory-tag-lookup', {
+      params: { inventoryTagCode: 'IT:v1:IN-5:1:1' }
+    })
+    expect(http.get).toHaveBeenNthCalledWith(2, '/inventory/inventory-tags', {
+      params: { status: 'RECEIVED' }
+    })
   })
 })
