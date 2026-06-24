@@ -29,7 +29,7 @@ bash scripts/start.sh
 
 - Web 前端：`http://localhost:5173`
 - 后端：`http://localhost:8080`
-- 手机端 H5：`http://localhost:5173/mobile/inbound`、`/mobile/outbound`、`/mobile/kanban`
+- 手机端 H5：`http://localhost:5173/mobile/inbound`、`/mobile/outbound`、`/mobile/inventory-tag`
 
 启动后可用性检查见 `verification.md`。
 

@@ -1,5 +1,7 @@
 # Week 2 采购入库核心功能 Implementation Plan
 
+> 历史旧称/废弃旧称：本文件为历史实施文档，保留“kanban/看板”等旧术语用于历史对齐，仅作历史证据；当前统一口径为“库存标签 / 库存标签码 / inventory_tag”。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the Week 2 WMS procurement inbound workflow with MySQL persistence: inbound orders, kanban labels, Web scan inbound, inventory balances, inventory trace, and kanban trace.

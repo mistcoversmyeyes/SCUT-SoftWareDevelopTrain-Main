@@ -390,6 +390,19 @@ class InboundOrderControllerTest {
     }
 
     @Test
+    void inventoryTagListEndpointReturnsDisplayLabels() throws Exception {
+        mockMvc.perform(get("/api/inventory/inventory-tags")
+                        .param("status", "RECEIVED")
+                        .param("materialCode", "5HG.807.109.C"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].inventoryTagCode").value("IT:v1:IN-20260520-001:1:1"))
+                .andExpect(jsonPath("$[0].inboundNo").value("IN-20260520-001"))
+                .andExpect(jsonPath("$[0].materialCode").value("5HG.807.109.C"))
+                .andExpect(jsonPath("$[0].status").value("RECEIVED"))
+                .andExpect(jsonPath("$[0].availableQty").value(100.0));
+    }
+
+    @Test
     void printEndpointsReturnNotFoundForMissingOrder() throws Exception {
         mockMvc.perform(get("/api/inbound-orders/{id}/print", 9999L))
                 .andExpect(status().isNotFound());
