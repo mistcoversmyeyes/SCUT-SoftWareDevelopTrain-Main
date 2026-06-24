@@ -1,0 +1,117 @@
+import { flushPromises, mount } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import MobileInboundView from './MobileInboundView.vue'
+import MobileInventoryTagQueryView from './MobileInventoryTagQueryView.vue'
+import { fetchMasterDataOptions } from '../../api/masterData'
+import { lookupInventoryTagInbound } from '../../api/inventory'
+import { fetchInventoryTagTrace } from '../../api/inventoryTag'
+import { lookupInventoryTag } from '../../api/outbound'
+
+vi.mock('../../api/masterData', () => ({
+  fetchMasterDataOptions: vi.fn()
+}))
+
+vi.mock('../../api/inventory', () => ({
+  lookupInventoryTagInbound: vi.fn(),
+  scanInbound: vi.fn()
+}))
+
+vi.mock('../../api/inventoryTag', () => ({
+  fetchInventoryTagTrace: vi.fn()
+}))
+
+vi.mock('../../api/outbound', () => ({
+  lookupInventoryTag: vi.fn()
+}))
+
+const commonStubs = {
+  MobileQrScanner: {
+    props: ['readerId', 'label', 'disabled'],
+    emits: ['decoded'],
+    template: '<button class="scanner-stub" @click="$emit(\'decoded\', \'  IT:v1:SCAN:1:1  \')">{{ label }}</button>'
+  },
+  'el-input': {
+    inheritAttrs: false,
+    props: ['modelValue', 'id', 'size', 'clearable', 'placeholder'],
+    emits: ['update:modelValue'],
+    template: '<input :id="id" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
+  },
+  'el-select': {
+    inheritAttrs: false,
+    props: ['modelValue', 'size', 'clearable', 'filterable', 'placeholder'],
+    emits: ['update:modelValue'],
+    template: '<select :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><slot /></select>'
+  },
+  'el-option': {
+    template: '<option><slot /></option>'
+  },
+  'el-button': {
+    props: ['loading', 'disabled'],
+    emits: ['click'],
+    template: '<button :disabled="disabled" @click="$emit(\'click\', $event)"><slot /></button>'
+  },
+  'el-alert': {
+    props: ['title'],
+    template: '<div role="alert">{{ title }}</div>'
+  },
+  'el-tag': {
+    template: '<span><slot /></span>'
+  }
+}
+
+describe('mobile real scan page wiring', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.clearAllMocks()
+    fetchMasterDataOptions.mockResolvedValue({ locations: [] })
+    lookupInventoryTagInbound.mockResolvedValue({
+      inventoryTagStatus: 'PRINTED',
+      materialCode: 'MAT-1',
+      materialName: '测试物料',
+      inboundNo: 'IN-1',
+      locationName: 'A-01',
+      boardQty: 100
+    })
+    fetchInventoryTagTrace.mockResolvedValue({
+      inventoryTagCode: 'IT:v1:SCAN:1:1',
+      inventoryTagStatus: 'RECEIVED',
+      materialCode: 'MAT-1',
+      materialName: '测试物料'
+    })
+    lookupInventoryTag.mockResolvedValue({
+      inventoryTagCode: 'IT:v1:SCAN:1:1',
+      boardQty: 100,
+      pickedQty: 0
+    })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('fills scanned inventory tag code in mobile inbound and loads preview', async () => {
+    const wrapper = mount(MobileInboundView, {
+      global: { stubs: commonStubs }
+    })
+
+    await wrapper.find('.scanner-stub').trigger('click')
+    await vi.advanceTimersByTimeAsync(260)
+    await flushPromises()
+
+    expect(lookupInventoryTagInbound).toHaveBeenCalledWith('IT:v1:SCAN:1:1')
+    expect(wrapper.text()).toContain('测试物料')
+  })
+
+  it('auto-queries inventory tag after mobile query scanner decodes a code', async () => {
+    const wrapper = mount(MobileInventoryTagQueryView, {
+      global: { stubs: commonStubs }
+    })
+
+    await wrapper.find('.scanner-stub').trigger('click')
+    await flushPromises()
+
+    expect(fetchInventoryTagTrace).toHaveBeenCalledWith('IT:v1:SCAN:1:1')
+    expect(lookupInventoryTag).toHaveBeenCalledWith('IT:v1:SCAN:1:1')
+    expect(wrapper.text()).toContain('RECEIVED')
+  })
+})
