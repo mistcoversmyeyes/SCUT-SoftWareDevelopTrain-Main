@@ -97,7 +97,7 @@ Week 4 只要求准备字段和规则雏形；如果首批样例数据暂时没�
 | `supplier_code` | 供应商编码 | 现有数据 | 展示、后续供应侧分析 |
 | `warehouse_code` | 仓库编码 | 现有数据 | 按仓筛选 |
 | `location_code` | 库位编码 | 现有数据 | 明细追溯 |
-| `board_code` | 库存标签码 | 现有数据 | 追溯到箱/板级库存 |
+| `inventory_tag_code` | 库存标签码 | 现有数据 | 追溯到箱/板级库存 |
 | `available_qty` | 当前可用数量 | 现有数据 | 缺货主判断量 |
 | `locked_qty` | 当前锁定数量 | 现有数据 | 解释为何“总量有货但不可用” |
 | `sealed_qty` | 当前封存数量 | 现有数据 | 排除不可出库数量 |
@@ -120,7 +120,7 @@ Week 4 只要求准备字段和规则雏形；如果首批样例数据暂时没�
 | --- | --- | --- | --- |
 | `material_code` | 物料编码 | 现有数据 | 聚合主键 |
 | `warehouse_code` | 仓库编码 | 现有数据 | 按仓筛选 |
-| `board_code` | 库存标签码 | 现有数据 | 追溯到具体库存载体 |
+| `inventory_tag_code` | 库存标签码 | 现有数据 | 追溯到具体库存载体 |
 | `available_qty` | 当前可用数量 | 现有数据 | 仅对正库存计算呆滞 |
 | `inventory_age_days` | 当前库存账龄（按入库或最近形成库存的时间计算） | WP4-04 导入需准备 | 呆滞判断主字段 |
 | `days_since_last_outbound` | 距最近一次出库的天数 | WP4-04 导入需准备 | 识别长期未动销 |
@@ -138,7 +138,7 @@ Week 4 只要求准备字段和规则雏形；如果首批样例数据暂时没�
 | --- | --- | --- | --- |
 | `material_code` | 物料编码 | 现有数据 | 聚合主键 |
 | `snapshot_date` | 风险计算基准日期 | WP4-04 导入需准备 | 与到期日比较 |
-| `board_code` | 库存标签码 | 现有数据 | 追溯具体库存 |
+| `inventory_tag_code` | 库存标签码 | 现有数据 | 追溯具体库存 |
 | `available_qty` | 当前可用数量 | 现有数据 | 仅对正库存计算 |
 | `received_at` | 入库时间 | 现有数据 | 与有效期计算配套 |
 | `production_date` | 生产日期 | WP4-04 导入需准备 | 有效期计算基础 |
@@ -271,8 +271,8 @@ WP4-04 应优先准备能支撑本规格的样例模板。推荐至少三类表�
 | Sheet/对象 | 作用 | 必填核心字段 |
 | --- | --- | --- |
 | `material_warning_profile` | 维护物料基础属性和预警阈值 | `material_code`、`material_name`、`supplier_code`、`min_stock_level`、`lead_time_days`、`safety_stock_days`、`stagnant_days_threshold`、可选 `shelf_life_days`、`scrap_warning_days` |
-| `inventory_snapshot` | 给出当前库存快照 | `snapshot_date`、`material_code`、`warehouse_code`、`location_code`、`board_code`、`available_qty`、`locked_qty`、`sealed_qty`、`received_at` |
-| `inventory_flow_history` | 给出用于计算近 7/14/30/60 天规则指标的流水 | `business_date`、`material_code`、`warehouse_code`、`board_code`、`movement_type`、`quantity`、`source_order_no`、可选 `quality_status` |
+| `inventory_snapshot` | 给出当前库存快照 | `snapshot_date`、`material_code`、`warehouse_code`、`location_code`、`inventory_tag_code`、`available_qty`、`locked_qty`、`sealed_qty`、`received_at` |
+| `inventory_flow_history` | 给出用于计算近 7/14/30/60 天规则指标的流水 | `business_date`、`material_code`、`warehouse_code`、`inventory_tag_code`、`movement_type`、`quantity`、`source_order_no`、可选 `quality_status` |
 
 如果 WP4-04 首期只能支持一个导入对象，优先级建议如下：
 
@@ -305,7 +305,7 @@ WP4-04 准备的样例数据至少要覆盖以下场景：
 
 ### 6.3 字段命名与口径要求
 
-- 数量字段统一使用“件”为最小分析单位；如果底层仍有箱/板级记录，应通过 `board_code` 保留追溯。
+- 数量字段统一使用“件”为最小分析单位；如果底层仍有箱/板级记录，应通过 `inventory_tag_code` 保留追溯。
 - `movement_type` 建议限制在 `INBOUND`、`OUTBOUND`、`ADJUST`、`SEAL`、`UNSEAL`、`SCRAP`。
 - `snapshot_date`、`business_date`、`received_at`、`expiry_date` 使用统一日期格式。
 - 预警阈值字段允许为空；为空时按全局默认值补齐，但要能区分“用户显式配置”和“系统默认”。

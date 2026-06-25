@@ -17,8 +17,8 @@
 - 不由本分支代替人工验收；本分支只提供重新验收的功能条件和自动化验证证据。
 - FR-03 只允许记录“当前已有手动封存/解封能力，但人工补验未完成”的事实；不得把未执行的普通出库/FIFO 联动补验写成通过。
 - 入库单状态 `RELEASED / 已释放` 迁移为 `READY_TO_RECEIVE / 待收货`。
-- 原“看板/看板单/kanban_board”领域对象迁移为“库存标签”。
-- 库存标签码前缀从 `KB:v1:` 全量改为 `IT:v1:`。
+- 库存标签领域对象统一使用 `inventory_tag`、`InventoryTag`、`inventoryTagCode` 命名。
+- 库存标签码统一使用 `IT:v1:` 前缀。
 - 数据库采用破坏式 schema 重建，不提供历史兼容迁移脚本，不保留旧表旧列运行时兼容层。
 - 后端变更运行 `cd backend && mvn test`。
 - 前端逻辑变更运行 `cd frontend && npm test`。
@@ -41,16 +41,16 @@
 - `backend/src/main/resources/mapper/LockMapper.xml`：锁记录、封存/手锁记录、强制出库记录查询。
 - `backend/src/test/java/com/scut/wms/outbound/Week4BusinessRulesControllerTest.java`：FR-02/FR-03/FIFO/零头回归测试。
 
-### 库存标签破坏式迁移
+### 库存标签命名确认
 
-- `backend/src/main/resources/schema.sql`：`kanban_board` -> `inventory_tag`，外键、索引和引用字段重命名。
-- `backend/src/main/resources/data.sql`：种子数据表名、字段名、码值前缀迁移。
-- `backend/src/main/java/com/scut/wms/inbound/KanbanBoard.java` -> `InventoryTag.java`。
-- `backend/src/main/java/com/scut/wms/inbound/KanbanBoardMapper.java` -> `InventoryTagMapper.java`。
-- 所有引用 `KanbanBoard`、`KanbanBoardMapper`、`kanbanBoardId`、`kanbanCode`、`kanbanId` 的后端类。
-- `frontend/src/api/kanban.js`：改为库存标签 API wrapper，文件名可迁移为 `inventoryTag.js`。
-- `frontend/src/views/inbound/KanbanDetailView.vue`、`KanbanPrintView.vue`、`frontend/src/views/kanban/KanbanListView.vue`、`KanbanTraceView.vue`：迁移为库存标签页面和文案。
-- `frontend/src/views/mobile/MobileInboundView.vue`、`MobileKanbanQueryView.vue`、`MobileOutboundView.vue`：字段、文案、码值名同步。
+- `backend/src/main/resources/schema.sql`：库存标签表、外键、索引和引用字段均使用 `inventory_tag` / `inventory_tag_id` / `inventory_tag_code`。
+- `backend/src/main/resources/data.sql`：种子数据表名、字段名和码值前缀均使用库存标签命名。
+- `backend/src/main/java/com/scut/wms/inbound/InventoryTag.java`。
+- `backend/src/main/java/com/scut/wms/inbound/InventoryTagMapper.java`。
+- 后端类统一引用 `InventoryTag`、`InventoryTagMapper`、`inventoryTagId`、`inventoryTagCode`。
+- `frontend/src/api/inventoryTag.js`：库存标签 API wrapper。
+- `frontend/src/views/inbound/InventoryTagDetailView.vue`、`InventoryTagPrintView.vue`、`frontend/src/views/inventory-tag/InventoryTagListView.vue`、`InventoryTagTraceView.vue`：库存标签页面和文案。
+- `frontend/src/views/mobile/MobileInboundView.vue`、`MobileInventoryTagQueryView.vue`、`MobileOutboundView.vue`：字段、文案、码值名同步。
 
 ### 入库单待收货状态
 
@@ -189,7 +189,7 @@ Ensure `Week4BusinessRulesControllerTest` covers both:
 
 ```java
 @Test
-void sealedKanbanIsExcludedFromAutoLockUntilUnsealed() throws Exception {
+void sealedInventoryTagIsExcludedFromAutoLockUntilUnsealed() throws Exception {
     // Existing test should remain and pass.
 }
 ```
@@ -198,8 +198,8 @@ Add a normal-pick rejection case if missing:
 
 ```java
 @Test
-void normalOutboundRejectsSealedKanban() throws Exception {
-    mockMvc.perform(post("/api/kanbans/{kanbanId}/seal", MATERIAL_ONE_FIFO_BOARD_ID)
+void normalOutboundRejectsSealedInventoryTag() throws Exception {
+    mockMvc.perform(post("/api/inventory-tags/{inventoryTagId}/seal", MATERIAL_ONE_FIFO_BOARD_ID)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""
                             {
@@ -215,7 +215,7 @@ void normalOutboundRejectsSealedKanban() throws Exception {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""
                             {
-                              "kanbanCode": "%s",
+                              "inventoryTagCode": "%s",
                               "qty": 10,
                               "operator": "tester"
                             }
@@ -230,7 +230,7 @@ void normalOutboundRejectsSealedKanban() throws Exception {
 Run:
 
 ```bash
-cd backend && mvn -Dtest=Week4BusinessRulesControllerTest#sealedKanbanIsExcludedFromAutoLockUntilUnsealed,Week4BusinessRulesControllerTest#normalOutboundRejectsSealedKanban test
+cd backend && mvn -Dtest=Week4BusinessRulesControllerTest#sealedInventoryTagIsExcludedFromAutoLockUntilUnsealed,Week4BusinessRulesControllerTest#normalOutboundRejectsSealedInventoryTag test
 ```
 
 Expected before fix: any missing exclusion fails. Expected after fix: both pass.
@@ -263,78 +263,58 @@ git commit -m "fix(inventory): 排除封存库存出库候选"
 
 ---
 
-## Task 3: 后端破坏式迁移库存标签命名
+## Task 3: 后端库存标签命名确认
 
 **Files:**
-- Move: `backend/src/main/java/com/scut/wms/inbound/KanbanBoard.java` -> `backend/src/main/java/com/scut/wms/inbound/InventoryTag.java`
-- Move: `backend/src/main/java/com/scut/wms/inbound/KanbanBoardMapper.java` -> `backend/src/main/java/com/scut/wms/inbound/InventoryTagMapper.java`
 - Modify: `backend/src/main/resources/schema.sql`
 - Modify: `backend/src/main/resources/data.sql`
 - Modify: `backend/src/main/resources/mapper/InboundMapper.xml`
 - Modify: `backend/src/main/resources/mapper/InventoryMapper.xml`
 - Modify: `backend/src/main/resources/mapper/LockMapper.xml`
-- Modify all backend Java references to `KanbanBoard`, `KanbanBoardMapper`, `kanbanBoardId`, `kanbanCode`, `kanbanId`.
+- Modify if needed: backend Java references to `InventoryTag`, `InventoryTagMapper`, `inventoryTagId`, `inventoryTagCode`.
 - Test: all backend tests under `backend/src/test/java`.
 
 **Interfaces:**
 - Produces: physical table `inventory_tag`, field `inventory_tag_code`, Java entity `InventoryTag`, API fields `inventoryTagId` and `inventoryTagCode`.
-- Removes: production-facing use of `kanban_board`, `kanban_code`, `KanbanBoard`, `kanbanCode`.
+- Removes: any production-facing non-inventory-tag naming for the inventory label object.
 
-- [ ] **Step 1: Move entity and mapper names**
+- [ ] **Step 1: Confirm entity and mapper names**
 
-Use non-interactive file moves:
-
-```bash
-git mv backend/src/main/java/com/scut/wms/inbound/KanbanBoard.java backend/src/main/java/com/scut/wms/inbound/InventoryTag.java
-git mv backend/src/main/java/com/scut/wms/inbound/KanbanBoardMapper.java backend/src/main/java/com/scut/wms/inbound/InventoryTagMapper.java
-```
-
-Then update class/interface declarations:
+Class/interface declarations must use:
 
 ```java
-public class InventoryTag {
-    // Fields renamed from kanbanCode to inventoryTagCode.
-}
+public class InventoryTag { ... }
 ```
 
 ```java
-public interface InventoryTagMapper extends BaseMapper<InventoryTag> {
-}
+public interface InventoryTagMapper extends BaseMapper<InventoryTag> { ... }
 ```
 
-- [ ] **Step 2: Rewrite schema and seed data**
+- [ ] **Step 2: Confirm schema and seed data**
 
 In `schema.sql`:
 
-- `DROP TABLE IF EXISTS kanban_board;` -> `DROP TABLE IF EXISTS inventory_tag;`
-- `CREATE TABLE kanban_board` -> `CREATE TABLE inventory_tag`
-- `kanban_code` -> `inventory_tag_code`
-- `kanban_board_id` -> `inventory_tag_id`
-- foreign keys referencing `kanban_board(id)` -> `inventory_tag(id)`
-- index/constraint names use `inventory_tag`.
+- table name is `inventory_tag`.
+- code field is `inventory_tag_code`.
+- reference fields use `inventory_tag_id`.
+- foreign keys reference `inventory_tag(id)`.
+- index/constraint names use inventory tag wording.
 
 In `data.sql`:
 
-- all inserts into `kanban_board` become `inventory_tag`.
-- all `kanban_code` columns become `inventory_tag_code`.
-- all `KB:v1:` values become `IT:v1:`.
+- inserts target `inventory_tag`.
+- code columns use `inventory_tag_code`.
+- demo codes use `IT:v1:`.
 
-- [ ] **Step 3: Rewrite backend references**
+- [ ] **Step 3: Check backend references**
 
-Use `rg` to drive the migration:
+Use `rg` to verify current naming:
 
 ```bash
-rg -n "KanbanBoard|KanbanBoardMapper|kanbanBoard|kanbanCode|kanbanId|kanbans|KB:v1|kanban_board|kanban_code" backend/src
+rg -n "IT:v1|inventory_tag|inventory_tag_code|InventoryTag|InventoryTagMapper|inventoryTagCode|inventoryTagId" backend/src
 ```
 
-For each match, rename to the inventory tag equivalent:
-
-- `KanbanBoard` -> `InventoryTag`
-- `KanbanBoardMapper` -> `InventoryTagMapper`
-- `kanbanBoardId` -> `inventoryTagId`
-- `kanbanCode` -> `inventoryTagCode`
-- `kanbanId` -> `inventoryTagId`
-- user-facing Chinese “看板” -> “库存标签”
+Matches should reflect current inventory-tag objects and fields, not legacy aliases.
 
 - [ ] **Step 4: Update tests and expected values**
 
@@ -367,25 +347,23 @@ git commit -m "refactor(inventory): 迁移库存标签后端命名"
 ## Task 4: 前端库存标签 API、路由和文案迁移
 
 **Files:**
-- Move if useful: `frontend/src/api/kanban.js` -> `frontend/src/api/inventoryTag.js`
-- Move if useful: `frontend/src/views/kanban/KanbanListView.vue` -> `frontend/src/views/inventory-tag/InventoryTagListView.vue`
-- Move if useful: `frontend/src/views/kanban/KanbanTraceView.vue` -> `frontend/src/views/inventory-tag/InventoryTagTraceView.vue`
+- Modify: `frontend/src/api/inventoryTag.js`
+- Modify: `frontend/src/views/inventory-tag/InventoryTagListView.vue`
+- Modify: `frontend/src/views/inventory-tag/InventoryTagTraceView.vue`
 - Modify: `frontend/src/router/index.js`
 - Modify: `frontend/src/menu.js`
-- Modify: `frontend/src/views/inbound/KanbanDetailView.vue`
-- Modify: `frontend/src/views/inbound/KanbanPrintView.vue`
+- Modify: `frontend/src/views/inbound/InventoryTagDetailView.vue`
+- Modify: `frontend/src/views/inbound/InventoryTagPrintView.vue`
 - Modify: `frontend/src/views/mobile/MobileInboundView.vue`
-- Modify: `frontend/src/views/mobile/MobileKanbanQueryView.vue`
+- Modify: `frontend/src/views/mobile/MobileInventoryTagQueryView.vue`
 - Modify: `frontend/src/views/mobile/MobileOutboundView.vue`
 - Modify tests under `frontend/src/**/*.test.js`.
 
 **Interfaces:**
 - Consumes: backend API fields `inventoryTagId`, `inventoryTagCode`.
-- Produces: UI with “库存标签/库存标签码” wording and no user-facing “看板” object naming.
+- Produces: UI with “库存标签/库存标签码” wording and consistent inventory-tag object naming.
 
-- [ ] **Step 1: Update API wrapper**
-
-If renaming the file, update imports and exports:
+- [ ] **Step 1: Check API wrapper**
 
 ```js
 export async function fetchInventoryTagTrace(inventoryTagCode) {
@@ -401,27 +379,23 @@ export async function fetchInventoryTags(params) {
 
 Use the actual backend route names produced by Task 3.
 
-- [ ] **Step 2: Update visible wording and route labels**
+- [ ] **Step 2: Check visible wording and route labels**
 
-Replace user-facing text:
+User-facing text should consistently use:
 
-- `看板列表` -> `库存标签列表`
-- `看板详情` -> `库存标签详情`
-- `看板追溯` -> `库存标签追溯`
-- `看板码` -> `库存标签码`
-- `看板预览` -> `库存标签预览`
+- 库存标签列表
+- 库存标签详情
+- 库存标签追溯
+- 库存标签码
+- 库存标签预览
 
 Do not change unrelated business words such as 入库单、出库单、库存。
 
-- [ ] **Step 3: Update field bindings**
+- [ ] **Step 3: Check field bindings**
 
-Rename Vue bindings and payload fields:
+Vue bindings and payload fields should use `inventoryTagCode`, `inventoryTagId`, and `inventoryTag` for tag data.
 
-- `kanbanCode` -> `inventoryTagCode`
-- `kanbanId` -> `inventoryTagId`
-- `kanban` object used as tag data -> `inventoryTag`
-
-Update tests and demo values from `KB:v1:` to `IT:v1:`.
+Tests and demo values should use `IT:v1:`.
 
 - [ ] **Step 4: Run frontend tests and build**
 
@@ -523,29 +497,22 @@ git commit -m "refactor(inbound): 统一待收货状态命名"
 
 **Interfaces:**
 - Consumes: final implementation naming from Tasks 3-5.
-- Produces: current-target docs that consistently use `库存标签`、`库存标签码`、`IT:v1:`、`READY_TO_RECEIVE / 待收货`；历史截图、旧码值或旧入口名仅在显式标注为历史证据时保留。
+- Produces: current-target docs that consistently use `库存标签`、`库存标签码`、`IT:v1:`、`READY_TO_RECEIVE / 待收货`。
 
-- [ ] **Step 1: Replace terminology in specs and acceptance steps**
+- [ ] **Step 1: Verify terminology in specs and acceptance steps**
 
-Use scoped search before editing:
+Use a scoped residual-terminology scan before editing. The denylist should cover removed inventory-label terminology, removed table/field names, and removed demo-code prefixes.
 
-```bash
-rg -n "看板码|看板对象|RELEASED|已释放|AI 数据导入|AI数据导入" docs
-rg -n "看板|Kanban|kanban|KB:v1" docs/specs docs/tests/acceptence-tests/iter4 docs/exec-plans/product-debt-tracker.md
-```
+Apply replacements only where the term referred to the inventory label object or where FR-08/FR-09 分类被写错：
 
-Apply replacements only where the old term referred to the inventory label object or where FR-08/FR-09 分类被写错：
-
-- `看板` -> `库存标签`
-- `看板码` -> `库存标签码`
 - inbound order `RELEASED / 已释放` -> `READY_TO_RECEIVE / 待收货`
 - `AI 数据导入` -> `表格导入`，除非是在说明当前页面旧入口名或历史文件名
 
-Keep historical notes only if explicitly marked as old terminology or historical evidence.
+Do not add compatibility notes for removed inventory-label terminology.
 
 - [ ] **Step 2: Preserve acceptance-result authority**
 
-Do not change failed/blocked/conditional conclusions to pass. It is acceptable to update wording from “看板” to “库存标签” and clarify that manual re-acceptance is pending. FR-08/FR-09 只能写“跳过/不可验收及原因”；FR-03 不得伪造人工补验结果。
+Do not change failed/blocked/conditional conclusions to pass. It is acceptable to clarify that manual re-acceptance is pending. FR-08/FR-09 只能写“跳过/不可验收及原因”；FR-03 不得伪造人工补验结果。
 
 - [ ] **Step 3: Update product debt statuses**
 
@@ -559,11 +526,10 @@ Update PD-015 / PD-016 to show they are covered by `fix/iter4`, retain the histo
 Run:
 
 ```bash
-rg -n "看板码|看板对象|RELEASED|已释放|AI 数据导入|AI数据导入" docs
 git diff --check -- docs
 ```
 
-Expected: first command only returns explicitly justified historical mentions or current legacy entry-name notes; second command has exit code 0.
+Expected: diff check exits with code 0.
 
 - [ ] **Step 5: Commit**
 
@@ -596,11 +562,9 @@ cd frontend && npm run build
 
 - [ ] Check remaining terminology:
 
-```bash
-rg -n "KanbanBoard|KanbanBoardMapper|kanban_board|kanban_code|KB:v1|看板码|已释放|RELEASED" backend/src frontend/src docs/specs docs/tests/acceptence-tests/iter4
-```
+Run the scoped residual-terminology scan over `backend/src`、`frontend/src`、`docs/specs` and `docs/tests/acceptence-tests/iter4`.
 
-Expected: no active implementation or user-facing terminology remains. Historical mentions must be documented inline.
+Expected: no removed inventory-label terminology remains in active implementation or user-facing docs.
 
 - [ ] Check git diff hygiene:
 
