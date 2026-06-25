@@ -40,8 +40,8 @@ bash scripts/start.sh
 - 入库：`/inbound/orders`、`/inbound/scan`、`/inbound/history`
 - 出库：`/outbound/orders`、`/outbound/pick-with-order`、`/outbound/pick-no-order`、`/outbound/locks`、`/outbound/history`
 - 库存：`/inventory/overview`、`/inventory/balances`、`/inventory/trace`、`/inventory/ai-import`
-- 看板：`/kanbans/list`、`/kanbans/trace`
-- 手机端：`/mobile/inbound`、`/mobile/outbound`、`/mobile/kanban`
+- 库存标签：`/inventory-tags/list`、`/inventory-tags/trace`
+- 手机端：`/mobile/inbound`、`/mobile/outbound`、`/mobile/inventory-tag`
 
 AI 导入样例：`frontend/public/samples/week4-inventory-flow-history-sample.csv`，页面下载入口为 `http://localhost:5173/samples/week4-inventory-flow-history-sample.csv`。
 

@@ -35,11 +35,15 @@ done
 # ── 2. 初始化数据库（仅首次）──
 echo ""
 echo "[2/4] 初始化数据库..."
-DB_EXISTS=$(mysql -u root -proot -h 127.0.0.1 -N -e "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='scut_wms' AND TABLE_NAME='supplier'" 2>/dev/null || echo 0)
-if [ "$DB_EXISTS" = "0" ]; then
-  echo "  首次启动，导入种子数据..."
+mysql -u root -proot -h 127.0.0.1 -e "CREATE DATABASE IF NOT EXISTS scut_wms CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+SUPPLIER_ROWS=$(mysql -u root -proot -h 127.0.0.1 -N -e "SELECT COUNT(*) FROM scut_wms.supplier" 2>/dev/null || echo 0)
+if [ "$SUPPLIER_ROWS" = "0" ]; then
+  echo "  首次启动，初始化表结构..."
+  mysql -u root -proot -h 127.0.0.1 scut_wms < backend/src/main/resources/schema.sql
+  echo "  表结构初始化完成"
+  echo "  导入种子数据..."
   mysql -u root -proot -h 127.0.0.1 scut_wms < scripts/seed-data.sql
-  echo "  种子数据导入完成（DatabaseMigration 会自动建表）"
+  echo "  种子数据导入完成"
 else
   echo "  数据库已有数据，跳过导入"
 fi

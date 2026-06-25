@@ -17,11 +17,11 @@ SCAN_INBOUND() {
   echo "  -> 扫描 $code"
   curl -s -X POST "$BASE/api/inventory/scan-inbound" \
     -H "$AUTH" -H "$CT" \
-    -d "{\"kanbanCode\":\"$code\"}" | jq .
+    -d "{\"inventoryTagCode\":\"$code\"}" | jq .
 }
 
-SCAN_INBOUND "KB:v1:IN-20260610-001:1:1"
-SCAN_INBOUND "KB:v1:IN-20260610-001:2:1"
+SCAN_INBOUND "IT:v1:IN-20260610-001:1:1"
+SCAN_INBOUND "IT:v1:IN-20260610-001:2:1"
 
 echo ""
 echo "=== 2. 验证库存余额 ==="
@@ -43,13 +43,13 @@ echo ""
 echo "=== 6. 出库扫码（带单出库，拣 20 件） ==="
 curl -s -X POST "$BASE/api/outbound/scan" \
   -H "$AUTH" -H "$CT" \
-  -d '{"kanbanCode":"KB:v1:IN-20260610-001:1:1","qty":20,"outboundOrderId":1,"outboundOrderLineId":1}' | jq .
+  -d '{"inventoryTagCode":"IT:v1:IN-20260610-001:1:1","qty":20,"outboundOrderId":1,"outboundOrderLineId":1}' | jq .
 
 echo ""
 echo "=== 7. 再次扫码出库（拣完该看板剩余） ==="
 curl -s -X POST "$BASE/api/outbound/scan" \
   -H "$AUTH" -H "$CT" \
-  -d '{"kanbanCode":"KB:v1:IN-20260610-001:1:1","outboundOrderId":1,"outboundOrderLineId":1}' | jq .
+  -d '{"inventoryTagCode":"IT:v1:IN-20260610-001:1:1","outboundOrderId":1,"outboundOrderLineId":1}' | jq .
 
 echo ""
 echo "=== 8. 查询 FIFO 推荐 ==="

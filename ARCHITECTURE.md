@@ -51,7 +51,7 @@ frontend/
       inbound/         # 入库页面
       outbound/        # 出库、锁货、拣货页面
       inventory/       # 库存页面
-      kanban/          # 看板页面
+      inventory-tag/   # 库存标签页面
       master-data/     # 基础数据页面
     menu.js            # 菜单与 WMS 模块元数据
 
@@ -83,7 +83,7 @@ node "Backend Runtime" as BackendRuntime {
   component "Inbound" as Inbound
   component "Outbound / Picking" as Outbound
   component "Lock" as Lock
-  component "Inventory / Kanban" as Inventory
+  component "Inventory / Tag" as Inventory
   component "Dashboard" as Dashboard
   component "MyBatis Mappers" as Mappers
 }
