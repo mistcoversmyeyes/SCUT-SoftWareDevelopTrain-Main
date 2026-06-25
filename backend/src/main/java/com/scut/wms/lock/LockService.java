@@ -35,7 +35,7 @@ import java.util.UUID;
 public class LockService {
     private static final Logger log = LoggerFactory.getLogger(LockService.class);
     private static final String RECEIVED = "RECEIVED";
-    private static final String LOCKED_KANBAN = "LOCKED";
+    private static final String LOCKED_INVENTORY_TAG = "LOCKED";
 
     private final OutboundOrderMapper outboundOrderMapper;
     private final OutboundOrderLineMapper outboundOrderLineMapper;
@@ -120,7 +120,7 @@ public class LockService {
                     continue;
                 }
 
-                board.setStatus(LOCKED_KANBAN);
+                board.setStatus(LOCKED_INVENTORY_TAG);
                 board.setLockedByOrderId(orderId);
                 board.setLockedByOrderLineId(line.getId());
                 inventoryTagMapper.updateById(board);
@@ -195,7 +195,7 @@ public class LockService {
         }
 
         InventoryTag board = inventoryTagMapper.selectById(lock.getInventoryTagId());
-        if (board != null && LOCKED_KANBAN.equals(board.getStatus())) {
+        if (board != null && LOCKED_INVENTORY_TAG.equals(board.getStatus())) {
             board.setStatus(RECEIVED);
             board.setLockedByOrderId(null);
             board.setLockedByOrderLineId(null);
@@ -280,7 +280,7 @@ public class LockService {
                     continue;
                 }
 
-                board.setStatus(LOCKED_KANBAN);
+                board.setStatus(LOCKED_INVENTORY_TAG);
                 board.setLockedByOrderId(orderId);
                 board.setLockedByOrderLineId(line.getId());
                 inventoryTagMapper.updateById(board);
@@ -320,7 +320,7 @@ public class LockService {
                         .eq(InventoryLock::getOutboundOrderId, orderId));
         for (InventoryLock lock : locks) {
             InventoryTag board = inventoryTagMapper.selectById(lock.getInventoryTagId());
-            if (board != null && LOCKED_KANBAN.equals(board.getStatus())) {
+            if (board != null && LOCKED_INVENTORY_TAG.equals(board.getStatus())) {
                 board.setStatus(RECEIVED);
                 board.setLockedByOrderId(null);
                 board.setLockedByOrderLineId(null);
@@ -414,7 +414,7 @@ public class LockService {
                         .eq(InventoryLock::getStatus, InventoryLock.LOCKED));
         for (InventoryLock lock : locks) {
             InventoryTag board = inventoryTagMapper.selectById(lock.getInventoryTagId());
-            if (board != null && LOCKED_KANBAN.equals(board.getStatus())) {
+            if (board != null && LOCKED_INVENTORY_TAG.equals(board.getStatus())) {
                 board.setStatus(RECEIVED);
                 board.setLockedByOrderId(null);
                 board.setLockedByOrderLineId(null);

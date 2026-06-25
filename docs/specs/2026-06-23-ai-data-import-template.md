@@ -28,7 +28,7 @@ WP4-04 首期固定导入对象为 `inventory_flow_history`。
 固定表头：
 
 ```text
-business_date,material_code,warehouse_code,location_code,board_code,movement_type,quantity,source_order_no,quality_status
+business_date,material_code,warehouse_code,location_code,inventory_tag_code,movement_type,quantity,source_order_no,quality_status
 ```
 
 字段口径：
@@ -39,7 +39,7 @@ business_date,material_code,warehouse_code,location_code,board_code,movement_typ
 | `material_code` | 必填 | 必须存在于当前物料主数据 |
 | `warehouse_code` | 必填 | 必须存在于当前仓库主数据 |
 | `location_code` | 必填 | 必须属于该仓库；作为项目本地扩展字段保留明细追溯 |
-| `board_code` | 必填 | 样例库存标签码或载体标识 |
+| `inventory_tag_code` | 必填 | 样例库存标签码或载体标识 |
 | `movement_type` | 必填 | 仅允许 `INBOUND`、`OUTBOUND`、`ADJUST`、`SEAL`、`UNSEAL`、`SCRAP` |
 | `quantity` | 必填 | 大于 0，最小分析单位为件 |
 | `source_order_no` | 必填 | 来源单号、封存单号或样例来源标识 |

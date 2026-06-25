@@ -6,16 +6,16 @@
 
 产品背景资料显示的核心业务范围包括：
 
-- 入库单制作、入库状态跟踪、唯一看板打印、手持扫码入库。
+- 入库单制作、入库状态跟踪、唯一库存标签打印、手持扫码入库。
 - 条码过程状态监控。
 - 出库单、带单/不带单扫码出库。
 - 转包、封存、解封、退库。
-- 库存/看板监控、库位库存、高低储预警。
+- 库存标签监控、库位库存、高低储预警。
 - 零件扫码防错、先进先出。
 - 供应商、客户、零件、器具、仓库、库位等基础信息。
 - 角色、权限、用户管理。
 
-当前代码已覆盖 Web 端登录、入库、出库、锁货、库存、看板、基础数据和 Dashboard 等训练模块；安卓/PDA 原生端、MES/ERP/SAP 接口和正式权限体系尚未接入。
+当前代码已覆盖 Web 端登录、入库、出库、锁货、库存、库存标签、基础数据和 Dashboard 等训练模块；安卓/PDA 原生端、MES/ERP/SAP 接口和正式权限体系尚未接入。
 
 ## Source Layout
 
@@ -29,11 +29,11 @@ backend/
     config/            # CORS、全局异常处理、数据迁移
     masterdata/        # 供应商、物料、仓库、库位
     container/         # 器具类型
-    inbound/           # 入库单、看板生成、入库详情
+    inbound/           # 入库单、库存标签生成、入库详情
     outbound/          # 出库单、出库详情、出库历史
     outbound/picking/  # 出库拣货
     lock/              # 锁货、解锁、重新分配、强制审计
-    inventory/         # 扫码入库、库存余额、流水、看板追溯
+    inventory/         # 扫码入库、库存余额、流水、库存标签追溯
     dashboard/         # 首页统计
   src/main/resources/
     mapper/            # MyBatis XML 查询
@@ -51,7 +51,7 @@ frontend/
       inbound/         # 入库页面
       outbound/        # 出库、锁货、拣货页面
       inventory/       # 库存页面
-      kanban/          # 看板页面
+      inventory-tag/   # 库存标签页面
       master-data/     # 基础数据页面
     menu.js            # 菜单与 WMS 模块元数据
 
@@ -83,7 +83,7 @@ node "Backend Runtime" as BackendRuntime {
   component "Inbound" as Inbound
   component "Outbound / Picking" as Outbound
   component "Lock" as Lock
-  component "Inventory / Kanban" as Inventory
+  component "Inventory / Tag" as Inventory
   component "Dashboard" as Dashboard
   component "MyBatis Mappers" as Mappers
 }
@@ -133,7 +133,7 @@ Browser
         -> MySQL :3306
 ```
 
-当前前端通过 `vite.config.js` 将 `/api` 代理到 `http://localhost:8080`。后端暴露认证、入库、出库、锁货、库存、看板、基础数据和 Dashboard API；认证仍是演示账号和演示 token，不是正式权限体系。
+当前前端通过 `vite.config.js` 将 `/api` 代理到 `http://localhost:8080`。后端暴露认证、入库、出库、锁货、库存、库存标签、基础数据和 Dashboard API；认证仍是演示账号和演示 token，不是正式权限体系。
 
 ## Dependency Direction
 
