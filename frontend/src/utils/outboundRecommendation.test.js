@@ -20,6 +20,6 @@ describe('outbound recommendation helpers', () => {
   })
 
   it('keeps only pending mobile outbound statuses', () => {
-    expect(pendingOutboundStatuses).toEqual(['DRAFT', 'RELEASED', 'PICKING', 'PARTIAL_SHIPPED'])
+    expect(pendingOutboundStatuses).toEqual(['DRAFT', 'RELEASED', 'LOCKED', 'PICKING', 'PARTIAL_SHIPPED'])
   })
 })

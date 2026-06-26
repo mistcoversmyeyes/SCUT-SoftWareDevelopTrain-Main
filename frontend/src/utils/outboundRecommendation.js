@@ -1,4 +1,4 @@
-export const pendingOutboundStatuses = ['DRAFT', 'RELEASED', 'PICKING', 'PARTIAL_SHIPPED']
+export const pendingOutboundStatuses = ['DRAFT', 'RELEASED', 'LOCKED', 'PICKING', 'PARTIAL_SHIPPED']
 
 export function isRecommendedInventoryTag(recommendation, outboundOrderLineId, inventoryTagCode) {
   const line = recommendation?.lines?.find((item) => item.outboundOrderLineId === outboundOrderLineId)
