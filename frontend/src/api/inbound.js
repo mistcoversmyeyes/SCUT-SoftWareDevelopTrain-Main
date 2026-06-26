@@ -20,6 +20,11 @@ export async function createInboundOrder(payload) {
   return response.data
 }
 
+export async function batchCreateInboundOrders(payload) {
+  const response = await http.post('/inbound-orders/batch', payload)
+  return response.data
+}
+
 export async function updateInboundOrder(id, payload) {
   const response = await http.put(`/inbound-orders/${id}`, payload)
   return response.data

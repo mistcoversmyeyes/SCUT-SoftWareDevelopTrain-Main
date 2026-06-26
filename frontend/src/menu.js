@@ -17,6 +17,8 @@ export const menuItems = [
   { key: 'inbound', title: '入库管理', icon: Tickets, children: [
       { key: 'inbound-orders', title: '入库单', path: '/inbound/orders',
         description: '查看和管理采购入库单。', fields: ['入库单号', '供应商', '状态'] },
+      { key: 'inbound-batch-create', title: '批量入库', path: '/inbound/batch-create',
+        description: '按供应商批量选择物料，统一设置库位后批量创建入库单。', fields: ['供应商', '物料', '库位'] },
       { key: 'inbound-scan', title: '入库扫码', path: '/inbound/scan',
         description: '扫码完成在途库存标签收货并更新库存。', fields: ['库存标签码', '扫码结果'] },
       { key: 'inbound-history', title: '入库历史', path: '/inbound/history',
