@@ -35,7 +35,9 @@ public record InventoryOverviewResponse(
             Long id,
             String code,
             String name,
+            BigDecimal lowStockQty,
             BigDecimal highStockQty,
-            BigDecimal currentQty
+            BigDecimal currentQty,
+            boolean shortage
     ) {}
 }

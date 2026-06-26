@@ -118,13 +118,19 @@ public class InventoryOverviewService {
                         .map(InventoryBalance::getOnHandQty)
                         .filter(Objects::nonNull)
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
+                BigDecimal low = mat.getLowStockQty();
+                boolean shortage = low != null
+                        && low.compareTo(BigDecimal.ZERO) > 0
+                        && current.compareTo(low) <= 0;
 
                 stocks.add(new InventoryOverviewResponse.MaterialStock(
                         mat.getId(),
                         mat.getMaterialCode(),
                         mat.getMaterialName(),
+                        low,
                         mat.getHighStockQty(),
-                        current
+                        current,
+                        shortage
                 ));
             }
 
