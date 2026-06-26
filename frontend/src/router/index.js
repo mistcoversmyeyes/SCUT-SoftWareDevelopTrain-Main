@@ -10,6 +10,7 @@ import MaterialListView from '../views/master-data/MaterialListView.vue'
 import ContainerListView from '../views/master-data/ContainerListView.vue'
 import WarehouseLocationView from '../views/master-data/WarehouseLocationView.vue'
 import InboundOrderListView from '../views/inbound/InboundOrderListView.vue'
+import BatchInboundCreateView from '../views/inbound/BatchInboundCreateView.vue'
 import InboundScanView from '../views/inbound/InboundScanView.vue'
 import InboundDetailView from '../views/inbound/InboundDetailView.vue'
 import InboundHistoryView from '../views/inbound/InboundHistoryView.vue'
@@ -44,6 +45,7 @@ const pageByKey = {
   'containers': ContainerListView,
   'warehouses': WarehouseLocationView,
   'inbound-orders': InboundOrderListView,
+  'inbound-batch-create': BatchInboundCreateView,
   'inbound-scan': InboundScanView,
   'inbound-history': InboundHistoryView,
   'outbound-orders': OutboundOrderListView,

@@ -6,3 +6,4 @@
 ## Current Docs
 
 - `iter4/`：Week 4 FR-01 至 FR-09 的人工验收步骤、预期结果、判定标准、执行结果和证据截图。
+- `iter5/`：Iteration 5 批量出入库与手机端封存验收步骤。

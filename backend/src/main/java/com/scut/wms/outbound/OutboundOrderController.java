@@ -1,6 +1,8 @@
 package com.scut.wms.outbound;
 
 import com.scut.wms.lock.LockService;
+import com.scut.wms.outbound.picking.OutboundRecommendationResponse;
+import com.scut.wms.outbound.picking.OutboundRecommendationService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,10 +20,16 @@ import java.util.List;
 public class OutboundOrderController {
     private final OutboundOrderService service;
     private final LockService lockService;
+    private final OutboundRecommendationService recommendationService;
 
-    public OutboundOrderController(OutboundOrderService service, LockService lockService) {
+    public OutboundOrderController(
+            OutboundOrderService service,
+            LockService lockService,
+            OutboundRecommendationService recommendationService
+    ) {
         this.service = service;
         this.lockService = lockService;
+        this.recommendationService = recommendationService;
     }
 
     @GetMapping
@@ -36,6 +44,11 @@ public class OutboundOrderController {
     @GetMapping("/{id}")
     public OutboundOrderResponse getById(@PathVariable Long id) {
         return service.getById(id);
+    }
+
+    @GetMapping("/{id}/recommendations")
+    public OutboundRecommendationResponse recommendations(@PathVariable Long id) {
+        return recommendationService.recommend(id);
     }
 
     @PostMapping
