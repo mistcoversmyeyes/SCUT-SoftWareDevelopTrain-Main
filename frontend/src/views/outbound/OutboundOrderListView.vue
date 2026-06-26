@@ -92,7 +92,7 @@
         </el-table-column>
         <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip />
 
-        <el-table-column label="操作" width="240" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
             <el-space size="small" wrap>
               <el-button
@@ -112,6 +112,15 @@
                 @click="handleReleaseAndLock(row)"
               >
                 释放并加锁
+              </el-button>
+              <el-button
+                type="success"
+                size="small"
+                text
+                :disabled="!canRecommendPick(row)"
+                @click="handleRecommendPick(row)"
+              >
+                推荐出库
               </el-button>
               <el-button
                 type="success"
@@ -278,6 +287,7 @@ const canEdit = (row) => [DRAFT].includes(row.status)
 const canRelease = (row) => row.status === DRAFT
 const canCancel = (row) => [DRAFT].includes(row.status)
 const canPrint = (row) => [LOCKED, PICKING, PARTIAL_SHIPPED, COMPLETED].includes(row.status)
+const canRecommendPick = (row) => [DRAFT, LOCKED, PICKING, PARTIAL_SHIPPED].includes(row.status)
 
 function statusType(status) {
   return statusTagType[status] || 'info'
@@ -413,6 +423,17 @@ async function handleCancel(row) {
 
 function handlePrintOrder(row) {
   router.push('/outbound/' + row.id)
+}
+
+function handleRecommendPick(row) {
+  router.push({
+    path: '/outbound/scan',
+    query: {
+      mode: 'normal',
+      orderId: row.id,
+      outboundNo: row.outboundNo
+    }
+  })
 }
 
 onMounted(() => {

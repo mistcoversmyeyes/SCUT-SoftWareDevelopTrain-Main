@@ -30,7 +30,7 @@
         <div class="inventoryTag-list">
           <div v-for="(inventoryTag, i) in grp.inventoryTags" :key="inventoryTag.inventoryTagCode" class="inventoryTag-row">
             <el-checkbox v-model="inventoryTag._checked" class="no-print inventoryTag-check" />
-            <article :class="['inventoryTag-card', { 'printing-card': isPrintable(inventoryTag, inventoryTag._globalIndex) }]">
+            <article :class="['inventoryTag-card', 'label-card', { 'printing-card': isPrintable(inventoryTag, inventoryTag._globalIndex) }]">
               <div class="card-left">
                 <div class="card-header-row">
                   <h3>{{ inventoryTag.inventoryTagCode }}</h3>
@@ -245,9 +245,12 @@ h2 { margin: 0; }
 }
 
 .inventoryTag-card {
-  display: flex; width: 120mm; min-height: 32mm;
+  display: flex; width: 120mm; min-height: 160px;
   border: 1px solid #111827; background: #fff; padding: 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
+.label-card { border: 1px solid #111; }
 
 .card-left {
   flex: 1; padding: 6px 10px;
@@ -268,7 +271,7 @@ h2 { margin: 0; }
 }
 
 @media print {
-  .toolbar, .el-alert, .inventoryTag-check { display: none; }
+  .toolbar, .el-alert, .inventoryTag-check, .no-print { display: none !important; }
   .inventoryTag-card { display: none; border: 1px solid #000; }
   .inventoryTag-card.printing-card { display: flex; margin: 0 auto; page-break-after: always; }
   .inventoryTag-card:last-child.printing-card { page-break-after: auto; }

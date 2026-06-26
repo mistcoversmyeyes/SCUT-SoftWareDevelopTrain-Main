@@ -33,7 +33,7 @@
 </template>
 
 <script setup>
-import { Box, Search, Van } from '@element-plus/icons-vue'
+import { Box, Lock, Search, Van } from '@element-plus/icons-vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import { useTabsStore } from '../../stores/tabs'
@@ -46,7 +46,8 @@ const tabs = useTabsStore()
 const navItems = [
   { name: 'mobile-inbound', label: '入库', path: '/mobile/inbound', icon: Box },
   { name: 'mobile-outbound', label: '出库', path: '/mobile/outbound', icon: Van },
-  { name: 'mobile-inventory-tag', label: '库存标签', path: '/mobile/inventory-tag', icon: Search }
+  { name: 'mobile-inventory-tag', label: '库存标签', path: '/mobile/inventory-tag', icon: Search },
+  { name: 'mobile-inventory-seal', label: '库存封存', path: '/mobile/seal', icon: Lock }
 ]
 
 function goDesktop() {
@@ -115,7 +116,7 @@ function logout() {
   position: sticky;
   bottom: 0;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
   background: rgba(255, 255, 255, 0.96);
