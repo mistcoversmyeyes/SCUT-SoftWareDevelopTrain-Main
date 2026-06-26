@@ -30,6 +30,11 @@ export async function fetchOutboundOrderById(id) {
   return response.data
 }
 
+export async function fetchOutboundRecommendations(id) {
+  const response = await http.get(`/outbound-orders/${id}/recommendations`)
+  return response.data
+}
+
 export async function fetchQrInfo(outboundNo) {
   const response = await http.get(`/outbound-orders/no/${outboundNo}/qr-info`)
   return response.data
