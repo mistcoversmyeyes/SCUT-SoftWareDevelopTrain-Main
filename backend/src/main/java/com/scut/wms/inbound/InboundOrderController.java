@@ -40,6 +40,11 @@ public class InboundOrderController {
         return service.create(request);
     }
 
+    @PostMapping("/batch")
+    public BatchInboundOrderResponse batchCreate(@Valid @RequestBody BatchInboundOrderRequest request) {
+        return service.createBatch(request);
+    }
+
     @PutMapping("/{id}")
     public InboundOrderResponse update(@PathVariable Long id, @Valid @RequestBody InboundOrderRequest request) {
         return service.update(id, request);

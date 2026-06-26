@@ -112,6 +112,50 @@ class InboundOrderControllerTest {
     }
 
     @Test
+    void batchCreateGroupsInboundOrdersBySupplierAndKeepsDuplicateMaterialLines() throws Exception {
+        mockMvc.perform(post("/api/inbound-orders/batch")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "sourceDocNo": "BATCH-IN-ITER5",
+                                  "remark": "iter5 batch inbound",
+                                  "lines": [
+                                    {
+                                      "supplierId": 1,
+                                      "materialId": 1,
+                                      "containerTypeId": 1,
+                                      "plannedQty": 230,
+                                      "targetWarehouseId": 1,
+                                      "targetLocationId": 1
+                                    },
+                                    {
+                                      "supplierId": 1,
+                                      "materialId": 1,
+                                      "containerTypeId": 1,
+                                      "plannedQty": 230,
+                                      "targetWarehouseId": 1,
+                                      "targetLocationId": 1
+                                    },
+                                    {
+                                      "supplierId": 2,
+                                      "materialId": 3,
+                                      "containerTypeId": 2,
+                                      "plannedQty": 100,
+                                      "targetWarehouseId": 1,
+                                      "targetLocationId": 2
+                                    }
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.orderCount").value(2))
+                .andExpect(jsonPath("$.orders[0].lines.length()").value(2))
+                .andExpect(jsonPath("$.orders[0].lines[0].lineNo").value(1))
+                .andExpect(jsonPath("$.orders[0].lines[1].lineNo").value(2))
+                .andExpect(jsonPath("$.orders[1].lines.length()").value(1));
+    }
+
+    @Test
     void updateDraftOrderChangesLines() throws Exception {
         Long orderId = createOrder("PO-TDD-UPDATE");
 
