@@ -33,6 +33,7 @@ import MobileLayout from '../views/mobile/MobileLayout.vue'
 import MobileInboundView from '../views/mobile/MobileInboundView.vue'
 import MobileOutboundView from '../views/mobile/MobileOutboundView.vue'
 import MobileInventoryTagQueryView from '../views/mobile/MobileInventoryTagQueryView.vue'
+import MobileInventorySealView from '../views/mobile/MobileInventorySealView.vue'
 import PlaceholderPage from '../views/PlaceholderPage.vue'
 
 
@@ -152,6 +153,12 @@ const routes = [
         name: 'mobile-inventory-tag',
         component: MobileInventoryTagQueryView,
         meta: { requiresAuth: true, title: '手机库存标签查询' }
+      },
+      {
+        path: 'seal',
+        name: 'mobile-inventory-seal',
+        component: MobileInventorySealView,
+        meta: { requiresAuth: true, title: '库存封存' }
       }
     ]
   },

@@ -3,10 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import MobileInboundView from './MobileInboundView.vue'
 import MobileInventoryTagQueryView from './MobileInventoryTagQueryView.vue'
 import MobileOutboundView from './MobileOutboundView.vue'
+import router from '../../router'
 import { fetchMasterDataOptions } from '../../api/masterData'
 import { lookupInventoryTagInbound } from '../../api/inventory'
 import { fetchInventoryTagTrace } from '../../api/inventoryTag'
-import { fetchQrInfo, lookupInventoryTag } from '../../api/outbound'
+import { fetchOutboundOrders, fetchOutboundRecommendations, fetchQrInfo, lookupInventoryTag } from '../../api/outbound'
 
 vi.mock('../../api/masterData', () => ({
   fetchMasterDataOptions: vi.fn()
@@ -18,10 +19,14 @@ vi.mock('../../api/inventory', () => ({
 }))
 
 vi.mock('../../api/inventoryTag', () => ({
-  fetchInventoryTagTrace: vi.fn()
+  fetchInventoryTagTrace: vi.fn(),
+  sealInventoryTag: vi.fn(),
+  unsealInventoryTag: vi.fn()
 }))
 
 vi.mock('../../api/outbound', () => ({
+  fetchOutboundOrders: vi.fn(),
+  fetchOutboundRecommendations: vi.fn(),
   fetchQrInfo: vi.fn(),
   lookupInventoryTag: vi.fn(),
   pickNoOrder: vi.fn(),
@@ -71,6 +76,10 @@ const commonStubs = {
     props: ['title'],
     template: '<div role="alert">{{ title }}</div>'
   },
+  'el-empty': {
+    props: ['description'],
+    template: '<div>{{ description }}</div>'
+  },
   'el-tag': {
     template: '<span><slot /></span>'
   }
@@ -96,9 +105,35 @@ describe('mobile real scan page wiring', () => {
       materialName: '测试物料'
     })
     lookupInventoryTag.mockResolvedValue({
+      inventoryTagId: 1,
       inventoryTagCode: 'IT:v1:SCAN:1:1',
       boardQty: 100,
       pickedQty: 0
+    })
+    fetchOutboundOrders.mockResolvedValue([
+      {
+        id: 9,
+        outboundNo: 'OUT-SCAN-1',
+        status: 'RELEASED',
+        supplier: { name: '8KH' },
+        plannedQty: 100,
+        pickedQty: 0
+      }
+    ])
+    fetchOutboundRecommendations.mockResolvedValue({
+      outboundOrderId: 9,
+      outboundNo: 'OUT-SCAN-1',
+      lines: [
+        {
+          outboundOrderLineId: 19,
+          lineNo: 1,
+          materialId: 1,
+          materialCode: 'MAT-1',
+          materialName: '测试物料',
+          neededQty: 100,
+          recommendations: [{ inventoryTagCode: 'IT:v1:SCAN:1:1' }]
+        }
+      ]
     })
     fetchQrInfo.mockResolvedValue({
       order: {
@@ -169,5 +204,10 @@ describe('mobile real scan page wiring', () => {
     await flushPromises()
 
     expect(lookupInventoryTag).toHaveBeenCalledWith('IT:v1:SCAN:1:1')
+  })
+
+  it('registers mobile inventory seal route', () => {
+    const route = router.resolve('/mobile/seal')
+    expect(route.name).toBe('mobile-inventory-seal')
   })
 })
