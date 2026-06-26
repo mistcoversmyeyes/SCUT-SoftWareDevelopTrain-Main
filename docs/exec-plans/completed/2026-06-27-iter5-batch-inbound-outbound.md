@@ -1,12 +1,25 @@
 # Iteration 5 Batch Inbound/Outbound Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox syntax for tracking.
 
 **Goal:** Build Iteration 5 batch inbound creation, batch outbound FIFO recommendation, mobile pending outbound processing, inventory tag batch printing, shortage filtering, and mobile seal/unseal workflows.
 
 **Architecture:** Reuse existing WMS domain objects instead of adding new database tables. Batch inbound is a new batch create facade over existing `InboundOrder` + `InboundOrderLine` + `InventoryTag` behavior. Batch outbound adds FIFO recommendation as guidance, while actual picking remains scanner-driven through existing inventory movement and inventory tag update paths.
 
 **Tech Stack:** Spring Boot 3.3.5, MyBatis-Plus, MySQL/H2 test profile, Vue 3 Composition API, Element Plus, Vitest, existing `html5-qrcode` mobile scanner component.
+
+---
+
+## Completion Record
+
+- Completed on `dev/iter5` by merging isolated subagent branches for backend inbound, backend FIFO recommendation, inventory shortage, frontend batch inbound, frontend outbound/printing/mobile seal, and acceptance documentation.
+- Final verification passed:
+  - `cd backend && mvn test`: 51 tests, 0 failures.
+  - `cd frontend && npm test -- --run`: 10 test files, 46 tests, 0 failures.
+  - `cd frontend && npm run build`: passed with existing Vite/Rollup PURE annotation and chunk-size warnings.
+  - `git diff --check`: passed.
+- Implementation note: FIFO recommendation endpoint was attached to `OutboundOrderController` as `GET /api/outbound-orders/{id}/recommendations`, not `PickingController`, to keep order-scoped recommendation reads near outbound order APIs.
+- Implementation note: mobile unseal remains a confirmation-only UI. The frontend sends a fixed backend reason string to satisfy the existing `HoldRequest.reason` validation without asking the operator for an extra unseal reason.
 
 ---
 
@@ -32,8 +45,8 @@
 - Create `backend/src/main/java/com/scut/wms/outbound/picking/OutboundRecommendationService.java` to compute FIFO recommendations without locking.
 - Modify `backend/src/main/java/com/scut/wms/outbound/picking/ScanOutboundRequest.java` to add `Boolean confirmNonRecommended`.
 - Modify `backend/src/main/java/com/scut/wms/outbound/picking/OutboundPickingService.java` so with-order picking no longer requires pre-locking in the Iteration 5 path.
-- Modify `backend/src/main/java/com/scut/wms/outbound/picking/PickingController.java` to expose recommendation endpoints.
-- Modify `backend/src/main/java/com/scut/wms/inventory/InventoryOverviewResponse.java` and `InventoryOverviewService.java` to expose `lowStockQty` and `shortage`.
+- Modify `backend/src/main/java/com/scut/wms/outbound/OutboundOrderController.java` to expose recommendation endpoints.
+- Modify `backend/src/main/java/com/scut/wms/inventory/InventoryOverviewResponse.java` and `InventoryOverviewService.java` to expose `lowStockQty`, `availableQty`, and `shortage`.
 - Test in `backend/src/test/java/com/scut/wms/inbound/InboundOrderControllerTest.java`.
 - Test in `backend/src/test/java/com/scut/wms/outbound/Week4BusinessRulesControllerTest.java`.
 - Test in new `backend/src/test/java/com/scut/wms/inventory/InventoryOverviewControllerTest.java`.
@@ -75,7 +88,7 @@
 - Modify: `backend/src/main/java/com/scut/wms/inbound/InboundOrderController.java`
 - Test: `backend/src/test/java/com/scut/wms/inbound/InboundOrderControllerTest.java`
 
-- [ ] **Step 1: Write a failing backend test for grouping batch inbound lines by supplier**
+- [x] **Step 1: Write a failing backend test for grouping batch inbound lines by supplier**
 
 Add this test to `InboundOrderControllerTest`:
 
@@ -125,7 +138,7 @@ void batchCreateGroupsInboundOrdersBySupplierAndKeepsDuplicateMaterialLines() th
 }
 ```
 
-- [ ] **Step 2: Run the focused test and verify RED**
+- [x] **Step 2: Run the focused test and verify RED**
 
 Run:
 
@@ -135,7 +148,7 @@ cd backend && mvn -Dtest=InboundOrderControllerTest#batchCreateGroupsInboundOrde
 
 Expected: FAIL with `No handler found`, `404`, or missing `/api/inbound-orders/batch` endpoint.
 
-- [ ] **Step 3: Add batch request and response records**
+- [x] **Step 3: Add batch request and response records**
 
 Create `BatchInboundOrderRequest.java`:
 
@@ -177,7 +190,7 @@ public record BatchInboundOrderResponse(
 }
 ```
 
-- [ ] **Step 4: Implement grouped batch create in `InboundOrderService`**
+- [x] **Step 4: Implement grouped batch create in `InboundOrderService`**
 
 Add this method to `InboundOrderService`:
 
@@ -224,7 +237,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 ```
 
-- [ ] **Step 5: Add controller endpoint**
+- [x] **Step 5: Add controller endpoint**
 
 Add this method to `InboundOrderController`:
 
@@ -235,7 +248,7 @@ public BatchInboundOrderResponse batchCreate(@Valid @RequestBody BatchInboundOrd
 }
 ```
 
-- [ ] **Step 6: Run the focused backend test and verify GREEN**
+- [x] **Step 6: Run the focused backend test and verify GREEN**
 
 Run:
 
@@ -245,7 +258,7 @@ cd backend && mvn -Dtest=InboundOrderControllerTest#batchCreateGroupsInboundOrde
 
 Expected: PASS, 1 test.
 
-- [ ] **Step 7: Run inbound backend regression**
+- [x] **Step 7: Run inbound backend regression**
 
 Run:
 
@@ -255,7 +268,7 @@ cd backend && mvn -Dtest=InboundOrderControllerTest test
 
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add backend/src/main/java/com/scut/wms/inbound backend/src/test/java/com/scut/wms/inbound/InboundOrderControllerTest.java
@@ -275,7 +288,7 @@ git commit -m "feat(inbound): 支持批量创建入库单"
 - Modify: `frontend/src/router/index.js`
 - Test: `frontend/src/router/index.test.js`
 
-- [ ] **Step 1: Write utility tests for pending inbound lines**
+- [x] **Step 1: Write utility tests for pending inbound lines**
 
 Create `frontend/src/utils/batchInbound.test.js`:
 
@@ -317,7 +330,7 @@ describe('batch inbound helpers', () => {
 })
 ```
 
-- [ ] **Step 2: Run utility test and verify RED**
+- [x] **Step 2: Run utility test and verify RED**
 
 Run:
 
@@ -327,7 +340,7 @@ cd frontend && npm test -- src/utils/batchInbound.test.js
 
 Expected: FAIL because `batchInbound.js` does not exist.
 
-- [ ] **Step 3: Implement batch inbound helpers**
+- [x] **Step 3: Implement batch inbound helpers**
 
 Create `frontend/src/utils/batchInbound.js`:
 
@@ -367,7 +380,7 @@ export function groupLinesBySupplier(lines) {
 }
 ```
 
-- [ ] **Step 4: Add batch inbound API wrapper**
+- [x] **Step 4: Add batch inbound API wrapper**
 
 Modify `frontend/src/api/inbound.js`:
 
@@ -378,7 +391,7 @@ export async function batchCreateInboundOrders(payload) {
 }
 ```
 
-- [ ] **Step 5: Create `BatchInboundCreateView.vue`**
+- [x] **Step 5: Create `BatchInboundCreateView.vue`**
 
 Create `frontend/src/views/inbound/BatchInboundCreateView.vue` with these sections:
 
@@ -451,7 +464,7 @@ Required behavior:
 - `canSubmit` is `pendingLines.value.length > 0 && pendingLines.value.every(isCompleteBatchInboundLine)`.
 - Submit payload maps pending lines to backend `lines` without `tempId`, display names, `boxCount`, or `remainder`.
 
-- [ ] **Step 6: Register menu and route**
+- [x] **Step 6: Register menu and route**
 
 Modify `frontend/src/menu.js` under `入库管理` children:
 
@@ -472,7 +485,7 @@ Add to `pageByKey`:
 'inbound-batch-create': BatchInboundCreateView,
 ```
 
-- [ ] **Step 7: Run frontend tests and build**
+- [x] **Step 7: Run frontend tests and build**
 
 Run:
 
@@ -484,7 +497,7 @@ cd frontend && npm run build
 
 Expected: all tests pass; build completes with only existing Vite warnings.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add frontend/src/utils/batchInbound.js frontend/src/utils/batchInbound.test.js frontend/src/api/inbound.js frontend/src/views/inbound/BatchInboundCreateView.vue frontend/src/menu.js frontend/src/router/index.js
@@ -504,7 +517,7 @@ git commit -m "feat(frontend): 添加批量入库创建页面"
 - Modify: `backend/src/main/java/com/scut/wms/outbound/picking/OutboundPickingService.java`
 - Test: `backend/src/test/java/com/scut/wms/outbound/Week4BusinessRulesControllerTest.java`
 
-- [ ] **Step 1: Write failing tests for recommendation and confirmed non-recommended picking**
+- [x] **Step 1: Write failing tests for recommendation and confirmed non-recommended picking**
 
 Add tests to `Week4BusinessRulesControllerTest`:
 
@@ -549,7 +562,7 @@ void rejectsNonRecommendedPickUntilOperatorConfirms() throws Exception {
 }
 ```
 
-- [ ] **Step 2: Run focused tests and verify RED**
+- [x] **Step 2: Run focused tests and verify RED**
 
 Run:
 
@@ -559,7 +572,7 @@ cd backend && mvn -Dtest=Week4BusinessRulesControllerTest#returnsFifoRecommendat
 
 Expected: FAIL because recommendation endpoint and `confirmNonRecommended` do not exist.
 
-- [ ] **Step 3: Add recommendation DTOs**
+- [x] **Step 3: Add recommendation DTOs**
 
 Create `OutboundRecommendationLine.java`:
 
@@ -596,7 +609,7 @@ public record OutboundRecommendationResponse(
 }
 ```
 
-- [ ] **Step 4: Implement `OutboundRecommendationService`**
+- [x] **Step 4: Implement `OutboundRecommendationService`**
 
 Create `OutboundRecommendationService.java`:
 
@@ -685,7 +698,7 @@ public class OutboundRecommendationService {
 }
 ```
 
-- [ ] **Step 5: Wire recommendation endpoint**
+- [x] **Step 5: Wire recommendation endpoint**
 
 Inject `OutboundRecommendationService` into `PickingController` or `OutboundOrderController`. Prefer `OutboundOrderController` because the endpoint is order-scoped.
 
@@ -704,7 +717,7 @@ public OutboundRecommendationResponse recommendations(@PathVariable Long id) {
 }
 ```
 
-- [ ] **Step 6: Add `confirmNonRecommended` to scan request**
+- [x] **Step 6: Add `confirmNonRecommended` to scan request**
 
 Modify `ScanOutboundRequest.java`:
 
@@ -723,7 +736,7 @@ public record ScanOutboundRequest(
 }
 ```
 
-- [ ] **Step 7: Modify with-order pick rule**
+- [x] **Step 7: Modify with-order pick rule**
 
 In `OutboundPickingService`, inject `OutboundRecommendationService`.
 
@@ -756,7 +769,7 @@ if (!force) {
 
 Keep `inventoryHoldService.ensureOrderOutboundAllowed(board)` and quantity checks unchanged, so sealed/shipped/empty tags still fail.
 
-- [ ] **Step 8: Run focused backend tests and regression**
+- [x] **Step 8: Run focused backend tests and regression**
 
 Run:
 
@@ -767,7 +780,7 @@ cd backend && mvn -Dtest=Week4BusinessRulesControllerTest test
 
 Expected: PASS.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add backend/src/main/java/com/scut/wms/outbound backend/src/main/java/com/scut/wms/outbound/picking backend/src/test/java/com/scut/wms/outbound/Week4BusinessRulesControllerTest.java
@@ -787,7 +800,7 @@ git commit -m "feat(outbound): 添加FIFO推荐出库主流程"
 - Modify: `frontend/src/views/mobile/MobileOutboundView.vue`
 - Test: `frontend/src/views/mobile/MobileRealScanViews.test.js`
 
-- [ ] **Step 1: Write tests for recommendation membership**
+- [x] **Step 1: Write tests for recommendation membership**
 
 Create `frontend/src/utils/outboundRecommendation.test.js`:
 
@@ -819,7 +832,7 @@ describe('outbound recommendation helpers', () => {
 })
 ```
 
-- [ ] **Step 2: Implement helper and API**
+- [x] **Step 2: Implement helper and API**
 
 Create `frontend/src/utils/outboundRecommendation.js`:
 
@@ -841,7 +854,7 @@ export async function fetchOutboundRecommendations(id) {
 }
 ```
 
-- [ ] **Step 3: Add web-side recommendation display and non-recommended confirm**
+- [x] **Step 3: Add web-side recommendation display and non-recommended confirm**
 
 Modify `OutboundScanView.vue`:
 
@@ -857,7 +870,7 @@ Modify `OutboundScanView.vue`:
 - If confirmed, call `pickWithOrder({ ..., confirmNonRecommended: true })`.
 - If cancelled, do not call the API.
 
-- [ ] **Step 4: Add mobile pending order list**
+- [x] **Step 4: Add mobile pending order list**
 
 Modify `MobileOutboundView.vue`:
 
@@ -867,7 +880,7 @@ Modify `MobileOutboundView.vue`:
 - Hide completed and cancelled orders by relying on the status filter.
 - In the scan submit path, use the same `ElMessageBox.confirm` non-recommended flow and send `confirmNonRecommended: true` only after confirmation.
 
-- [ ] **Step 5: Run frontend tests and build**
+- [x] **Step 5: Run frontend tests and build**
 
 Run:
 
@@ -879,7 +892,7 @@ cd frontend && npm run build
 
 Expected: all tests pass; build completes with only existing Vite warnings.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add frontend/src/api/outbound.js frontend/src/utils/outboundRecommendation.js frontend/src/utils/outboundRecommendation.test.js frontend/src/views/outbound/OutboundScanView.vue frontend/src/views/outbound/OutboundOrderListView.vue frontend/src/views/mobile/MobileOutboundView.vue
@@ -897,7 +910,7 @@ git commit -m "feat(frontend): 支持推荐方案出库确认"
 - Modify: `frontend/src/router/index.js`
 - Test: `frontend/src/router/index.test.js`
 
-- [ ] **Step 1: Inspect current print page selection state**
+- [x] **Step 1: Inspect current print page selection state**
 
 Run:
 
@@ -907,7 +920,7 @@ rg -n "selected|批量打印|print|window.print|InventoryTagPrint" frontend/src/
 
 Expected: identify existing selection or add selection to `InventoryTagPrintView.vue`.
 
-- [ ] **Step 2: Add print-selected support**
+- [x] **Step 2: Add print-selected support**
 
 Modify `InventoryTagPrintView.vue`:
 
@@ -935,7 +948,7 @@ function printSelected() {
 }
 ```
 
-- [ ] **Step 3: Add bordered independent label cards**
+- [x] **Step 3: Add bordered independent label cards**
 
 Ensure each card in the print area has:
 
@@ -960,7 +973,7 @@ Ensure each card in the print area has:
 
 Each card displays inventory tag code, QR code, inbound order number, line number, supplier, material, quantity, location, container type, and sequence.
 
-- [ ] **Step 4: Add order-wide print entry**
+- [x] **Step 4: Add order-wide print entry**
 
 In `InventoryTagDetailView.vue`, add a button:
 
@@ -972,7 +985,7 @@ In `InventoryTagDetailView.vue`, add a button:
 
 Use the existing route `/inbound/:id/inventory-tags/print`.
 
-- [ ] **Step 5: Run frontend verification**
+- [x] **Step 5: Run frontend verification**
 
 Run:
 
@@ -983,7 +996,7 @@ cd frontend && npm run build
 
 Expected: all tests pass; build completes.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add frontend/src/views/inbound/InventoryTagPrintView.vue frontend/src/views/inbound/InventoryTagDetailView.vue frontend/src/views/inventory-tag/InventoryTagListView.vue frontend/src/router/index.js
@@ -1000,7 +1013,7 @@ git commit -m "feat(frontend): 增强库存标签批量打印"
 - Test: `backend/src/test/java/com/scut/wms/inventory/InventoryOverviewControllerTest.java`
 - Modify: `frontend/src/views/inventory/InventoryOverviewView.vue`
 
-- [ ] **Step 1: Write backend overview test**
+- [x] **Step 1: Write backend overview test**
 
 Create `InventoryOverviewControllerTest.java`:
 
@@ -1036,7 +1049,7 @@ class InventoryOverviewControllerTest {
 }
 ```
 
-- [ ] **Step 2: Add low-stock fields to response**
+- [x] **Step 2: Add low-stock fields to response**
 
 Modify `InventoryOverviewResponse.MaterialStock`:
 
@@ -1052,7 +1065,7 @@ public record MaterialStock(
 ) {}
 ```
 
-- [ ] **Step 3: Compute shortage from available/current quantity and low stock**
+- [x] **Step 3: Compute shortage from available/current quantity and low stock**
 
 In `InventoryOverviewService.buildSupplierOverviews()`, pass low stock and shortage:
 
@@ -1070,7 +1083,7 @@ stocks.add(new InventoryOverviewResponse.MaterialStock(
 ));
 ```
 
-- [ ] **Step 4: Run backend test**
+- [x] **Step 4: Run backend test**
 
 Run:
 
@@ -1080,7 +1093,7 @@ cd backend && mvn -Dtest=InventoryOverviewControllerTest test
 
 Expected: PASS.
 
-- [ ] **Step 5: Add frontend filters**
+- [x] **Step 5: Add frontend filters**
 
 Modify `InventoryOverviewView.vue`:
 
@@ -1109,7 +1122,7 @@ const visibleSuppliers = computed(() => data.suppliers
 
 Use `visibleSuppliers` in the template instead of `data.suppliers`.
 
-- [ ] **Step 6: Run full verification for this task**
+- [x] **Step 6: Run full verification for this task**
 
 Run:
 
@@ -1121,7 +1134,7 @@ cd frontend && npm run build
 
 Expected: all pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add backend/src/main/java/com/scut/wms/inventory/InventoryOverviewResponse.java backend/src/main/java/com/scut/wms/inventory/InventoryOverviewService.java backend/src/test/java/com/scut/wms/inventory/InventoryOverviewControllerTest.java frontend/src/views/inventory/InventoryOverviewView.vue
@@ -1138,7 +1151,7 @@ git commit -m "feat(inventory): 展示短缺物料筛选"
 - Modify: `frontend/src/views/mobile/MobileLayout.vue`
 - Modify: `frontend/src/views/mobile/MobileRealScanViews.test.js`
 
-- [ ] **Step 1: Add mobile seal route test**
+- [x] **Step 1: Add mobile seal route test**
 
 Modify `MobileRealScanViews.test.js` to assert `/mobile/seal` route exists:
 
@@ -1149,7 +1162,7 @@ it('registers mobile inventory seal route', () => {
 })
 ```
 
-- [ ] **Step 2: Create mobile seal view**
+- [x] **Step 2: Create mobile seal view**
 
 Create `MobileInventorySealView.vue`:
 
@@ -1209,7 +1222,7 @@ Required logic:
 - `unsealCurrent()` uses `ElMessageBox.confirm('确认解封该库存标签？', '解封确认')`.
 - Operator value is current logged-in username from auth store, falling back to `mobile`.
 
-- [ ] **Step 3: Register mobile route and nav**
+- [x] **Step 3: Register mobile route and nav**
 
 Modify `frontend/src/router/index.js`:
 
@@ -1230,7 +1243,7 @@ Add child route under `/mobile`:
 
 Modify `MobileLayout.vue` to add a nav link labeled `库存封存` to `/mobile/seal`.
 
-- [ ] **Step 4: Run frontend tests and build**
+- [x] **Step 4: Run frontend tests and build**
 
 Run:
 
@@ -1242,7 +1255,7 @@ cd frontend && npm run build
 
 Expected: all pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add frontend/src/views/mobile/MobileInventorySealView.vue frontend/src/router/index.js frontend/src/views/mobile/MobileLayout.vue frontend/src/views/mobile/MobileRealScanViews.test.js
@@ -1258,7 +1271,7 @@ git commit -m "feat(mobile): 支持扫码封存解封库存"
 - Create: `docs/tests/acceptence-tests/iter5/iter5-fr-acceptance-test-steps.md`
 - Modify: `docs/tests/acceptence-tests/index.md`
 
-- [ ] **Step 1: Add Iteration 5 acceptance index**
+- [x] **Step 1: Add Iteration 5 acceptance index**
 
 Create `docs/tests/acceptence-tests/iter5/index.md`:
 
@@ -1268,7 +1281,7 @@ Create `docs/tests/acceptence-tests/iter5/index.md`:
 - `iter5-fr-acceptance-test-steps.md`：Iteration 5 批量入库、批量出库、手机待处理出库、库存标签批量打印、库存详情短缺筛选和手机端封存/解封验收步骤。
 ```
 
-- [ ] **Step 2: Add acceptance steps**
+- [x] **Step 2: Add acceptance steps**
 
 Create `iter5-fr-acceptance-test-steps.md` with these sections:
 
@@ -1330,7 +1343,7 @@ Create `iter5-fr-acceptance-test-steps.md` with these sections:
 预期：封存原因必填，备注可选；解封只需确认；网页端库存标签状态同步变化。
 ```
 
-- [ ] **Step 3: Update acceptance root index**
+- [x] **Step 3: Update acceptance root index**
 
 Modify `docs/tests/acceptence-tests/index.md`:
 
@@ -1338,7 +1351,7 @@ Modify `docs/tests/acceptence-tests/index.md`:
 - `iter5/`：Iteration 5 批量出入库与手机端封存验收步骤。
 ```
 
-- [ ] **Step 4: Verify docs**
+- [x] **Step 4: Verify docs**
 
 Run:
 
@@ -1348,7 +1361,7 @@ git diff --check -- docs/tests/acceptence-tests/index.md docs/tests/acceptence-t
 
 Expected: no output.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs/tests/acceptence-tests/index.md docs/tests/acceptence-tests/iter5
@@ -1362,7 +1375,7 @@ git commit -m "docs(tests): 添加iter5验收步骤"
 **Files:**
 - Verify all changed source and docs.
 
-- [ ] **Step 1: Run backend full tests**
+- [x] **Step 1: Run backend full tests**
 
 Run:
 
@@ -1372,7 +1385,7 @@ cd backend && mvn test
 
 Expected: all backend tests pass.
 
-- [ ] **Step 2: Run frontend full tests**
+- [x] **Step 2: Run frontend full tests**
 
 Run:
 
@@ -1382,7 +1395,7 @@ cd frontend && npm test -- --run
 
 Expected: all frontend tests pass.
 
-- [ ] **Step 3: Run frontend production build**
+- [x] **Step 3: Run frontend production build**
 
 Run:
 
@@ -1392,7 +1405,7 @@ cd frontend && npm run build
 
 Expected: build completes. Existing Vite chunk-size or PURE comment warnings may remain if unchanged.
 
-- [ ] **Step 4: Run docs whitespace check**
+- [x] **Step 4: Run docs whitespace check**
 
 Run:
 
@@ -1402,7 +1415,7 @@ git diff --check
 
 Expected: no output.
 
-- [ ] **Step 5: Commit verification notes if docs were updated**
+- [x] **Step 5: Commit verification notes if docs were updated**
 
 If verification results are recorded in an Iteration 5 document, commit only that documentation:
 
