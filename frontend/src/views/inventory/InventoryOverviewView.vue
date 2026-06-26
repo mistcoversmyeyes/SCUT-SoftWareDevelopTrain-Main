@@ -123,12 +123,12 @@
                   <div
                     class="bar-fill"
                     :class="{ 'bar-under': mat.shortage }"
-                    :style="{ width: barWidth(mat.currentQty, mat.lowStockQty) + '%' }"
+                    :style="{ width: barWidth(mat.availableQty, mat.lowStockQty) + '%' }"
                   />
                 </div>
                 <span class="bar-nums">
-                  <span :class="stockColorClass(mat)">{{ fmt(mat.currentQty) }}</span>
-                  / {{ fmt(mat.lowStockQty) || '未设置' }}
+                  可用 <span :class="stockColorClass(mat)">{{ fmt(mat.availableQty) }}</span>
+                  / 低储 {{ fmt(mat.lowStockQty) || '未设置' }}
                   <span v-if="mat.shortage" class="warn-badge">短缺</span>
                 </span>
               </div>

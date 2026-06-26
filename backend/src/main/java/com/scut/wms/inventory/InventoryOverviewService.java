@@ -1,8 +1,13 @@
 package com.scut.wms.inventory;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.scut.wms.inbound.InboundOrderLine;
+import com.scut.wms.inbound.InboundOrderLineMapper;
 import com.scut.wms.inbound.InventoryTag;
 import com.scut.wms.inbound.InventoryTagMapper;
+import com.scut.wms.lock.InventoryHold;
+import com.scut.wms.lock.InventoryHoldMapper;
 import com.scut.wms.masterdata.*;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +23,8 @@ public class InventoryOverviewService {
     private final MaterialMapper materialMapper;
     private final InventoryBalanceMapper inventoryBalanceMapper;
     private final InventoryTagMapper inventoryTagMapper;
+    private final InboundOrderLineMapper inboundOrderLineMapper;
+    private final InventoryHoldMapper inventoryHoldMapper;
 
     public InventoryOverviewService(
             WarehouseMapper warehouseMapper,
@@ -25,7 +32,9 @@ public class InventoryOverviewService {
             SupplierMapper supplierMapper,
             MaterialMapper materialMapper,
             InventoryBalanceMapper inventoryBalanceMapper,
-            InventoryTagMapper inventoryTagMapper
+            InventoryTagMapper inventoryTagMapper,
+            InboundOrderLineMapper inboundOrderLineMapper,
+            InventoryHoldMapper inventoryHoldMapper
     ) {
         this.warehouseMapper = warehouseMapper;
         this.storageLocationMapper = storageLocationMapper;
@@ -33,6 +42,8 @@ public class InventoryOverviewService {
         this.materialMapper = materialMapper;
         this.inventoryBalanceMapper = inventoryBalanceMapper;
         this.inventoryTagMapper = inventoryTagMapper;
+        this.inboundOrderLineMapper = inboundOrderLineMapper;
+        this.inventoryHoldMapper = inventoryHoldMapper;
     }
 
     public InventoryOverviewResponse overview() {
@@ -102,6 +113,7 @@ public class InventoryOverviewService {
         List<Supplier> suppliers = supplierMapper.selectList(null);
         List<Material> materials = materialMapper.selectList(null);
         List<InventoryBalance> balances = inventoryBalanceMapper.selectList(null);
+        Map<Long, BigDecimal> availableByMaterialId = buildAvailableQtyByMaterialId();
 
         for (Supplier sup : suppliers) {
             List<Material> supMaterials = materials.stream()
@@ -118,10 +130,11 @@ public class InventoryOverviewService {
                         .map(InventoryBalance::getOnHandQty)
                         .filter(Objects::nonNull)
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
+                BigDecimal available = availableByMaterialId.getOrDefault(mat.getId(), BigDecimal.ZERO);
                 BigDecimal low = mat.getLowStockQty();
                 boolean shortage = low != null
                         && low.compareTo(BigDecimal.ZERO) > 0
-                        && current.compareTo(low) <= 0;
+                        && available.compareTo(low) <= 0;
 
                 stocks.add(new InventoryOverviewResponse.MaterialStock(
                         mat.getId(),
@@ -130,6 +143,7 @@ public class InventoryOverviewService {
                         low,
                         mat.getHighStockQty(),
                         current,
+                        available,
                         shortage
                 ));
             }
@@ -143,5 +157,50 @@ public class InventoryOverviewService {
         }
 
         return result;
+    }
+
+    private Map<Long, BigDecimal> buildAvailableQtyByMaterialId() {
+        List<InventoryTag> receivedTags = inventoryTagMapper.selectList(
+                Wrappers.<InventoryTag>lambdaQuery()
+                        .eq(InventoryTag::getStatus, "RECEIVED")
+        );
+        if (receivedTags.isEmpty()) {
+            return Map.of();
+        }
+
+        Set<Long> activeHoldTagIds = inventoryHoldMapper.selectList(
+                        Wrappers.<InventoryHold>lambdaQuery()
+                                .eq(InventoryHold::getStatus, InventoryHold.ACTIVE)
+                ).stream()
+                .map(InventoryHold::getInventoryTagId)
+                .filter(Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet());
+
+        Map<Long, Long> materialIdByLineId = inboundOrderLineMapper.selectList(null).stream()
+                .filter(line -> line.getId() != null && line.getMaterialId() != null)
+                .collect(java.util.stream.Collectors.toMap(
+                        InboundOrderLine::getId,
+                        InboundOrderLine::getMaterialId,
+                        (left, right) -> left
+                ));
+
+        Map<Long, BigDecimal> availableByMaterialId = new HashMap<>();
+        for (InventoryTag tag : receivedTags) {
+            if (tag.getId() != null && activeHoldTagIds.contains(tag.getId())) {
+                continue;
+            }
+            Long materialId = materialIdByLineId.get(tag.getInboundOrderLineId());
+            if (materialId == null) {
+                continue;
+            }
+            BigDecimal boardQty = tag.getBoardQty() != null ? tag.getBoardQty() : BigDecimal.ZERO;
+            BigDecimal pickedQty = tag.getPickedQty() != null ? tag.getPickedQty() : BigDecimal.ZERO;
+            BigDecimal remaining = boardQty.subtract(pickedQty);
+            if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+            availableByMaterialId.merge(materialId, remaining, BigDecimal::add);
+        }
+        return availableByMaterialId;
     }
 }

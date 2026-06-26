@@ -38,6 +38,7 @@ public record InventoryOverviewResponse(
             BigDecimal lowStockQty,
             BigDecimal highStockQty,
             BigDecimal currentQty,
+            BigDecimal availableQty,
             boolean shortage
     ) {}
 }
