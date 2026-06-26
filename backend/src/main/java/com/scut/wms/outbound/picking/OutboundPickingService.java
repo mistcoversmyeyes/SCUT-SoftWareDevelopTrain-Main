@@ -77,6 +77,7 @@ public class OutboundPickingService {
         InventoryTag board = requireBoard(ctx.getInventoryTagId());
         inventoryHoldService.ensureOrderOutboundAllowed(board);
 
+        boolean confirmedNonRecommended = false;
         if (!force) {
             if (request.outboundOrderId() == null || request.outboundOrderLineId() == null) {
                 throw new BusinessException("带单出库必须指定出库单和明细行");
@@ -107,6 +108,7 @@ public class OutboundPickingService {
                         "当前出库库存标签不在推荐出库方案中，是否继续按非推荐方案出库？"
                 );
             }
+            confirmedNonRecommended = !recommended && request.isConfirmNonRecommended();
             if (OutboundOrder.DRAFT.equals(order.getStatus())) {
                 order.setStatus(OutboundOrder.PICKING);
                 outboundOrderMapper.updateById(order);
@@ -118,7 +120,7 @@ public class OutboundPickingService {
             ctx = inventoryTransactionMapper.selectScanInventoryTagForUpdate(request.inventoryTagCode());
         }
 
-        return executePick(ctx, board, request, force);
+        return executePick(ctx, board, request, force, confirmedNonRecommended);
     }
 
     @Transactional
@@ -134,10 +136,16 @@ public class OutboundPickingService {
             lockService.markForceStolen(ctx.getInventoryTagId());
         }
         lockService.createForceAudit(null, ctx);
-        return executePick(ctx, board, request, true);
+        return executePick(ctx, board, request, true, false);
     }
 
-    private ScanOutboundResponse executePick(ScanInventoryTagContext ctx, InventoryTag board, ScanOutboundRequest request, boolean forceOutbound) {
+    private ScanOutboundResponse executePick(
+            ScanInventoryTagContext ctx,
+            InventoryTag board,
+            ScanOutboundRequest request,
+            boolean forceOutbound,
+            boolean confirmedNonRecommended
+    ) {
         LocalDateTime now = LocalDateTime.now();
 
         Long effectiveOrderLineId = request.outboundOrderLineId();
@@ -146,7 +154,7 @@ public class OutboundPickingService {
             effectiveOrderLineId = board.getLockedByOrderLineId();
         }
 
-        if (!forceOutbound) {
+        if (!forceOutbound && !confirmedNonRecommended) {
             inventoryHoldService.assertNormalFifoPick(request.outboundOrderId(), effectiveOrderLineId, ctx.getInventoryTagId());
         }
 
