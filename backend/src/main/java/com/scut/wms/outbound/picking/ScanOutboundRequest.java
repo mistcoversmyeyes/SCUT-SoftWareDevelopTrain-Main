@@ -9,6 +9,10 @@ public record ScanOutboundRequest(
         String inventoryTagCode,
         BigDecimal qty,
         Long outboundOrderId,
-        Long outboundOrderLineId
+        Long outboundOrderLineId,
+        Boolean confirmNonRecommended
 ) {
+    public boolean isConfirmNonRecommended() {
+        return Boolean.TRUE.equals(confirmNonRecommended);
+    }
 }

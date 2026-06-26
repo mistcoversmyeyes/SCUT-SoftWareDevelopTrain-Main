@@ -223,6 +223,45 @@ class Week4BusinessRulesControllerTest {
     }
 
     @Test
+    void returnsFifoRecommendationForDraftOutboundOrderWithoutLockingInventory() throws Exception {
+        mockMvc.perform(get("/api/outbound-orders/{id}/recommendations", OUTBOUND_ORDER_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.outboundOrderId").value(OUTBOUND_ORDER_ID))
+                .andExpect(jsonPath("$.lines[0].recommendations[0].inventoryTagCode").value(MATERIAL_ONE_FIFO_BOARD_CODE));
+    }
+
+    @Test
+    void rejectsNonRecommendedPickUntilOperatorConfirms() throws Exception {
+        mockMvc.perform(post("/api/outbound/pick-with-order")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "inventoryTagCode": "%s",
+                                  "qty": 10,
+                                  "outboundOrderId": %d,
+                                  "outboundOrderLineId": %d,
+                                  "confirmNonRecommended": false
+                                }
+                                """.formatted(MATERIAL_ONE_NEXT_BOARD_CODE, OUTBOUND_ORDER_ID, OUTBOUND_LINE_ONE_ID)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("当前出库库存标签不在推荐出库方案中，是否继续按非推荐方案出库？"));
+
+        mockMvc.perform(post("/api/outbound/pick-with-order")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "inventoryTagCode": "%s",
+                                  "qty": 10,
+                                  "outboundOrderId": %d,
+                                  "outboundOrderLineId": %d,
+                                  "confirmNonRecommended": true
+                                }
+                                """.formatted(MATERIAL_ONE_NEXT_BOARD_CODE, OUTBOUND_ORDER_ID, OUTBOUND_LINE_ONE_ID)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.inventoryTagCode").value(MATERIAL_ONE_NEXT_BOARD_CODE));
+    }
+
+    @Test
     void partialPickPreservesRemainderAndLaterBoardViolatesFifo() throws Exception {
         mockMvc.perform(post("/api/outbound-orders/{id}/release-and-lock", OUTBOUND_ORDER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
