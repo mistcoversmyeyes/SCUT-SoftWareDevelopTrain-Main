@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { boxBreakdown, groupLinesBySupplier, isCompleteBatchInboundLine } from './batchInbound'
+import {
+  boxBreakdown,
+  filterMaterialsBySupplier,
+  groupLinesBySupplier,
+  isCompleteBatchInboundLine
+} from './batchInbound'
 
 describe('batch inbound helpers', () => {
   it('computes full boxes and remainder from total quantity', () => {
@@ -32,5 +37,17 @@ describe('batch inbound helpers', () => {
       plannedQty: 230,
       targetWarehouseId: 1
     })).toBe(false)
+  })
+
+  it('filters selectable materials by the selected supplier', () => {
+    const materials = [
+      { id: 1, supplierId: 1, name: '前保险杠' },
+      { id: 2, supplierId: 2, name: '后保险杠' },
+      { id: 3, supplierId: 1, name: '左车门' }
+    ]
+
+    expect(filterMaterialsBySupplier(materials, 1).map(material => material.id)).toEqual([1, 3])
+    expect(filterMaterialsBySupplier(materials, 2).map(material => material.id)).toEqual([2])
+    expect(filterMaterialsBySupplier(materials, undefined)).toEqual([])
   })
 })

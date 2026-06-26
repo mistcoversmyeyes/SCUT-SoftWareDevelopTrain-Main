@@ -78,6 +78,7 @@
             clearable
             placeholder="选择供应商"
             class="wide-control"
+            @change="onSupplierChange"
           >
             <el-option
               v-for="supplier in masterData.suppliers"
@@ -89,7 +90,14 @@
         </el-form-item>
       </el-form>
 
-      <el-table :data="materialRows" border size="small" max-height="460" class="material-table">
+      <el-table
+        :data="materialRows"
+        border
+        size="small"
+        max-height="460"
+        class="material-table"
+        :empty-text="materialEmptyText"
+      >
         <el-table-column label="选择" width="70" align="center">
           <template #default="{ row }">
             <el-checkbox v-model="row.checked" :disabled="!selectionForm.supplierId" @change="onMaterialChecked(row)" />
@@ -202,8 +210,8 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { batchCreateInboundOrders } from '../../api/inbound'
-import { fetchMasterDataOptions, fetchMaterialContainerTypes } from '../../api/masterData'
-import { boxBreakdown, isCompleteBatchInboundLine } from '../../utils/batchInbound'
+import { fetchMasterDataOptions, fetchMaterialContainerTypes, fetchMaterials } from '../../api/masterData'
+import { boxBreakdown, filterMaterialsBySupplier, isCompleteBatchInboundLine } from '../../utils/batchInbound'
 
 const masterData = reactive({
   suppliers: [],
@@ -222,6 +230,10 @@ const submitting = ref(false)
 let tempSequence = 1
 
 const selectedSupplier = computed(() => masterData.suppliers.find(s => s.id === selectionForm.supplierId))
+const materialEmptyText = computed(() => {
+  if (!selectionForm.supplierId) return '请先选择供应商'
+  return '该供应商暂无物料'
+})
 const filteredLocations = computed(() => {
   if (!locationForm.warehouseId) return []
   return masterData.locations.filter(location => location.warehouseId === locationForm.warehouseId)
@@ -244,10 +256,10 @@ onMounted(async () => {
   try {
     const data = await fetchMasterDataOptions()
     masterData.suppliers = data.suppliers || []
-    masterData.materials = data.materials || []
+    masterData.materials = await fetchMaterials()
     masterData.warehouses = data.warehouses || []
     masterData.locations = data.locations || []
-    materialRows.value = masterData.materials.map(toMaterialRow)
+    materialRows.value = []
   } catch (error) {
     ElMessage.error(error.response?.data?.message || '加载基础数据失败')
   }
@@ -256,6 +268,8 @@ onMounted(async () => {
 function toMaterialRow(material) {
   return {
     ...material,
+    code: material.code || material.materialCode,
+    name: material.name || material.materialName,
     checked: false,
     plannedQty: undefined,
     containerOptions: [],
@@ -319,13 +333,17 @@ async function onMaterialChecked(row) {
   }
 }
 
-function resetMaterialSelection() {
-  materialRows.value = masterData.materials.map(toMaterialRow)
+function resetMaterialSelection(supplierId = selectionForm.supplierId) {
+  materialRows.value = filterMaterialsBySupplier(masterData.materials, supplierId).map(toMaterialRow)
+}
+
+function onSupplierChange() {
+  resetMaterialSelection()
 }
 
 function openSupplierStep() {
-  resetMaterialSelection()
   selectionForm.supplierId = undefined
+  resetMaterialSelection(undefined)
   supplierDialogVisible.value = true
 }
 

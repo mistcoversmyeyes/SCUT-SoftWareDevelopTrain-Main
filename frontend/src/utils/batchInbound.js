@@ -32,3 +32,11 @@ export function groupLinesBySupplier(lines) {
     return groups
   }, new Map())
 }
+
+export function filterMaterialsBySupplier(materials, supplierId) {
+  if (!supplierId) {
+    return []
+  }
+
+  return materials.filter(material => material.supplierId === supplierId)
+}
