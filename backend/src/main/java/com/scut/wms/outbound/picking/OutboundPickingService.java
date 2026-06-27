@@ -16,6 +16,7 @@ import com.scut.wms.outbound.OutboundOrderLine;
 import com.scut.wms.outbound.OutboundOrderLineMapper;
 import com.scut.wms.outbound.OutboundOrderMapper;
 import com.scut.wms.outbound.OutboundOrderService;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +42,7 @@ public class OutboundPickingService {
     private final OutboundOrderMapper outboundOrderMapper;
     private final LockService lockService;
     private final InventoryHoldService inventoryHoldService;
+    private final OutboundRecommendationService recommendationService;
 
     public OutboundPickingService(
             InventoryTransactionMapper inventoryTransactionMapper,
@@ -51,7 +53,8 @@ public class OutboundPickingService {
             OutboundOrderLineMapper outboundOrderLineMapper,
             OutboundOrderMapper outboundOrderMapper,
             LockService lockService,
-            InventoryHoldService inventoryHoldService
+            InventoryHoldService inventoryHoldService,
+            OutboundRecommendationService recommendationService
     ) {
         this.inventoryTransactionMapper = inventoryTransactionMapper;
         this.inventoryMovementMapper = inventoryMovementMapper;
@@ -62,6 +65,7 @@ public class OutboundPickingService {
         this.outboundOrderMapper = outboundOrderMapper;
         this.lockService = lockService;
         this.inventoryHoldService = inventoryHoldService;
+        this.recommendationService = recommendationService;
     }
 
     @Transactional
@@ -73,13 +77,41 @@ public class OutboundPickingService {
         InventoryTag board = requireBoard(ctx.getInventoryTagId());
         inventoryHoldService.ensureOrderOutboundAllowed(board);
 
+        boolean confirmedNonRecommended = false;
         if (!force) {
-            inventoryHoldService.assertNormalFifoPick(request.outboundOrderId(), request.outboundOrderLineId(), ctx.getInventoryTagId());
-            if (!LOCKED.equals(ctx.getInventoryTagStatus())) {
-                throw new BusinessException("库存标签未锁定，当前状态: " + ctx.getInventoryTagStatus());
+            if (request.outboundOrderId() == null || request.outboundOrderLineId() == null) {
+                throw new BusinessException("带单出库必须指定出库单和明细行");
             }
-            if (!request.outboundOrderId().equals(board.getLockedByOrderId())) {
+            OutboundOrder order = outboundOrderMapper.selectById(request.outboundOrderId());
+            if (order == null) {
+                throw new BusinessException(HttpStatus.NOT_FOUND, "出库单不存在");
+            }
+            OutboundOrderLine line = outboundOrderLineMapper.selectById(request.outboundOrderLineId());
+            if (line == null || !line.getOutboundOrderId().equals(request.outboundOrderId())) {
+                throw new BusinessException("出库单明细行不存在");
+            }
+            if (!line.getMaterialId().equals(ctx.getMaterialId())) {
+                throw new BusinessException("库存标签物料与出库明细不一致");
+            }
+            if (LOCKED.equals(ctx.getInventoryTagStatus()) && !request.outboundOrderId().equals(board.getLockedByOrderId())) {
                 throw new BusinessException("该库存标签未锁定给本出库单");
+            }
+            boolean lockedForThisOrder = LOCKED.equals(ctx.getInventoryTagStatus())
+                    && request.outboundOrderId().equals(board.getLockedByOrderId());
+            boolean recommended = lockedForThisOrder || recommendationService.containsRecommendedTag(
+                    request.outboundOrderLineId(),
+                    request.inventoryTagCode()
+            );
+            if (!recommended && !request.isConfirmNonRecommended()) {
+                throw new BusinessException(
+                        HttpStatus.CONFLICT,
+                        "当前出库库存标签不在推荐出库方案中，是否继续按非推荐方案出库？"
+                );
+            }
+            confirmedNonRecommended = !recommended && request.isConfirmNonRecommended();
+            if (OutboundOrder.DRAFT.equals(order.getStatus())) {
+                order.setStatus(OutboundOrder.PICKING);
+                outboundOrderMapper.updateById(order);
             }
         } else if (LOCKED.equals(board.getStatus()) && board.getLockedByOrderId() != null
                 && !request.outboundOrderId().equals(board.getLockedByOrderId())) {
@@ -88,7 +120,7 @@ public class OutboundPickingService {
             ctx = inventoryTransactionMapper.selectScanInventoryTagForUpdate(request.inventoryTagCode());
         }
 
-        return executePick(ctx, board, request, force);
+        return executePick(ctx, board, request, force, confirmedNonRecommended);
     }
 
     @Transactional
@@ -104,10 +136,16 @@ public class OutboundPickingService {
             lockService.markForceStolen(ctx.getInventoryTagId());
         }
         lockService.createForceAudit(null, ctx);
-        return executePick(ctx, board, request, true);
+        return executePick(ctx, board, request, true, false);
     }
 
-    private ScanOutboundResponse executePick(ScanInventoryTagContext ctx, InventoryTag board, ScanOutboundRequest request, boolean forceOutbound) {
+    private ScanOutboundResponse executePick(
+            ScanInventoryTagContext ctx,
+            InventoryTag board,
+            ScanOutboundRequest request,
+            boolean forceOutbound,
+            boolean confirmedNonRecommended
+    ) {
         LocalDateTime now = LocalDateTime.now();
 
         Long effectiveOrderLineId = request.outboundOrderLineId();
@@ -116,7 +154,7 @@ public class OutboundPickingService {
             effectiveOrderLineId = board.getLockedByOrderLineId();
         }
 
-        if (!forceOutbound) {
+        if (!forceOutbound && !confirmedNonRecommended) {
             inventoryHoldService.assertNormalFifoPick(request.outboundOrderId(), effectiveOrderLineId, ctx.getInventoryTagId());
         }
 

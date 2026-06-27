@@ -8,6 +8,32 @@
       <el-tag type="warning">扫码出库</el-tag>
     </div>
 
+    <section v-if="mode === 'with-order'" class="panel">
+      <div class="panel-header">
+        <h3>待处理出库单</h3>
+        <el-button size="small" text :loading="loadingOrders" @click="loadPendingOrders">刷新</el-button>
+      </div>
+      <div v-if="pendingOrders.length" class="compact-list">
+        <article
+          v-for="order in pendingOrders"
+          :key="order.id"
+          class="compact-item selectable"
+          :class="{ active: orderInfo?.id === order.id }"
+          @click="selectOrder(order)"
+        >
+          <div>
+            <strong>{{ order.outboundNo }}</strong>
+            <p>{{ order.supplier?.name || '—' }}</p>
+          </div>
+          <div class="compact-meta">
+            <span>{{ order.status }}</span>
+            <span>{{ formatQty(order.pickedQty) }} / {{ formatQty(order.plannedQty) }}</span>
+          </div>
+        </article>
+      </div>
+      <el-empty v-else-if="!loadingOrders" description="暂无待处理出库单" />
+    </section>
+
     <section class="panel">
       <div class="mode-row">
         <button
@@ -30,6 +56,22 @@
       />
 
       <div v-if="mode === 'with-order'" class="field-grid">
+        <div v-if="recommendationLines.length" class="field-block">
+          <label class="field-label" for="mobile-outbound-line">出库明细行</label>
+          <el-select
+            id="mobile-outbound-line"
+            v-model="activeLineId"
+            size="large"
+            placeholder="选择出库明细行"
+          >
+            <el-option
+              v-for="line in recommendationLines"
+              :key="line.outboundOrderLineId"
+              :value="line.outboundOrderLineId"
+              :label="`行${line.lineNo} ${line.materialCode || ''} ${line.materialName || ''}`"
+            />
+          </el-select>
+        </div>
         <div class="field-block">
           <label class="field-label" for="mobile-outbound-order">出库单号</label>
           <el-input
@@ -124,6 +166,32 @@
       </div>
     </section>
 
+    <section v-if="mode === 'with-order' && recommendationLines.length" class="panel">
+      <div class="panel-header">
+        <h3>推荐出库方案</h3>
+        <el-tag type="success">FIFO</el-tag>
+      </div>
+      <div class="compact-list">
+        <article v-for="line in recommendationLines" :key="line.outboundOrderLineId" class="compact-item">
+          <div>
+            <strong>行{{ line.lineNo }} {{ line.materialCode }}</strong>
+            <p>{{ line.materialName }} · 待出 {{ formatQty(line.neededQty) }}</p>
+          </div>
+          <div class="recommend-tags">
+            <el-tag
+              v-for="item in line.recommendations || []"
+              :key="item.inventoryTagCode"
+              size="small"
+              effect="plain"
+            >
+              {{ item.inventoryTagCode }}
+            </el-tag>
+            <span v-if="!line.recommendations?.length" class="empty-tip">暂无推荐</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
     <section v-if="preview" class="panel">
       <div class="panel-header">
         <h3>库存标签预览</h3>
@@ -188,10 +256,24 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { fetchQrInfo, lookupInventoryTag, pickNoOrder, pickWithOrder } from '../../api/outbound'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { ElMessageBox } from 'element-plus'
+import {
+  fetchOutboundOrders,
+  fetchOutboundRecommendations,
+  fetchQrInfo,
+  lookupInventoryTag,
+  pickNoOrder,
+  pickWithOrder
+} from '../../api/outbound'
 import MobileQrScanner from '../../components/mobile/MobileQrScanner.vue'
 import { normalizeInventoryTagCode, normalizeOutboundNo } from '../../utils/scanPayload'
+import {
+  findRecommendedLineId,
+  isRecommendedInventoryTag,
+  pendingOutboundStatuses,
+  pendingRecommendationLines
+} from '../../utils/outboundRecommendation'
 
 const modeOptions = [
   { value: 'with-order', label: '带单出库' },
@@ -200,14 +282,18 @@ const modeOptions = [
 
 const mode = ref('with-order')
 const outboundNo = ref('')
+const pendingOrders = ref([])
 const orderInfo = ref(null)
 const lockedItems = ref([])
+const recommendation = ref(null)
+const activeLineId = ref(null)
 const inventoryTagCode = ref('')
 const qty = ref(undefined)
 const preview = ref(null)
 const result = ref(null)
 const errorMessage = ref('')
 const loadingOrder = ref(false)
+const loadingOrders = ref(false)
 const submitting = ref(false)
 
 let lookupTimer = null
@@ -225,6 +311,8 @@ const scannerLabel = computed(() => {
   }
   return '扫描库存标签码'
 })
+
+const recommendationLines = computed(() => pendingRecommendationLines(recommendation.value))
 
 watch(inventoryTagCode, (value) => {
   clearTimeout(lookupTimer)
@@ -252,6 +340,8 @@ function switchMode(nextMode) {
   if (nextMode === 'no-order') {
     orderInfo.value = null
     lockedItems.value = []
+    recommendation.value = null
+    activeLineId.value = null
   }
 }
 
@@ -277,12 +367,55 @@ async function loadOrder() {
     const data = await fetchQrInfo(code)
     orderInfo.value = data.order || null
     lockedItems.value = data.lockedItems || []
+    await loadRecommendation(orderInfo.value?.id)
   } catch (error) {
     orderInfo.value = null
     lockedItems.value = []
+    recommendation.value = null
+    activeLineId.value = null
     errorMessage.value = error.response?.data?.message || error.message || '出库单加载失败'
   } finally {
     loadingOrder.value = false
+  }
+}
+
+async function loadPendingOrders() {
+  loadingOrders.value = true
+  try {
+    pendingOrders.value = await fetchOutboundOrders({ status: pendingOutboundStatuses.join(',') })
+  } catch {
+    pendingOrders.value = []
+  } finally {
+    loadingOrders.value = false
+  }
+}
+
+async function selectOrder(order) {
+  outboundNo.value = order.outboundNo || ''
+  orderInfo.value = order
+  lockedItems.value = []
+  errorMessage.value = ''
+  if (outboundNo.value) {
+    await loadOrder()
+    return
+  }
+  await loadRecommendation(order.id)
+}
+
+async function loadRecommendation(orderId) {
+  if (!orderId) {
+    recommendation.value = null
+    activeLineId.value = null
+    return
+  }
+  try {
+    recommendation.value = await fetchOutboundRecommendations(orderId)
+    if (!recommendationLines.value.some((line) => line.outboundOrderLineId === activeLineId.value)) {
+      activeLineId.value = recommendationLines.value[0]?.outboundOrderLineId || null
+    }
+  } catch {
+    recommendation.value = null
+    activeLineId.value = null
   }
 }
 
@@ -307,6 +440,22 @@ async function submitOutbound() {
       qty: qty.value || undefined,
       outboundOrderId: mode.value === 'with-order' ? orderInfo.value.id : undefined
     }
+    if (mode.value === 'with-order') {
+      const lineId = resolveOutboundLineId(code)
+      if (!lineId) {
+        errorMessage.value = '请选择出库明细行'
+        return
+      }
+      payload.outboundOrderLineId = lineId
+      if (!isRecommendedInventoryTag(recommendation.value, lineId, code)) {
+        await ElMessageBox.confirm(
+          '当前出库库存标签不在推荐出库方案中，是否继续按非推荐方案出库？',
+          '非推荐出库确认',
+          { confirmButtonText: '继续出库', cancelButtonText: '取消', type: 'warning' }
+        )
+        payload.confirmNonRecommended = true
+      }
+    }
     result.value = mode.value === 'with-order'
       ? await pickWithOrder(payload)
       : await pickNoOrder(payload)
@@ -315,12 +464,27 @@ async function submitOutbound() {
     preview.value = null
     if (mode.value === 'with-order' && outboundNo.value.trim()) {
       await loadOrder()
+      await loadPendingOrders()
     }
   } catch (error) {
+    if (error === 'cancel' || error?.message === 'cancel') {
+      return
+    }
     errorMessage.value = error.response?.data?.message || error.message || '出库失败'
   } finally {
     submitting.value = false
   }
+}
+
+function resolveOutboundLineId(code) {
+  const recommendedLineId = findRecommendedLineId(recommendation.value, code)
+  if (recommendedLineId) return recommendedLineId
+  const previewMaterialId = preview.value?.materialId
+  if (previewMaterialId) {
+    const matched = recommendationLines.value.find((line) => line.materialId === previewMaterialId)
+    if (matched) return matched.outboundOrderLineId
+  }
+  return activeLineId.value
 }
 
 function formatQty(value) {
@@ -357,6 +521,10 @@ function statusTagType(status) {
   }
   return 'warning'
 }
+
+onMounted(() => {
+  loadPendingOrders()
+})
 
 onBeforeUnmount(() => {
   clearTimeout(lookupTimer)
@@ -468,6 +636,15 @@ onBeforeUnmount(() => {
   background: #f8fafc;
 }
 
+.compact-item.selectable {
+  cursor: pointer;
+}
+
+.compact-item.selectable.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
 .compact-item p {
   margin: 4px 0 0;
   color: #475569;
@@ -478,6 +655,17 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 8px;
   color: #64748b;
+  font-size: 13px;
+}
+
+.recommend-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.empty-tip {
+  color: #94a3b8;
   font-size: 13px;
 }
 

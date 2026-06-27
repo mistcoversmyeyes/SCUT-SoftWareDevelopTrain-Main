@@ -16,3 +16,4 @@
 - `2026-06-23-ai-data-import-template.md`：Week 4 WP4-04 首期表格导入模板规格（历史文件名沿用 ai-data-import-template），冻结 inventory_flow_history CSV 模板、校验规则、独立落表和样例文件位置。
 - `2026-06-24-acceptance-closure-fix-design.md`：Iteration 4 验收闭环修复设计，覆盖 FR-02 出库阻断、FR-03 封存出库联动、库存标签命名迁移和入库单待收货状态迁移。
 - `2026-06-24-mobile-real-scan-design.md`：手机端真实扫码设计，覆盖库存标签码和出库单二维码的摄像头扫描、图片识别、手动兜底、异常处理和验收方式。
+- `2026-06-27-iter5-batch-inbound-outbound-requirements.md`：Iteration 5 需求规格，覆盖批量入库创建、批量出库 FIFO 推荐、手机端待处理出库单、库存标签批量打印、库存详情短缺筛选和手机端封存/解封。

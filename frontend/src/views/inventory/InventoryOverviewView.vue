@@ -76,11 +76,23 @@
       <!-- 第二部分：物料充足性 -->
       <el-divider>物料充足性 — 每个物料的库存是否达标</el-divider>
 
-      <template v-if="data.suppliers.length === 0 && !loading">
+      <div class="filter-row">
+        <el-select v-model="filters.supplierId" clearable placeholder="全部供应商" style="width: 240px">
+          <el-option
+            v-for="sup in data.suppliers"
+            :key="sup.id"
+            :label="`${sup.code} ${sup.name}`"
+            :value="sup.id"
+          />
+        </el-select>
+        <el-switch v-model="filters.shortageOnly" active-text="只看短缺" />
+      </div>
+
+      <template v-if="visibleSuppliers.length === 0 && !loading">
         <el-empty description="暂无供应商数据" />
       </template>
 
-      <div v-for="sup in data.suppliers" :key="sup.id" class="group-card-wrap">
+      <div v-for="sup in visibleSuppliers" :key="sup.id" class="group-card-wrap">
         <el-card shadow="never" class="group-card">
           <template #header>
             <div class="card-header-row">
@@ -89,7 +101,7 @@
                 <el-tag size="small" type="info" effect="plain">{{ sup.materials.length }} 种物料</el-tag>
                 <span class="group-summary">
                   充足: <strong class="num-green">{{ countSufficient(sup) }}</strong>
-                  不足: <strong class="num-red">{{ countInsufficient(sup) }}</strong>
+                  短缺: <strong class="num-red">{{ countInsufficient(sup) }}</strong>
                 </span>
               </div>
               <el-button
@@ -110,14 +122,14 @@
                 <div class="bar-track">
                   <div
                     class="bar-fill"
-                    :class="{ 'bar-under': isUnder(mat.currentQty, mat.highStockQty) }"
-                    :style="{ width: barWidth(mat.currentQty, mat.highStockQty) + '%' }"
+                    :class="{ 'bar-under': mat.shortage }"
+                    :style="{ width: barWidth(mat.availableQty, mat.lowStockQty) + '%' }"
                   />
                 </div>
                 <span class="bar-nums">
-                  <span :class="stockColorClass(mat)">{{ fmt(mat.currentQty) }}</span>
-                  / {{ fmt(mat.highStockQty) || '未设置' }}
-                  <span v-if="isUnder(mat.currentQty, mat.highStockQty)" class="warn-badge">不足</span>
+                  可用 <span :class="stockColorClass(mat)">{{ fmt(mat.availableQty) }}</span>
+                  / 低储 {{ fmt(mat.lowStockQty) || '未设置' }}
+                  <span v-if="mat.shortage" class="warn-badge">短缺</span>
                 </span>
               </div>
             </div>
@@ -131,7 +143,7 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { http } from '../../api/http'
 
 const loading = ref(false)
@@ -145,6 +157,22 @@ const data = reactive({
 
 const collapsedLoc = reactive({})
 const collapsedMat = reactive({})
+const filters = reactive({
+  supplierId: '',
+  shortageOnly: false
+})
+
+const visibleSuppliers = computed(() => data.suppliers
+  .filter((sup) => !filters.supplierId || String(sup.id) === String(filters.supplierId))
+  .map((sup) => ({
+    ...sup,
+    materials: [...sup.materials]
+      .filter((mat) => !filters.shortageOnly || mat.shortage)
+      .sort((a, b) => Number(b.shortage) - Number(a.shortage))
+  }))
+  .filter((sup) => sup.materials.length > 0)
+  .sort((a, b) => countInsufficient(b) - countInsufficient(a))
+)
 
 function toggleCollapse(type, id) {
   const map = type === 'loc' ? collapsedLoc : collapsedMat
@@ -195,17 +223,9 @@ function isNearFull(used, max) {
   return m > 0 && u >= m * 0.85 && u < m
 }
 
-function isUnder(current, baseline) {
-  const c = Number(current) || 0
-  const b = Number(baseline) || 0
-  return b > 0 && c < b
-}
-
 function stockColorClass(mat) {
-  const c = Number(mat.currentQty) || 0
-  const b = Number(mat.highStockQty) || 0
-  if (b <= 0) return ''
-  if (c < b) return 'num-red'
+  if (mat.shortage) return 'num-red'
+  if ((Number(mat.lowStockQty) || 0) <= 0) return ''
   return 'num-green'
 }
 
@@ -219,11 +239,11 @@ function usagePercent(wh) {
 }
 
 function countSufficient(sup) {
-  return sup.materials.filter(m => (Number(m.highStockQty) || 0) <= 0 || (Number(m.currentQty) || 0) >= (Number(m.highStockQty) || 0)).length
+  return sup.materials.filter(m => !m.shortage).length
 }
 
 function countInsufficient(sup) {
-  return sup.materials.filter(m => (Number(m.highStockQty) || 0) > 0 && (Number(m.currentQty) || 0) < (Number(m.highStockQty) || 0)).length
+  return sup.materials.filter(m => m.shortage).length
 }
 
 loadData()
@@ -239,6 +259,11 @@ loadData()
 .page-toolbar h2 { margin: 0; }
 .toolbar-right { display: flex; align-items: center; gap: 12px; }
 .refresh-time { font-size: 13px; color: #909399; }
+
+.filter-row {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 12px;
+}
 
 .group-card-wrap { margin-bottom: 16px; }
 .group-card { border-left: 4px solid #409eff; }

@@ -37,9 +37,11 @@ class Week4BusinessRulesControllerTest {
     private static final Long OUTBOUND_LINE_ONE_ID = 1L;
     private static final Long MATERIAL_ONE_FIFO_BOARD_ID = 1L;
     private static final Long MATERIAL_ONE_NEXT_BOARD_ID = 2L;
+    private static final Long MATERIAL_ONE_LATER_BOARD_ID = 13L;
     private static final Long MATERIAL_TWO_FIFO_BOARD_ID = 4L;
     private static final String MATERIAL_ONE_FIFO_BOARD_CODE = "IT:v1:IN-20260520-001:1:1";
     private static final String MATERIAL_ONE_NEXT_BOARD_CODE = "IT:v1:IN-20260520-001:1:2";
+    private static final String MATERIAL_ONE_LATER_BOARD_CODE = "IT:v1:IN-20260610-001:1:1";
 
     @Autowired
     private MockMvc mockMvc;
@@ -220,6 +222,65 @@ class Week4BusinessRulesControllerTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("库存标签已被出库单锁定，不能手动锁库"));
+    }
+
+    @Test
+    void returnsFifoRecommendationForDraftOutboundOrderWithoutLockingInventory() throws Exception {
+        mockMvc.perform(get("/api/outbound-orders/{id}/recommendations", OUTBOUND_ORDER_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.outboundOrderId").value(OUTBOUND_ORDER_ID))
+                .andExpect(jsonPath("$.lines[0].recommendations[0].inventoryTagCode").value(MATERIAL_ONE_FIFO_BOARD_CODE));
+    }
+
+    @Test
+    void rejectsNonRecommendedPickUntilOperatorConfirms() throws Exception {
+        InventoryLock legacyLock = new InventoryLock();
+        legacyLock.setOutboundOrderId(OUTBOUND_ORDER_ID);
+        legacyLock.setOutboundOrderLineId(OUTBOUND_LINE_ONE_ID);
+        legacyLock.setInventoryTagId(MATERIAL_ONE_FIFO_BOARD_ID);
+        legacyLock.setMaterialId(1L);
+        legacyLock.setLockQty(new BigDecimal("100.000"));
+        legacyLock.setStatus(InventoryLock.LOCKED);
+        inventoryLockMapper.insert(legacyLock);
+
+        mockMvc.perform(post("/api/outbound/pick-with-order")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "inventoryTagCode": "%s",
+                                  "qty": 10,
+                                  "outboundOrderId": %d,
+                                  "outboundOrderLineId": %d,
+                                  "confirmNonRecommended": false
+                                }
+                                """.formatted(MATERIAL_ONE_LATER_BOARD_CODE, OUTBOUND_ORDER_ID, OUTBOUND_LINE_ONE_ID)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("当前出库库存标签不在推荐出库方案中，是否继续按非推荐方案出库？"));
+
+        mockMvc.perform(post("/api/outbound/pick-with-order")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "inventoryTagCode": "%s",
+                                  "qty": 10,
+                                  "outboundOrderId": %d,
+                                  "outboundOrderLineId": %d,
+                                  "confirmNonRecommended": true
+                                }
+                                """.formatted(MATERIAL_ONE_LATER_BOARD_CODE, OUTBOUND_ORDER_ID, OUTBOUND_LINE_ONE_ID)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.inventoryTagCode").value(MATERIAL_ONE_LATER_BOARD_CODE))
+                .andExpect(jsonPath("$.pickedQty").value(10.0));
+
+        InventoryTag laterBoard = inventoryTagMapper.selectById(MATERIAL_ONE_LATER_BOARD_ID);
+        assertThat(laterBoard.getPickedQty()).isEqualByComparingTo("10.000");
+
+        InventoryBalance balance = inventoryBalanceMapper.selectOne(
+                Wrappers.<InventoryBalance>lambdaQuery()
+                        .eq(InventoryBalance::getMaterialId, 1L)
+                        .eq(InventoryBalance::getWarehouseId, 1L)
+                        .eq(InventoryBalance::getStorageLocationId, 1L));
+        assertThat(balance.getOnHandQty()).isEqualByComparingTo("390.000");
     }
 
     @Test

@@ -10,6 +10,7 @@ import MaterialListView from '../views/master-data/MaterialListView.vue'
 import ContainerListView from '../views/master-data/ContainerListView.vue'
 import WarehouseLocationView from '../views/master-data/WarehouseLocationView.vue'
 import InboundOrderListView from '../views/inbound/InboundOrderListView.vue'
+import BatchInboundCreateView from '../views/inbound/BatchInboundCreateView.vue'
 import InboundScanView from '../views/inbound/InboundScanView.vue'
 import InboundDetailView from '../views/inbound/InboundDetailView.vue'
 import InboundHistoryView from '../views/inbound/InboundHistoryView.vue'
@@ -33,6 +34,7 @@ import MobileLayout from '../views/mobile/MobileLayout.vue'
 import MobileInboundView from '../views/mobile/MobileInboundView.vue'
 import MobileOutboundView from '../views/mobile/MobileOutboundView.vue'
 import MobileInventoryTagQueryView from '../views/mobile/MobileInventoryTagQueryView.vue'
+import MobileInventorySealView from '../views/mobile/MobileInventorySealView.vue'
 import PlaceholderPage from '../views/PlaceholderPage.vue'
 
 
@@ -43,6 +45,7 @@ const pageByKey = {
   'containers': ContainerListView,
   'warehouses': WarehouseLocationView,
   'inbound-orders': InboundOrderListView,
+  'inbound-batch-create': BatchInboundCreateView,
   'inbound-scan': InboundScanView,
   'inbound-history': InboundHistoryView,
   'outbound-orders': OutboundOrderListView,
@@ -152,6 +155,12 @@ const routes = [
         name: 'mobile-inventory-tag',
         component: MobileInventoryTagQueryView,
         meta: { requiresAuth: true, title: '手机库存标签查询' }
+      },
+      {
+        path: 'seal',
+        name: 'mobile-inventory-seal',
+        component: MobileInventorySealView,
+        meta: { requiresAuth: true, title: '库存封存' }
       }
     ]
   },

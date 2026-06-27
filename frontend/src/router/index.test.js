@@ -6,6 +6,7 @@ import { useTabsStore } from '../stores/tabs'
 import * as authApi from '../api/auth'
 import PlaceholderPage from '../views/PlaceholderPage.vue'
 import DashboardView from '../views/DashboardView.vue'
+import BatchInboundCreateView from '../views/inbound/BatchInboundCreateView.vue'
 import InboundOrderListView from '../views/inbound/InboundOrderListView.vue'
 import InboundScanView from '../views/inbound/InboundScanView.vue'
 import InboundPrintView from '../views/inbound/InboundPrintView.vue'
@@ -98,6 +99,11 @@ describe('router auth guard', () => {
         path: '/inbound/orders',
         name: 'inbound-orders',
         component: InboundOrderListView
+      },
+      {
+        path: '/inbound/batch-create',
+        name: 'inbound-batch-create',
+        component: BatchInboundCreateView
       },
       {
         path: '/inbound/scan',

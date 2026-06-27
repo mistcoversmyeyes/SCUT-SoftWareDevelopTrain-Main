@@ -24,9 +24,12 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -111,6 +114,39 @@ public class InboundOrderService {
 
         insertLines(order.getId(), request.lines());
         return toResponse(order.getId());
+    }
+
+    @Transactional
+    public BatchInboundOrderResponse createBatch(BatchInboundOrderRequest request) {
+        InboundOrderRequest validationRequest = new InboundOrderRequest(
+                request.sourceDocNo(),
+                request.remark(),
+                request.lines()
+        );
+        validateRequest(validationRequest);
+
+        Map<Long, List<InboundOrderRequest.Line>> grouped = request.lines().stream()
+                .collect(Collectors.groupingBy(
+                        InboundOrderRequest.Line::supplierId,
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
+
+        List<InboundOrderResponse> orders = new ArrayList<>();
+        for (List<InboundOrderRequest.Line> supplierLines : grouped.values()) {
+            InboundOrderResponse created = create(new InboundOrderRequest(
+                    request.sourceDocNo(),
+                    request.remark(),
+                    supplierLines
+            ));
+            orders.add(created);
+        }
+
+        return new BatchInboundOrderResponse(
+                orders.size(),
+                request.lines().size(),
+                orders
+        );
     }
 
     @Transactional

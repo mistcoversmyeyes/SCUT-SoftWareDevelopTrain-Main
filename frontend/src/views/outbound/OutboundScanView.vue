@@ -19,7 +19,7 @@
     <el-alert v-if="mode==='no-order'" type="warning" :closable="false" show-icon
       title="不带单模式：直接扫描库存标签码出库。库存标签如被锁定将强制抢锁并记录审计日志。" style="margin-bottom:20px" />
     <el-alert v-if="mode==='normal' && orderId" type="info" :closable="false" show-icon
-      title="只能扫描已锁定给本出库单的库存标签。" style="margin-bottom:20px" />
+      title="按推荐方案扫码出库；扫描非推荐库存标签时需要二次确认。" style="margin-bottom:20px" />
 
     <!-- ═══════ 扫码区（主角） ═══════ -->
     <el-card class="scan-main" shadow="hover">
@@ -50,6 +50,20 @@
       </el-divider>
 
       <div class="manual-input">
+        <el-select
+          v-if="mode==='normal' && recommendationLines.length"
+          v-model="activeLineId"
+          size="large"
+          placeholder="选择出库明细行"
+          style="width:300px"
+        >
+          <el-option
+            v-for="line in recommendationLines"
+            :key="line.outboundOrderLineId"
+            :value="line.outboundOrderLineId"
+            :label="`行${line.lineNo} ${line.materialCode || ''} ${line.materialName || ''}`"
+          />
+        </el-select>
         <el-input ref="scanInputRef" v-model="inventoryTagCode" size="large"
           placeholder="请输入库存标签码" :disabled="scanning" clearable
           style="width:360px" @keyup.enter="handleScan">
@@ -82,6 +96,41 @@
       <!-- ═══════ 错误提示 ═══════ -->
       <el-alert v-if="errorMessage" type="error" :title="errorMessage" show-icon
         :closable="false" style="margin-top:12px" />
+    </el-card>
+
+    <el-card v-if="mode==='normal' && recommendationLines.length" class="recommendation-card" shadow="hover">
+      <template #header>
+        <div class="history-header">
+          <span>推荐出库方案</span>
+          <el-button size="small" text type="primary" :loading="loadingRecommendation" @click="loadRecommendation">
+            刷新推荐
+          </el-button>
+        </div>
+      </template>
+      <el-table :data="recommendationLines" border stripe size="small">
+        <el-table-column prop="lineNo" label="行号" width="70" />
+        <el-table-column label="物料" min-width="180">
+          <template #default="{ row }">
+            {{ row.materialCode }} {{ row.materialName }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="neededQty" label="待出数量" width="100" align="right" />
+        <el-table-column label="推荐库存标签" min-width="260">
+          <template #default="{ row }">
+            <div class="recommend-tags">
+              <el-tag
+                v-for="item in row.recommendations || []"
+                :key="item.inventoryTagCode"
+                size="small"
+                effect="plain"
+              >
+                {{ item.inventoryTagCode }}
+              </el-tag>
+              <span v-if="!row.recommendations?.length" class="empty-tip">暂无推荐</span>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
     </el-card>
 
     <!-- ═══════ 已扫记录 ═══════ -->
@@ -184,8 +233,13 @@ import { Camera, DocumentCopy } from '@element-plus/icons-vue'
 import { Html5Qrcode } from 'html5-qrcode'
 import {
   lookupInventoryTag, pickWithOrder, pickWithOrderForce, pickNoOrder,
-  fetchQrInfo, fetchForceCandidates
+  fetchQrInfo, fetchForceCandidates, fetchOutboundRecommendations
 } from '../../api/outbound'
+import {
+  findRecommendedLineId,
+  isRecommendedInventoryTag,
+  pendingRecommendationLines
+} from '../../utils/outboundRecommendation'
 
 const route = useRoute()
 const router = useRouter()
@@ -206,9 +260,13 @@ let html5QrCode = null
 const scanHistory = ref([])
 const materialTable = ref([])
 const forceTable = ref([])
+const recommendation = ref(null)
+const loadingRecommendation = ref(false)
+const activeLineId = ref(null)
 
 const pickedCount = computed(() => materialTable.value.filter(r => r._picked).length)
 const forcePickedCount = computed(() => forceTable.value.filter(r => r._picked).length)
+const recommendationLines = computed(() => pendingRecommendationLines(recommendation.value))
 
 const pickedInventoryTagCodes = ref(new Set())
 
@@ -264,6 +322,22 @@ async function loadForceTable() {
     applyPickedStatus(forceTable.value)
     checkAllDone()
   } catch { forceTable.value = [] }
+}
+
+async function loadRecommendation() {
+  if (mode.value !== 'normal' || !orderId.value) return
+  loadingRecommendation.value = true
+  try {
+    recommendation.value = await fetchOutboundRecommendations(orderId.value)
+    if (!recommendationLines.value.some((line) => line.outboundOrderLineId === activeLineId.value)) {
+      activeLineId.value = recommendationLines.value[0]?.outboundOrderLineId || null
+    }
+  } catch {
+    recommendation.value = null
+    activeLineId.value = null
+  } finally {
+    loadingRecommendation.value = false
+  }
 }
 
 async function copyText(text) {
@@ -350,7 +424,23 @@ async function handleScan() {
     let result
     if (mode.value === 'no-order') result = await pickNoOrder(payload)
     else if (mode.value === 'force') result = await pickWithOrderForce(payload)
-    else result = await pickWithOrder(payload)
+    else {
+      const lineId = resolveOutboundLineId(code)
+      if (!lineId) {
+        errorMessage.value = '请选择出库明细行'
+        return
+      }
+      payload.outboundOrderLineId = lineId
+      if (!isRecommendedInventoryTag(recommendation.value, lineId, code)) {
+        await ElMessageBox.confirm(
+          '当前出库库存标签不在推荐出库方案中，是否继续按非推荐方案出库？',
+          '非推荐出库确认',
+          { confirmButtonText: '继续出库', cancelButtonText: '取消', type: 'warning' }
+        )
+        payload.confirmNonRecommended = true
+      }
+      result = await pickWithOrder(payload)
+    }
 
     // Add to history
     scanHistory.value.unshift({
@@ -362,13 +452,25 @@ async function handleScan() {
     })
     markPicked(result.inventoryTagCode)
     inventoryTagCode.value = ''; inventoryTagPreview.value = null
-    loadMaterialTable(); loadForceTable()
+    loadMaterialTable(); loadForceTable(); loadRecommendation()
   } catch (error) {
+    if (error === 'cancel' || error?.message === 'cancel') return
     errorMessage.value = error.response?.data?.message || error.message || '扫码失败'
   } finally {
     scanning.value = false
     nextTick(() => scanInputRef.value?.focus())
   }
+}
+
+function resolveOutboundLineId(code) {
+  const recommendedLineId = findRecommendedLineId(recommendation.value, code)
+  if (recommendedLineId) return recommendedLineId
+  const previewMaterialId = inventoryTagPreview.value?.materialId
+  if (previewMaterialId) {
+    const matched = recommendationLines.value.find((line) => line.materialId === previewMaterialId)
+    if (matched) return matched.outboundOrderLineId
+  }
+  return activeLineId.value
 }
 
 function formatDateTime(value) {
@@ -381,6 +483,7 @@ onMounted(() => {
   nextTick(() => scanInputRef.value?.focus())
   loadMaterialTable()
   loadForceTable()
+  loadRecommendation()
 })
 onBeforeUnmount(() => { stopCamera(); clearTimeout(lookupTimer) })
 </script>
@@ -451,7 +554,17 @@ onBeforeUnmount(() => { stopCamera(); clearTimeout(lookupTimer) })
 
 /* ---- 已扫记录 ---- */
 .history-card { margin-bottom: 20px; }
+.recommendation-card { margin-bottom: 20px; }
 .history-header { display: flex; justify-content: space-between; align-items: center; }
+.recommend-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.empty-tip {
+  color: var(--el-text-color-placeholder);
+  font-size: 13px;
+}
 .history-list { max-height: 200px; overflow-y: auto; }
 .history-item {
   display: flex; align-items: center; gap: 10px; padding: 6px 0;
