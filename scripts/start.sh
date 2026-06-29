@@ -6,9 +6,33 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 PROJECT_ROOT="$(pwd)"
 
+load_env_file() {
+  local file="$1"
+  if [ -f "$file" ]; then
+    set -a
+    # shellcheck disable=SC1090
+    source "$file"
+    set +a
+    echo "  已加载本地环境变量: $file"
+  fi
+}
+
 echo "============================================"
 echo "  SCUT WMS 一键启动"
 echo "============================================"
+
+echo ""
+echo "[0/4] 加载本地环境变量..."
+load_env_file "$PROJECT_ROOT/.env"
+load_env_file "$PROJECT_ROOT/.env.local"
+if [ -n "${WMS_AI_API_KEY:-}" ]; then
+  echo "  AI API Key: 已配置"
+  echo "  AI Base URL: ${WMS_AI_BASE_URL:-https://api.openai.com/v1}"
+  echo "  AI Model: ${WMS_AI_MODEL:-gpt-4o-mini}"
+  echo "  AI API Format: ${WMS_AI_API_FORMAT:-auto}"
+else
+  echo "  AI API Key: 未配置，AI 建议报告接口会返回 NOT_CONFIGURED"
+fi
 
 # ── 1. MySQL ──
 echo ""

@@ -9,3 +9,5 @@ target/
 .vscode/
 *.log
 *.pid
+.env
+.env.*

@@ -15,3 +15,10 @@ mybatis-plus:
   mapper-locations: classpath*:mapper/**/*.xml
   configuration:
     map-underscore-to-camel-case: true
+
+wms:
+  ai:
+    api-key: ${WMS_AI_API_KEY:}
+    base-url: ${WMS_AI_BASE_URL:https://api.deepseek.com}
+    model: ${WMS_AI_MODEL:deepseek-v4-flash}
+    api-format: ${WMS_AI_API_FORMAT:auto}

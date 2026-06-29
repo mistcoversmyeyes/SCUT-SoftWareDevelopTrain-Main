@@ -17,3 +17,4 @@
 - `2026-06-24-acceptance-closure-fix-design.md`：Iteration 4 验收闭环修复设计，覆盖 FR-02 出库阻断、FR-03 封存出库联动、库存标签命名迁移和入库单待收货状态迁移。
 - `2026-06-24-mobile-real-scan-design.md`：手机端真实扫码设计，覆盖库存标签码和出库单二维码的摄像头扫描、图片识别、手动兜底、异常处理和验收方式。
 - `2026-06-27-iter5-batch-inbound-outbound-requirements.md`：Iteration 5 需求规格，覆盖批量入库创建、批量出库 FIFO 推荐、手机端待处理出库单、库存标签批量打印、库存详情短缺筛选和手机端封存/解封。
+- `2026-06-29-ai-warning-scope.md`：Iteration 5 FR-09 AI 预警功能落地规格，覆盖规则型分析接口、页面展示、数据输入、风险口径和验收标准。

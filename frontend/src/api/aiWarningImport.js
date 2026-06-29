@@ -20,3 +20,15 @@ export async function fetchInventoryFlowImportRecords(params = {}) {
   const response = await http.get('/ai-warning/imports/inventory-flow-history/records', { params })
   return response.data
 }
+
+export async function fetchAiInventoryRiskAnalysis() {
+  const response = await http.get('/ai-warning/analysis/inventory-risks')
+  return response.data
+}
+
+export async function fetchAiInventoryRiskReport() {
+  const response = await http.get('/ai-warning/analysis/inventory-risk-report', {
+    timeout: 60000
+  })
+  return response.data
+}

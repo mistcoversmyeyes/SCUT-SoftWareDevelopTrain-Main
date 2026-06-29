@@ -17,7 +17,7 @@
 cd /home/yuming/scut/SCUT_26_spring/software_develop_train
 git checkout main
 git pull origin main:main
-``` 
+```
 
 首次使用全新 MySQL 数据卷，或需要重置演示数据时，先按 `docs/mantainence/index.md` 的数据库入口执行。已有本地演示库时可直接启动：
 
@@ -25,13 +25,23 @@ git pull origin main:main
 bash scripts/start.sh
 ```
 
+如需生成 AI 预警建议报告，在项目根目录创建本地 `.env.local`，不要提交该文件：
+
+```bash
+WMS_AI_API_KEY=your-api-key
+WMS_AI_BASE_URL=https://api.deepseek.com
+WMS_AI_MODEL=deepseek-v4-flash
+WMS_AI_API_FORMAT=auto
+```
+
+`scripts/start.sh` 会自动加载 `.env.local`，并只显示 AI Key 是否已配置，不会打印 Key 内容。
+
 启动完成后访问：
 
 - Web 前端：`http://localhost:5173`
 - 后端服务：`http://localhost:8080`
 - 手机端 H5：`http://localhost:5173/mobile/inbound`
 - 登录账号：`admin` / `123456`
-
 
 ## 用户界面介绍
 
@@ -44,6 +54,8 @@ bash scripts/start.sh
 - 手机端：`/mobile/inbound`、`/mobile/outbound`、`/mobile/inventory-tag`
 
 AI 导入样例：`frontend/public/samples/week4-inventory-flow-history-sample.csv`，页面下载入口为 `http://localhost:5173/samples/week4-inventory-flow-history-sample.csv`。
+
+AI 建议报告查看方式：进入 Web 页面 `/inventory/ai-import`，先确认“AI 预警分析结果”已有风险摘要，再点击“生成 AI 建议报告”。生成期间页面会显示等待时间；生成完成后报告显示在“AI 建议报告”区域，可切换 Markdown 预览/源码视图，也可复制或下载 Markdown。
 
 ## 日志与清理
 
