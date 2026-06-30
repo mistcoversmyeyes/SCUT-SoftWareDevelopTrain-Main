@@ -31,7 +31,7 @@
             placeholder="全部"
             clearable
             filterable
-            style="width: 220px"
+            style="width: 200px"
           >
             <el-option
               v-for="material in materialOptions"
@@ -44,13 +44,30 @@
           </el-select>
         </el-form-item>
 
+        <el-form-item label="供应商">
+          <el-select
+            v-model="filters.supplierId"
+            placeholder="全部"
+            clearable
+            filterable
+            style="width: 200px"
+          >
+            <el-option
+              v-for="supplier in supplierOptions"
+              :key="supplier.id"
+              :value="supplier.id"
+              :label="`${supplier.supplierCode} ${supplier.supplierName}`"
+            />
+          </el-select>
+        </el-form-item>
+
         <el-form-item label="仓库">
           <el-select
             v-model="filters.warehouseCode"
             placeholder="全部"
             clearable
             filterable
-            style="width: 220px"
+            style="width: 200px"
           >
             <el-option
               v-for="warehouse in warehouseOptions"
@@ -69,7 +86,7 @@
             placeholder="全部"
             clearable
             filterable
-            style="width: 240px"
+            style="width: 200px"
           >
             <el-option
               v-for="location in locationOptions"
@@ -79,6 +96,17 @@
             >
               {{ location.code }} {{ location.name }}
             </el-option>
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="库存情况">
+          <el-select
+            v-model="filters.stockState"
+            placeholder="全部"
+            clearable
+            style="width: 140px"
+          >
+            <el-option v-for="item in stockStateOptions" :key="item.value" :value="item.value" :label="item.label" />
           </el-select>
         </el-form-item>
 
@@ -94,7 +122,7 @@
       <div class="summary-grid">
         <div class="summary-card">
           <span class="summary-label">库存行</span>
-          <strong>{{ monitorRows.length }}</strong>
+          <strong>{{ filteredRows.length }}</strong>
         </div>
         <div class="summary-card">
           <span class="summary-label">可用数量</span>
@@ -111,52 +139,52 @@
       </div>
 
       <el-table :data="paginatedRows" border stripe v-loading="loading" style="margin-top: 12px;">
-        <el-table-column prop="materialCode" label="物料编码" width="140" />
-        <el-table-column prop="materialName" label="物料名称" min-width="180" />
         <el-table-column label="供应商" min-width="160">
           <template #default="{ row }">
             <span v-if="row.supplierCode || row.supplierName">{{ row.supplierCode }} {{ row.supplierName }}</span>
             <span v-else>—</span>
           </template>
         </el-table-column>
-        <el-table-column prop="warehouseCode" label="仓库编码" width="120" />
-        <el-table-column prop="locationCode" label="库位编码" width="120" />
-        <el-table-column label="业务数量" min-width="520">
-          <el-table-column prop="onHandQty" label="账面" width="90" align="right">
-            <template #default="{ row }">{{ formatQty(row.onHandQty) }}</template>
-          </el-table-column>
-          <el-table-column prop="availableQty" label="可用" width="90" align="right">
-            <template #default="{ row }">{{ formatQty(row.availableQty) }}</template>
-          </el-table-column>
-          <el-table-column prop="outboundLockedQty" label="出库锁定" width="100" align="right">
-            <template #default="{ row }">{{ formatQty(row.outboundLockedQty) }}</template>
-          </el-table-column>
-          <el-table-column prop="sealedQty" label="封存" width="90" align="right">
-            <template #default="{ row }">{{ formatQty(row.sealedQty) }}</template>
-          </el-table-column>
-          <el-table-column prop="manualLockedQty" label="手锁" width="90" align="right">
-            <template #default="{ row }">{{ formatQty(row.manualLockedQty) }}</template>
-          </el-table-column>
-          <el-table-column prop="looseQty" label="零头" width="90" align="right">
-            <template #default="{ row }">{{ formatQty(row.looseQty) }}</template>
-          </el-table-column>
-        </el-table-column>
-        <el-table-column label="库存状态" width="110">
+        <el-table-column prop="materialCode" label="物料编码" width="140" />
+        <el-table-column prop="materialName" label="物料名称" min-width="160" />
+        <el-table-column label="库存状态" width="100">
           <template #default="{ row }">
             <el-tag :type="tagType(row.stockState.tone)">{{ row.stockState.label }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="缺货风险" width="130">
+        <el-table-column label="缺货风险" width="100">
           <template #default="{ row }">
             <el-tag :type="tagType(row.shortageRisk.tone)">{{ row.shortageRisk.label }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="呆滞风险" width="130">
+        <el-table-column label="呆滞风险" width="100">
           <template #default="{ row }">
             <el-tag :type="tagType(row.stagnationRisk.tone)">{{ row.stagnationRisk.label }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="规则说明" min-width="300">
+        <el-table-column label="业务数量" min-width="500">
+          <el-table-column prop="onHandQty" label="账面" width="85" align="right">
+            <template #default="{ row }">{{ formatQty(row.onHandQty) }}</template>
+          </el-table-column>
+          <el-table-column prop="availableQty" label="可用" width="85" align="right">
+            <template #default="{ row }">{{ formatQty(row.availableQty) }}</template>
+          </el-table-column>
+          <el-table-column prop="outboundLockedQty" label="锁定" width="85" align="right">
+            <template #default="{ row }">{{ formatQty(row.outboundLockedQty) }}</template>
+          </el-table-column>
+          <el-table-column prop="sealedQty" label="封存" width="80" align="right">
+            <template #default="{ row }">{{ formatQty(row.sealedQty) }}</template>
+          </el-table-column>
+          <el-table-column prop="manualLockedQty" label="手锁" width="80" align="right">
+            <template #default="{ row }">{{ formatQty(row.manualLockedQty) }}</template>
+          </el-table-column>
+          <el-table-column prop="looseQty" label="零头" width="80" align="right">
+            <template #default="{ row }">{{ formatQty(row.looseQty) }}</template>
+          </el-table-column>
+        </el-table-column>
+        <el-table-column prop="warehouseCode" label="仓库编码" width="110" />
+        <el-table-column prop="locationCode" label="库位编码" width="110" />
+        <el-table-column label="规则说明" min-width="280">
           <template #default="{ row }">
             <div class="reason-cell">
               <div>{{ row.shortageRisk.reason }}</div>
@@ -164,19 +192,19 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="updatedAt" label="更新时间" min-width="180">
+        <el-table-column prop="updatedAt" label="更新时间" min-width="170">
           <template #default="scope">
             {{ formatDateTime(scope.row.updatedAt) }}
           </template>
         </el-table-column>
       </el-table>
 
-      <div v-if="monitorRows.length > pageSize" class="pagination-wrapper">
+      <div v-if="filteredRows.length > pageSize" class="pagination-wrapper">
         <el-pagination
           v-model:current-page="currentPage"
           v-model:page-size="pageSize"
           :page-sizes="[10, 15, 20, 50]"
-          :total="monitorRows.length"
+          :total="filteredRows.length"
           layout="total, sizes, prev, pager, next, jumper"
           background
         />
@@ -188,7 +216,7 @@
 <script setup>
 import { computed, onBeforeMount, onBeforeUnmount, reactive, ref } from 'vue'
 import { fetchInventoryBalances } from '../../api/inventory'
-import { fetchMasterDataOptions, fetchMaterials } from '../../api/masterData'
+import { fetchMasterDataOptions, fetchMaterials, fetchSuppliers } from '../../api/masterData'
 import { fetchInventoryFlowImportBatches, fetchInventoryFlowImportRecords } from '../../api/aiWarningImport'
 import { buildInventoryMonitorRows, buildWarningDataReadiness } from '../../utils/monitoring'
 
@@ -197,14 +225,24 @@ const AUTO_REFRESH_INTERVAL = 30000
 const filters = reactive({
   materialCode: '',
   warehouseCode: '',
-  locationCode: ''
+  locationCode: '',
+  supplierId: '',
+  stockState: ''
 })
+
+const stockStateOptions = [
+  { value: 'OUT_OF_STOCK', label: '缺货' },
+  { value: 'LOW', label: '低储' },
+  { value: 'NORMAL', label: '正常' },
+  { value: 'HIGH', label: '高储' }
+]
 
 const loading = ref(false)
 const fetchError = ref('')
 const rawBalances = ref([])
 const monitorRows = ref([])
 const materialOptions = ref([])
+const supplierOptions = ref([])
 const warehouseOptions = ref([])
 const locationOptions = ref([])
 const materials = ref([])
@@ -212,16 +250,33 @@ const warningRecords = ref([])
 const warningReadiness = ref({ code: 'NOT_READY', label: '数据未准备', tone: 'warning', reason: '' })
 
 const currentPage = ref(1)
-const pageSize = ref(15)
+const pageSize = ref(10)
 const autoRefresh = ref(false)
 let refreshTimer = null
 
-const paginatedRows = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value
-  return monitorRows.value.slice(start, start + pageSize.value)
+const filteredRows = computed(() => {
+  const filtered = monitorRows.value.filter((row) => {
+    if (filters.supplierId && String(row.supplierId) !== String(filters.supplierId)) {
+      return false
+    }
+    if (filters.stockState && row.stockState.code !== filters.stockState) {
+      return false
+    }
+    return true
+  })
+  return [...filtered].sort((a, b) => {
+    const sa = (a.supplierCode || '').localeCompare(b.supplierCode || '')
+    if (sa !== 0) return sa
+    return (a.materialCode || '').localeCompare(b.materialCode || '')
+  })
 })
 
-const summary = computed(() => monitorRows.value.reduce((acc, row) => {
+const paginatedRows = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredRows.value.slice(start, start + pageSize.value)
+})
+
+const summary = computed(() => filteredRows.value.reduce((acc, row) => {
   acc.availableQty += Number(row.availableQty) || 0
   acc.lockedQty += Number(row.outboundLockedQty) || 0
   acc.sealedQty += Number(row.sealedQty) || 0
@@ -272,7 +327,11 @@ async function queryBalances() {
   fetchError.value = ''
   try {
     const [balances] = await Promise.all([
-      fetchInventoryBalances(pick(filters)),
+      fetchInventoryBalances(pick({
+        materialCode: filters.materialCode,
+        warehouseCode: filters.warehouseCode,
+        locationCode: filters.locationCode
+      })),
       loadWarningData()
     ])
     rawBalances.value = balances
@@ -289,6 +348,8 @@ function resetFilters() {
   filters.materialCode = ''
   filters.warehouseCode = ''
   filters.locationCode = ''
+  filters.supplierId = ''
+  filters.stockState = ''
   queryBalances()
 }
 
@@ -319,17 +380,19 @@ function tagType(tone) {
 
 async function loadMasterData() {
   try {
-    const [options, materialList] = await Promise.all([
+    const [options, materialList, suppliers] = await Promise.all([
       fetchMasterDataOptions(),
-      fetchMaterials()
+      fetchMaterials(),
+      fetchSuppliers()
     ])
     materialOptions.value = options.materials
     warehouseOptions.value = options.warehouses
     locationOptions.value = options.locations
+    supplierOptions.value = suppliers
     materials.value = materialList
     rebuildRows()
   } catch {
-    // ignore and keep manual filters working
+    // ignore
   }
 }
 

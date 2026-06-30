@@ -261,8 +261,9 @@ export function buildInventoryMonitorRows({ balances = [], materials = [], flowR
 
     return {
       ...row,
-      supplierCode: supplier.code || '',
-      supplierName: supplier.name || '',
+      supplierId: supplier.id ?? null,
+      supplierCode: supplier.supplierCode || '',
+      supplierName: supplier.supplierName || '',
       lowStockQty: material.lowStockQty ?? null,
       highStockQty: material.highStockQty ?? null,
       stockState,

@@ -153,37 +153,6 @@
     </el-card>
 
     <!-- ═══════ 物料清单表（底部全宽） ═══════ -->
-    <!-- Normal: 锁定物料清单 -->
-    <el-card v-if="mode==='normal' && materialTable.length" class="material-card" shadow="hover">
-      <template #header>
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <h3 style="margin:0">锁定物料清单</h3>
-          <span style="font-size:13px;color:#909399">{{ pickedCount }}/{{ materialTable.length }} 已出</span>
-        </div>
-      </template>
-      <el-table :data="materialTable" border stripe size="small">
-        <el-table-column label="出库状态" width="90">
-          <template #default="{ row }">
-            <el-tag :type="row._picked ? 'success' : 'info'" size="small">
-              {{ row._picked ? '已出库' : '未出库' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="库存标签码" min-width="240">
-          <template #default="{ row }">
-            <code>{{ row.inventoryTagCode }}</code>
-            <el-button size="small" text type="primary" style="margin-left:6px" @click="copyText(row.inventoryTagCode)">
-              <el-icon><DocumentCopy /></el-icon>
-            </el-button>
-          </template>
-        </el-table-column>
-        <el-table-column prop="materialCode" label="物料编码" width="150" />
-        <el-table-column prop="materialName" label="物料名称" min-width="160" />
-        <el-table-column prop="locationName" label="库位" width="140" />
-        <el-table-column prop="qty" label="锁定量" width="100" align="right" />
-      </el-table>
-    </el-card>
-
     <!-- Force: 符合条件物料清单 -->
     <el-card v-if="mode==='force' && forceTable.length" class="material-card" shadow="hover">
       <template #header>
@@ -233,7 +202,7 @@ import { Camera, DocumentCopy } from '@element-plus/icons-vue'
 import { Html5Qrcode } from 'html5-qrcode'
 import {
   lookupInventoryTag, pickWithOrder, pickWithOrderForce, pickNoOrder,
-  fetchQrInfo, fetchForceCandidates, fetchOutboundRecommendations
+  fetchForceCandidates, fetchOutboundRecommendations
 } from '../../api/outbound'
 import {
   findRecommendedLineId,
@@ -258,13 +227,11 @@ const scannerError = ref('')
 let html5QrCode = null
 
 const scanHistory = ref([])
-const materialTable = ref([])
 const forceTable = ref([])
 const recommendation = ref(null)
 const loadingRecommendation = ref(false)
 const activeLineId = ref(null)
 
-const pickedCount = computed(() => materialTable.value.filter(r => r._picked).length)
 const forcePickedCount = computed(() => forceTable.value.filter(r => r._picked).length)
 const recommendationLines = computed(() => pendingRecommendationLines(recommendation.value))
 
@@ -281,7 +248,7 @@ function applyPickedStatus(table) {
 }
 
 function checkAllDone() {
-  const table = mode.value === 'force' ? forceTable.value : materialTable.value
+  const table = forceTable.value
   if (!table.length) return
   if (table.every(r => r._picked)) {
     ElMessage.success('本单全部库存标签已出库完成！')
@@ -289,21 +256,7 @@ function checkAllDone() {
   }
 }
 
-// Load material tables
-async function loadMaterialTable() {
-  if (mode.value !== 'normal' || !outboundNo.value) return
-  try {
-    const result = await fetchQrInfo(outboundNo.value)
-    materialTable.value = (result.lockedItems || []).map(item => ({
-      inventoryTagCode: item.inventoryTagCode, materialCode: item.materialCode,
-      materialName: item.materialName, locationName: item.locationName, qty: item.lockQty,
-      _picked: false
-    }))
-    applyPickedStatus(materialTable.value)
-    checkAllDone()
-  } catch { materialTable.value = [] }
-}
-
+// Load force candidates
 async function loadForceTable() {
   if (mode.value !== 'force' || !orderId.value) return
   try {
@@ -419,8 +372,8 @@ async function handleScan() {
   const code = inventoryTagCode.value.trim()
   if (!code) { errorMessage.value = '请先输入库存标签码'; return }
   scanning.value = true; errorMessage.value = ''
+  const payload = { inventoryTagCode: code, outboundOrderId: orderId.value || undefined }
   try {
-    const payload = { inventoryTagCode: code, outboundOrderId: orderId.value || undefined }
     let result
     if (mode.value === 'no-order') result = await pickNoOrder(payload)
     else if (mode.value === 'force') result = await pickWithOrderForce(payload)
@@ -452,10 +405,39 @@ async function handleScan() {
     })
     markPicked(result.inventoryTagCode)
     inventoryTagCode.value = ''; inventoryTagPreview.value = null
-    loadMaterialTable(); loadForceTable(); loadRecommendation()
+    loadForceTable(); loadRecommendation()
   } catch (error) {
     if (error === 'cancel' || error?.message === 'cancel') return
-    errorMessage.value = error.response?.data?.message || error.message || '扫码失败'
+    // FIFO violation: show confirmation dialog and retry
+    const isFifoViolation = error.response?.status === 409
+        && error.response?.data?.message?.includes('FIFO')
+    if (isFifoViolation) {
+      try {
+        await ElMessageBox.confirm(
+          error.response.data.message,
+          '非 FIFO 出库确认',
+          { confirmButtonText: '继续出库', cancelButtonText: '取消', type: 'warning' }
+        )
+        payload.confirmNonFifo = true
+        scanning.value = true; errorMessage.value = ''
+        const retryResult = await pickWithOrder(payload)
+        scanHistory.value.unshift({
+          inventoryTagCode: retryResult.inventoryTagCode,
+          materialCode: retryResult.materialCode,
+          materialName: retryResult.materialName,
+          pickedQty: retryResult.pickedQty,
+          time: formatDateTime(retryResult.occurredAt)
+        })
+        markPicked(retryResult.inventoryTagCode)
+        inventoryTagCode.value = ''; inventoryTagPreview.value = null
+        loadForceTable(); loadRecommendation()
+      } catch (retryError) {
+        if (retryError === 'cancel' || retryError?.message === 'cancel') return
+        errorMessage.value = retryError.response?.data?.message || retryError.message || '扫码失败'
+      }
+    } else {
+      errorMessage.value = error.response?.data?.message || error.message || '扫码失败'
+    }
   } finally {
     scanning.value = false
     nextTick(() => scanInputRef.value?.focus())
@@ -481,7 +463,6 @@ function formatDateTime(value) {
 
 onMounted(() => {
   nextTick(() => scanInputRef.value?.focus())
-  loadMaterialTable()
   loadForceTable()
   loadRecommendation()
 })

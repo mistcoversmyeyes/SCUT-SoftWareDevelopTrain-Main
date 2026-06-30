@@ -92,7 +92,7 @@
         </el-table-column>
         <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip />
 
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
             <el-space size="small" wrap>
               <el-button
@@ -103,15 +103,6 @@
                 @click="openEditDrawer(row)"
               >
                 编辑
-              </el-button>
-              <el-button
-                type="warning"
-                size="small"
-                text
-                :disabled="!canRelease(row)"
-                @click="handleReleaseAndLock(row)"
-              >
-                释放并加锁
               </el-button>
               <el-button
                 type="success"
@@ -174,30 +165,6 @@
       :master-data="masterData"
       :on-save="handleSave"
     />
-
-    <el-dialog v-model="warehouseDialogVisible" title="选择出库仓库" width="500px">
-      <el-form label-position="top">
-        <el-form-item label="请在以下仓库中选择出库目标仓库（多选）：">
-          <el-select
-            v-model="selectedWarehouseIds"
-            multiple
-            placeholder="全部仓库"
-            style="width: 100%"
-          >
-            <el-option
-              v-for="wh in masterData.warehouses"
-              :key="wh.id"
-              :label="wh.warehouseName || wh.name"
-              :value="wh.id"
-            />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="warehouseDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="confirmReleaseAndLock">确认释放并加锁</el-button>
-      </template>
-    </el-dialog>
   </section>
 </template>
 
@@ -209,7 +176,6 @@ import {
   cancelOutboundOrder,
   createOutboundOrder,
   fetchOutboundOrders,
-  releaseAndLockOrder,
   updateOutboundOrder
 } from '../../api/outbound'
 import { fetchMasterDataOptions } from '../../api/masterData'
@@ -261,10 +227,6 @@ const paginatedOrders = computed(() => {
   return orders.value.slice(start, start + pageSize.value)
 })
 
-const warehouseDialogVisible = ref(false)
-const releasingOrderId = ref(null)
-const selectedWarehouseIds = ref([])
-
 const statusMap = {
   [DRAFT]: '草稿',
   [LOCKED]: '已锁定',
@@ -284,7 +246,6 @@ const statusTagType = {
 }
 
 const canEdit = (row) => [DRAFT].includes(row.status)
-const canRelease = (row) => row.status === DRAFT
 const canCancel = (row) => [DRAFT].includes(row.status)
 const canPrint = (row) => [LOCKED, PICKING, PARTIAL_SHIPPED, COMPLETED].includes(row.status)
 const canRecommendPick = (row) => [DRAFT, LOCKED, PICKING, PARTIAL_SHIPPED].includes(row.status)
@@ -391,23 +352,6 @@ async function handleSave(payload, mode) {
   } catch (error) {
     console.error('出库单保存失败', { error, response: error.response, data: error.response?.data, status: error.response?.status })
     ElMessage.error(error.response?.data?.message || '保存失败，请重试')
-  }
-}
-
-async function handleReleaseAndLock(row) {
-  releasingOrderId.value = row.id
-  selectedWarehouseIds.value = []
-  warehouseDialogVisible.value = true
-}
-
-async function confirmReleaseAndLock() {
-  try {
-    await releaseAndLockOrder(releasingOrderId.value, selectedWarehouseIds.value)
-    ElMessage.success('释放并加锁成功')
-    warehouseDialogVisible.value = false
-    await loadOrders()
-  } catch (error) {
-    ElMessage.error(error.response?.data?.message || '释放并加锁失败')
   }
 }
 

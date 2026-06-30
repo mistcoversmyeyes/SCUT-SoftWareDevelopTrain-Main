@@ -15,11 +15,6 @@ export async function updateOutboundOrder(id, payload) {
   return response.data
 }
 
-export async function releaseAndLockOrder(id, warehouseIds) {
-  const response = await http.post(`/outbound-orders/${id}/release-and-lock`, { warehouseIds })
-  return response.data
-}
-
 export async function cancelOutboundOrder(id) {
   const response = await http.post(`/outbound-orders/${id}/cancel`)
   return response.data

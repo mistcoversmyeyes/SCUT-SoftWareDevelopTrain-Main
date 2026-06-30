@@ -9,7 +9,7 @@
     </div>
 
     <el-alert type="info" :closable="false" show-icon style="margin-bottom:20px"
-      title="扫描出库单二维码，加载锁定物料清单后跳转到扫码出库页面。" />
+      title="扫描出库单二维码，加载出库单信息后跳转到扫码出库页面。" />
 
     <!-- Scan main card -->
     <el-card class="scan-main" shadow="hover">
@@ -75,7 +75,7 @@
       </el-table>
     </el-card>
 
-    <!-- Order info + locked items (when order loaded) -->
+    <!-- Order info (when order loaded) -->
     <template v-if="orderInfo">
       <el-card class="order-card" shadow="hover">
         <el-descriptions :column="3" border size="small">
@@ -88,34 +88,6 @@
           <el-descriptions-item label="已拣总量">{{ orderInfo.pickedQty || 0 }}</el-descriptions-item>
           <el-descriptions-item label="用途">{{ orderInfo.purpose || '—' }}</el-descriptions-item>
         </el-descriptions>
-      </el-card>
-
-      <el-card class="items-card" shadow="hover">
-        <template #header><span>锁定物料清单</span></template>
-        <el-table :data="lockedItems" border stripe size="small" v-loading="loadingQr">
-          <el-table-column label="行号" width="70">
-            <template #default="{ row }">{{ row.lineNo }}</template>
-          </el-table-column>
-          <el-table-column prop="inventoryTagCode" label="库存标签码" min-width="200">
-            <template #default="{ row }">
-              <code>{{ row.inventoryTagCode }}</code>
-              <el-button size="small" text type="primary" style="margin-left:4px" @click="copyCode(row.inventoryTagCode)">
-                <el-icon><DocumentCopy /></el-icon>
-              </el-button>
-            </template>
-          </el-table-column>
-          <el-table-column prop="materialCode" label="物料编码" width="140" />
-          <el-table-column prop="materialName" label="物料名称" min-width="150" />
-          <el-table-column prop="locationName" label="库位" width="130" />
-          <el-table-column prop="lockQty" label="锁定量" width="100" align="right" />
-          <el-table-column label="库存标签状态" width="100">
-            <template #default="{ row }">
-              <el-tag :type="row.lockStatus==='LOCKED'?'warning':'success'" size="small">
-                {{ row.lockStatus==='LOCKED'?'待拣货':'已出库' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-        </el-table>
       </el-card>
 
       <div class="action-row">
@@ -133,7 +105,7 @@
 import { nextTick, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Camera, DocumentCopy } from '@element-plus/icons-vue'
+import { Camera } from '@element-plus/icons-vue'
 import { Html5Qrcode } from 'html5-qrcode'
 import { fetchQrInfo, fetchOutboundOrders } from '../../api/outbound'
 
@@ -142,7 +114,6 @@ const route = useRoute()
 
 const orderQrCode = ref('')
 const orderInfo = ref(null)
-const lockedItems = ref([])
 const loadingQr = ref(false)
 const errorMsg = ref('')
 const pendingOrders = ref([])
@@ -206,10 +177,10 @@ async function loadQrInfo() {
   loadingQr.value = true; errorMsg.value = ''
   try {
     const result = await fetchQrInfo(outboundNo)
-    orderInfo.value = result.order; lockedItems.value = result.lockedItems || []
+    orderInfo.value = result.order
   } catch (error) {
     errorMsg.value = error.response?.data?.message || '查询失败'
-    orderInfo.value = null; lockedItems.value = []
+    orderInfo.value = null
   } finally { loadingQr.value = false }
 }
 
@@ -221,8 +192,6 @@ function goScan(mode) {
 }
 
 function handlePause() { ElMessage.success('拣货已暂停'); router.push('/outbound/orders') }
-
-function copyCode(code) { navigator.clipboard.writeText(code); ElMessage.success('已复制') }
 
 const routeOrderId = route.query.orderId
 if (routeOrderId) { orderQrCode.value = String(routeOrderId); loadQrInfo() }
@@ -249,10 +218,8 @@ onBeforeUnmount(() => { stopCamera() })
 
 .manual-input { display:flex; align-items:center; gap:12px; justify-content:center; flex-wrap:wrap; margin-bottom:12px; }
 
-.pending-card, .order-card, .items-card { margin-bottom:20px; }
+.pending-card, .order-card { margin-bottom:20px; }
 .pending-card :deep(.el-table__row:hover) { background-color:var(--el-fill-color-light); }
-
-.items-card code { font-family:'Courier New',monospace; font-size:0.82rem; }
 
 .action-row { display:flex; gap:16px; justify-content:center; margin:24px 0; }
 </style>

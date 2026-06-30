@@ -120,7 +120,7 @@ public class OutboundPickingService {
             ctx = inventoryTransactionMapper.selectScanInventoryTagForUpdate(request.inventoryTagCode());
         }
 
-        return executePick(ctx, board, request, force, confirmedNonRecommended);
+        return executePick(ctx, board, request, force, confirmedNonRecommended, request.isConfirmNonFifo());
     }
 
     @Transactional
@@ -136,7 +136,7 @@ public class OutboundPickingService {
             lockService.markForceStolen(ctx.getInventoryTagId());
         }
         lockService.createForceAudit(null, ctx);
-        return executePick(ctx, board, request, true, false);
+        return executePick(ctx, board, request, true, false, false);
     }
 
     private ScanOutboundResponse executePick(
@@ -144,7 +144,8 @@ public class OutboundPickingService {
             InventoryTag board,
             ScanOutboundRequest request,
             boolean forceOutbound,
-            boolean confirmedNonRecommended
+            boolean confirmedNonRecommended,
+            boolean confirmNonFifo
     ) {
         LocalDateTime now = LocalDateTime.now();
 
@@ -155,7 +156,15 @@ public class OutboundPickingService {
         }
 
         if (!forceOutbound && !confirmedNonRecommended) {
-            inventoryHoldService.assertNormalFifoPick(request.outboundOrderId(), effectiveOrderLineId, ctx.getInventoryTagId());
+            try {
+                inventoryHoldService.assertNormalFifoPick(request.outboundOrderId(), effectiveOrderLineId, ctx.getInventoryTagId());
+            } catch (BusinessException e) {
+                if (!confirmNonFifo) {
+                    throw new BusinessException(HttpStatus.CONFLICT, e.getMessage());
+                }
+                // Non-FIFO confirmed: record force audit and proceed
+                lockService.createForceAudit(request.outboundOrderId(), ctx);
+            }
         }
 
         BigDecimal pickQty = request.qty();

@@ -63,10 +63,10 @@ public class DashboardService {
             Material m = materialMapper.selectById(b.getMaterialId());
             if (m == null) continue;
 
-            if (m.getLowStockQty() != null && b.getOnHandQty().compareTo(m.getLowStockQty()) < 0) {
+            if (m.getLowStockQty() != null && b.getOnHandQty().compareTo(m.getLowStockQty()) <= 0) {
                 lowStockAlerts.add(toLowStockAlert(b, m));
             }
-            if (m.getHighStockQty() != null && b.getOnHandQty().compareTo(m.getHighStockQty()) > 0) {
+            if (m.getHighStockQty() != null && b.getOnHandQty().compareTo(m.getHighStockQty()) >= 0) {
                 highStockAlerts.add(toHighStockAlert(b, m));
             }
         }

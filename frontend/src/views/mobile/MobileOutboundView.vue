@@ -152,18 +152,6 @@
           <dd>{{ formatQty(orderInfo.pickedQty) }}</dd>
         </div>
       </dl>
-      <div v-if="lockedItems.length" class="compact-list">
-        <article v-for="item in lockedItems" :key="item.id || item.inventoryTagCode" class="compact-item">
-          <div>
-            <strong>{{ item.inventoryTagCode }}</strong>
-            <p>{{ item.materialCode }} {{ item.materialName }}</p>
-          </div>
-          <div class="compact-meta">
-            <span>{{ item.locationName || '—' }}</span>
-            <span>锁定 {{ formatQty(item.lockQty) }}</span>
-          </div>
-        </article>
-      </div>
     </section>
 
     <section v-if="mode === 'with-order' && recommendationLines.length" class="panel">
@@ -470,7 +458,38 @@ async function submitOutbound() {
     if (error === 'cancel' || error?.message === 'cancel') {
       return
     }
-    errorMessage.value = error.response?.data?.message || error.message || '出库失败'
+    // FIFO violation: show confirmation dialog and retry (same as web OutboundScanView)
+    const isFifoViolation = error.response?.status === 409
+        && error.response?.data?.message?.includes('FIFO')
+    if (isFifoViolation && mode.value === 'with-order') {
+      try {
+        await ElMessageBox.confirm(
+          error.response.data.message,
+          '非 FIFO 出库确认',
+          { confirmButtonText: '继续出库', cancelButtonText: '取消', type: 'warning' }
+        )
+        payload.confirmNonFifo = true
+        submitting.value = true
+        errorMessage.value = ''
+        result.value = mode.value === 'with-order'
+          ? await pickWithOrder(payload)
+          : await pickNoOrder(payload)
+        inventoryTagCode.value = ''
+        qty.value = undefined
+        preview.value = null
+        if (mode.value === 'with-order' && outboundNo.value.trim()) {
+          await loadOrder()
+          await loadPendingOrders()
+        }
+      } catch (retryError) {
+        if (retryError === 'cancel' || retryError?.message === 'cancel') {
+          return
+        }
+        errorMessage.value = retryError.response?.data?.message || retryError.message || '出库失败'
+      }
+    } else {
+      errorMessage.value = error.response?.data?.message || error.message || '出库失败'
+    }
   } finally {
     submitting.value = false
   }

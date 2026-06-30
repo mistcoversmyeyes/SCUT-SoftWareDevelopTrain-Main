@@ -10,9 +10,14 @@ public record ScanOutboundRequest(
         BigDecimal qty,
         Long outboundOrderId,
         Long outboundOrderLineId,
-        Boolean confirmNonRecommended
+        Boolean confirmNonRecommended,
+        Boolean confirmNonFifo
 ) {
     public boolean isConfirmNonRecommended() {
         return Boolean.TRUE.equals(confirmNonRecommended);
+    }
+
+    public boolean isConfirmNonFifo() {
+        return Boolean.TRUE.equals(confirmNonFifo);
     }
 }
