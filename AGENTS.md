@@ -35,6 +35,9 @@ docs/
 │   ├── verification.md           <- 启动后接口、前端、数据库和日志检查
 │   ├── cleanup.md                <- 停止服务、停止容器和清理数据卷
 │   └── troubleshooting.md        <- Docker/MySQL/npm/端口常见故障
+├── presentation/
+│   ├── index.md                  <- 分享、答辩和课堂演示辅助材料索引
+│   └── ...                       <- 只服务表达展示；不作为规格或验收第一事实源
 ├── references/
 │   ├── index.md                  <- 本地外部参考索引
 │   └── ...
