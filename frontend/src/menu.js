@@ -27,6 +27,8 @@ export const menuItems = [
   { key: 'outbound', title: '出库管理', icon: Van, children: [
       { key: 'outbound-orders', title: '出库单', path: '/outbound/orders',
         description: '处理生产领料、退货等出库业务。', fields: ['出库单号', '出库用途'] },
+      { key: 'outbound-batch-create', title: '批量出库', path: '/outbound/batch-create',
+        description: '按供应商批量选择物料和数量后批量创建出库单。', fields: ['供应商', '物料', '数量'] },
       { key: 'outbound-pick-with-order', title: '带单出库', path: '/outbound/pick-with-order',
         description: '扫描出库单二维码，按锁定指引执行 FIFO 拣货。', fields: ['出库单号', '锁定物料'] },
       { key: 'outbound-pick-no-order', title: '不带单出库', path: '/outbound/pick-no-order',

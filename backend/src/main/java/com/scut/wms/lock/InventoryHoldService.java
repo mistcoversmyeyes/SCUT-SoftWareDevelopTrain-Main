@@ -6,6 +6,7 @@ import com.scut.wms.inbound.InboundOrderLine;
 import com.scut.wms.inbound.InboundOrderLineMapper;
 import com.scut.wms.inbound.InventoryTag;
 import com.scut.wms.inbound.InventoryTagMapper;
+import com.scut.wms.inventory.InventoryTransactionMapper;
 import com.scut.wms.masterdata.Material;
 import com.scut.wms.masterdata.MaterialMapper;
 import com.scut.wms.masterdata.StorageLocation;
@@ -40,6 +41,7 @@ public class InventoryHoldService {
     private final InventoryLockMapper inventoryLockMapper;
     private final OutboundOrderMapper outboundOrderMapper;
     private final OutboundOrderLineMapper outboundOrderLineMapper;
+    private final InventoryTransactionMapper inventoryTransactionMapper;
 
     public InventoryHoldService(
             InventoryHoldMapper inventoryHoldMapper,
@@ -49,7 +51,8 @@ public class InventoryHoldService {
             StorageLocationMapper storageLocationMapper,
             InventoryLockMapper inventoryLockMapper,
             OutboundOrderMapper outboundOrderMapper,
-            OutboundOrderLineMapper outboundOrderLineMapper
+            OutboundOrderLineMapper outboundOrderLineMapper,
+            InventoryTransactionMapper inventoryTransactionMapper
     ) {
         this.inventoryHoldMapper = inventoryHoldMapper;
         this.inventoryTagMapper = inventoryTagMapper;
@@ -59,6 +62,7 @@ public class InventoryHoldService {
         this.inventoryLockMapper = inventoryLockMapper;
         this.outboundOrderMapper = outboundOrderMapper;
         this.outboundOrderLineMapper = outboundOrderLineMapper;
+        this.inventoryTransactionMapper = inventoryTransactionMapper;
     }
 
     @Transactional
@@ -129,7 +133,7 @@ public class InventoryHoldService {
         return hasActiveHold(inventoryTagId, InventoryHold.SEALED, InventoryHold.MANUAL_LOCK);
     }
 
-    public void assertNormalFifoPick(Long outboundOrderId, Long outboundOrderLineId, Long inventoryTagId) {
+    public void assertNormalFifoPick(Long outboundOrderId, Long outboundOrderLineId, Long inventoryTagId, Long materialId) {
         if (outboundOrderId == null || outboundOrderLineId == null) {
             return;
         }
@@ -138,22 +142,34 @@ public class InventoryHoldService {
                         .eq(InventoryLock::getOutboundOrderId, outboundOrderId)
                         .eq(InventoryLock::getOutboundOrderLineId, outboundOrderLineId)
                         .eq(InventoryLock::getStatus, InventoryLock.LOCKED));
-        if (activeLocks.isEmpty()) {
+        if (!activeLocks.isEmpty()) {
+            // Lock-based FIFO: check against locked tags
+            List<InventoryTag> candidates = activeLocks.stream()
+                    .map(lock -> inventoryTagMapper.selectById(lock.getInventoryTagId()))
+                    .filter(Objects::nonNull)
+                    .filter(board -> remainingQty(board).compareTo(BigDecimal.ZERO) > 0)
+                    .sorted(Comparator.comparing(InventoryTag::getReceivedAt, Comparator.nullsLast(LocalDateTime::compareTo))
+                            .thenComparing(InventoryTag::getId))
+                    .toList();
+            if (!candidates.isEmpty()) {
+                InventoryTag expected = candidates.get(0);
+                if (!Objects.equals(expected.getId(), inventoryTagId)) {
+                    throw new BusinessException("FIFO 违规：请先出库更早入库的库存标签 " + expected.getInventoryTagCode());
+                }
+            }
             return;
         }
-        List<InventoryTag> candidates = activeLocks.stream()
-                .map(lock -> inventoryTagMapper.selectById(lock.getInventoryTagId()))
-                .filter(Objects::nonNull)
-                .filter(board -> remainingQty(board).compareTo(BigDecimal.ZERO) > 0)
-                .sorted(Comparator.comparing(InventoryTag::getReceivedAt, Comparator.nullsLast(LocalDateTime::compareTo))
-                        .thenComparing(InventoryTag::getId))
-                .toList();
-        if (candidates.isEmpty()) {
+
+        // No locks: check FIFO against all available RECEIVED tags for this material
+        if (materialId == null) {
             return;
         }
-        InventoryTag expected = candidates.get(0);
-        if (!Objects.equals(expected.getId(), inventoryTagId)) {
-            throw new BusinessException("FIFO 违规：请先出库更早入库的库存标签 " + expected.getInventoryTagCode());
+        Long earliestFifoTagId = inventoryTransactionMapper.selectEarliestFifoTagId(materialId);
+        if (earliestFifoTagId != null && !Objects.equals(earliestFifoTagId, inventoryTagId)) {
+            InventoryTag expected = inventoryTagMapper.selectById(earliestFifoTagId);
+            if (expected != null) {
+                throw new BusinessException("FIFO 违规：请先出库更早入库的库存标签 " + expected.getInventoryTagCode());
+            }
         }
     }
 

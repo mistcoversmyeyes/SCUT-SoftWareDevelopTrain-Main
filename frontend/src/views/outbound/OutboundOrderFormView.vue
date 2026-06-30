@@ -41,7 +41,8 @@
         <el-table-column label="供应商" width="170">
           <template #default="{ row, $index }">
             <el-form-item :rules="lineRules.supplier" :prop="`lines.${$index}.supplierId`">
-              <el-select v-model="row.supplierId" placeholder="选供应商" filterable clearable>
+              <el-select v-model="row.supplierId" placeholder="选供应商" filterable clearable
+                @change="onSupplierChange($index)">
                 <el-option v-for="s in masterData.suppliers" :key="s.id"
                   :label="`${s.code} ${s.name}`" :value="s.id" />
               </el-select>
@@ -54,14 +55,14 @@
             <el-form-item :rules="lineRules.material" :prop="`lines.${$index}.materialId`">
               <el-select v-model="row.materialId" placeholder="选物料" filterable clearable
                 @change="onMaterialChange($index)">
-                <el-option v-for="m in masterData.materials" :key="m.id"
+                <el-option v-for="m in (row._materialOptions || masterData.materials)" :key="m.id"
                   :label="`${m.code} ${m.name}`" :value="m.id" />
               </el-select>
             </el-form-item>
           </template>
         </el-table-column>
 
-        <el-table-column label="容器类型" width="190">
+        <el-table-column label="容器类型(选填)" width="190">
           <template #default="{ row, $index }">
             <el-form-item :rules="lineRules.containerType" :prop="`lines.${$index}.containerTypeId`">
               <el-select v-model="row.containerTypeId" placeholder="选容器" clearable
@@ -74,23 +75,15 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="箱数" width="110">
+        <el-table-column label="件数" width="130">
           <template #default="{ row, $index }">
-            <el-form-item :rules="lineRules.boxCount" :prop="`lines.${$index}._boxCount`">
-              <el-input-number v-model="row._boxCount" :min="1" :precision="0" :step="1"
-                :disabled="!row._capacityQty" controls-position="right"
-                style="width:100%" @change="onBoxCountChange($index)" />
+            <el-form-item :rules="lineRules.plannedQty" :prop="`lines.${$index}.plannedQty`">
+              <el-input-number v-model="row.plannedQty" :min="1" :precision="0" :step="1"
+                controls-position="right" style="width:100%" />
             </el-form-item>
           </template>
         </el-table-column>
 
-        <el-table-column label="总件数" width="100" align="right">
-          <template #default="{ row }">
-            <span :class="computedQty(row) > 0 ? 'qty-display' : 'qty-display-zero'">
-              {{ computedQty(row) || '—' }}
-            </span>
-          </template>
-        </el-table-column>
 
         <el-table-column label="操作" width="70">
           <template #default="{ $index }">
@@ -115,7 +108,7 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { fetchMaterialContainerTypes } from '../../api/masterData'
+import { fetchMaterialContainerTypes, fetchMaterials } from '../../api/masterData'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -141,9 +134,9 @@ const rules = {
 const lineRules = {
   supplier: [{ required: true, message: '请选择供应商', trigger: 'change' }],
   material: [{ required: true, message: '请选择物料', trigger: 'change' }],
-  containerType: [{ required: true, message: '请选择容器类型', trigger: 'change' }],
-  boxCount: [{ required: true, message: '请填写箱数', trigger: 'change' },
-    { validator: (_r, v, cb) => { const n = Number(v); cb(Number.isNaN(n)||n<1 ? new Error('至少1箱') : undefined) }, trigger: 'change' }]
+  containerType: [],
+  plannedQty: [{ required: true, message: '请填写出库件数', trigger: 'change' },
+    { validator: (_r, v, cb) => { const n = Number(v); cb(Number.isNaN(n)||n<1 ? new Error('件数至少为1') : undefined) }, trigger: 'change' }]
 }
 
 watch(() => props.visible, (visible) => {
@@ -154,7 +147,7 @@ watch(visibleSync, (v) => emit('update:visible', v))
 
 const emptyLine = () => ({
   materialId: undefined, supplierId: undefined, plannedQty: undefined,
-  containerTypeId: undefined, _containerOptions: [], _capacityQty: 0, _boxCount: 1
+  containerTypeId: undefined, _containerOptions: [], _materialOptions: null
 })
 
 function normalizeInitialOrder(order) {
@@ -178,52 +171,43 @@ function initForm() {
   form.sourceDocNo = norm.sourceDocNo
   form.remark = norm.remark
   form.lines = norm.lines.length ? norm.lines.map(l => ({ ...emptyLine(), ...l })) : [emptyLine()]
-  // Edit mode: load container options for each line
+  // Edit mode: load container options and material options for each line
   if (norm.lines.length) {
-    form.lines.forEach((line, i) => {
+    form.lines.forEach((line) => {
+      if (line.supplierId) {
+        fetchMaterials({ supplierId: line.supplierId }).then(list => {
+          line._materialOptions = Array.isArray(list) ? list.map(m => ({ id: m.id, code: m.materialCode, name: m.materialName })) : []
+        }).catch(() => { line._materialOptions = [] })
+      }
       if (line.materialId) {
         fetchMaterialContainerTypes(line.materialId).then(types => {
-          const list = Array.isArray(types) ? types : []
-          line._containerOptions = list
-          if (list.length && line.containerTypeId) {
-            const ct = list.find(t => t.id === line.containerTypeId)
-            line._capacityQty = ct ? (ct.capacityQty || 0) : 0
-            if (line._capacityQty > 0 && line.plannedQty) {
-              line._boxCount = Math.floor(Number(line.plannedQty) / line._capacityQty) || 1
-            }
-          }
+          line._containerOptions = Array.isArray(types) ? types : []
         })
       }
     })
   }
 }
 
-function computedQty(row) {
-  const cap = row._capacityQty || 0
-  const boxes = Number(row._boxCount) || 0
-  if (cap <= 0 || boxes <= 0) return 0
-  return boxes * cap
-}
-
-function onBoxCountChange(index) {
+async function onSupplierChange(index) {
   const line = form.lines[index]
   if (!line) return
-  line.plannedQty = computedQty(line)
+  if (!line.supplierId) {
+    line._materialOptions = null
+    line.materialId = undefined
+    return
+  }
+  line.materialId = undefined
+  line._materialOptions = null
+  try {
+    const list = await fetchMaterials({ supplierId: line.supplierId })
+    line._materialOptions = Array.isArray(list) ? list.map(m => ({ id: m.id, code: m.materialCode, name: m.materialName })) : []
+  } catch {
+    line._materialOptions = []
+  }
 }
 
 function onContainerChange(index) {
-  const line = form.lines[index]
-  if (!line || !line.containerTypeId) return
-  const ct = line._containerOptions?.find(t => t.id === line.containerTypeId)
-  line._capacityQty = ct ? (ct.capacityQty || 0) : 0
-  if (line._capacityQty > 0) {
-    // For edit mode: unpack plannedQty → boxCount
-    if (line.plannedQty && line._boxCount === 1) {
-      const pq = Number(line.plannedQty)
-      line._boxCount = Math.floor(pq / line._capacityQty) || 1
-    }
-    line.plannedQty = computedQty(line)
-  }
+  // Container type is now reference-only; no impact on plannedQty
 }
 
 function appendLine() { form.lines.push(emptyLine()) }
@@ -232,28 +216,25 @@ function removeLine(index) { if (form.lines.length > 1) form.lines.splice(index,
 async function onMaterialChange(index) {
   const line = form.lines[index]
   if (!line) return
-  if (!line.materialId) { line._containerOptions = []; line.containerTypeId = undefined; line._capacityQty = 0; return }
+  if (!line.materialId) { line._containerOptions = []; line.containerTypeId = undefined; return }
   try {
     const types = await fetchMaterialContainerTypes(line.materialId)
     const list = Array.isArray(types) ? types : []
     if (!list.length) {
       ElMessage.warning('该物料未配置包装容器，请先在基础数据中配置')
-      line.materialId = undefined; line._containerOptions = []; line.containerTypeId = undefined; line._capacityQty = 0
+      line.materialId = undefined; line._containerOptions = []; line.containerTypeId = undefined
       return
     }
     line._containerOptions = list
     if (list.length === 1) {
       line.containerTypeId = list[0].id
-      line._capacityQty = list[0].capacityQty || 0
     } else {
       const def = list.find(t => t.isDefault)
       line.containerTypeId = def ? def.id : list[0].id
-      line._capacityQty = (def || list[0]).capacityQty || 0
     }
-    line.plannedQty = computedQty(line)
   } catch (error) {
     ElMessage.error(error.response?.data?.message || '加载容器类型失败')
-    line._containerOptions = []; line.containerTypeId = undefined; line._capacityQty = 0
+    line._containerOptions = []; line.containerTypeId = undefined
   }
 }
 
@@ -263,7 +244,7 @@ function toPayload() {
     .map(l => ({
       supplierId: l.supplierId,
       materialId: l.materialId,
-      plannedQty: computedQty(l),
+      plannedQty: l.plannedQty,
       containerTypeId: l.containerTypeId
     }))
   return {
@@ -294,6 +275,4 @@ async function submitForm() {
 .detail-table :deep(.el-form-item__content) { margin-left: 0 !important; }
 .detail-table :deep(.el-form-item__error) { display: none; }
 .detail-table :deep(.el-table__cell) { padding: 6px 8px; }
-.qty-display { font-weight: 700; color: #409eff; }
-.qty-display-zero { color: #c0c4cc; }
 </style>

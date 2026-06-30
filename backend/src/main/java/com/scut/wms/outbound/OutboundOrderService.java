@@ -23,11 +23,15 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -101,6 +105,44 @@ public class OutboundOrderService {
 
         insertLines(order.getId(), request.lines());
         return toResponse(order.getId());
+    }
+
+    @Transactional
+    public BatchOutboundOrderResponse createBatch(BatchOutboundOrderRequest request) {
+        // Validate via existing validateRequest
+        OutboundOrderRequest validationRequest = new OutboundOrderRequest(
+                request.purpose(),
+                request.sourceDocNo(),
+                request.remark(),
+                request.lines()
+        );
+        validateRequest(validationRequest);
+
+        // Group by supplierId (preserve insertion order)
+        Map<Long, List<OutboundOrderRequest.LineItem>> grouped = request.lines().stream()
+                .collect(Collectors.groupingBy(
+                        OutboundOrderRequest.LineItem::supplierId,
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
+
+        // Create one order per supplier
+        List<OutboundOrderResponse> orders = new ArrayList<>();
+        for (List<OutboundOrderRequest.LineItem> supplierLines : grouped.values()) {
+            OutboundOrderResponse created = create(new OutboundOrderRequest(
+                    request.purpose(),
+                    request.sourceDocNo(),
+                    request.remark(),
+                    supplierLines
+            ));
+            orders.add(created);
+        }
+
+        return new BatchOutboundOrderResponse(
+                orders.size(),
+                request.lines().size(),
+                orders
+        );
     }
 
     @Transactional

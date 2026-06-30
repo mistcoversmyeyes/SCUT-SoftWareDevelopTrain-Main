@@ -18,6 +18,7 @@ import InboundPrintView from '../views/inbound/InboundPrintView.vue'
 import InventoryTagPrintView from '../views/inbound/InventoryTagPrintView.vue'
 import InventoryTagDetailView from '../views/inbound/InventoryTagDetailView.vue'
 import OutboundOrderListView from '../views/outbound/OutboundOrderListView.vue'
+import BatchOutboundCreateView from '../views/outbound/BatchOutboundCreateView.vue'
 import OutboundScanView from '../views/outbound/OutboundScanView.vue'
 import OutboundDetailView from '../views/outbound/OutboundDetailView.vue'
 import OutboundHistoryView from '../views/outbound/OutboundHistoryView.vue'
@@ -49,6 +50,7 @@ const pageByKey = {
   'inbound-scan': InboundScanView,
   'inbound-history': InboundHistoryView,
   'outbound-orders': OutboundOrderListView,
+  'outbound-batch-create': BatchOutboundCreateView,
   'outbound-scan': OutboundScanView,
   'outbound-pick-with-order': OutboundPickWithOrderView,
   'outbound-pick-no-order': OutboundPickNoOrderView,

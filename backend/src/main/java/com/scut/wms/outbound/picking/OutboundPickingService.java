@@ -155,9 +155,9 @@ public class OutboundPickingService {
             effectiveOrderLineId = board.getLockedByOrderLineId();
         }
 
-        if (!forceOutbound && !confirmedNonRecommended) {
+        if (!forceOutbound) {
             try {
-                inventoryHoldService.assertNormalFifoPick(request.outboundOrderId(), effectiveOrderLineId, ctx.getInventoryTagId());
+                inventoryHoldService.assertNormalFifoPick(request.outboundOrderId(), effectiveOrderLineId, ctx.getInventoryTagId(), ctx.getMaterialId());
             } catch (BusinessException e) {
                 if (!confirmNonFifo) {
                     throw new BusinessException(HttpStatus.CONFLICT, e.getMessage());

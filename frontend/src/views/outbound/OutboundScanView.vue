@@ -69,6 +69,14 @@
           style="width:360px" @keyup.enter="handleScan">
           <template #prepend>库存标签码</template>
         </el-input>
+        <el-input-number
+          v-model="qty"
+          :min="1" :step="1" :precision="0"
+          size="large"
+          placeholder="件数(留空=全部)"
+          style="width:160px"
+          :disabled="scanning"
+        />
         <el-button type="primary" size="large" :loading="scanning"
           style="min-width:120px" @click="handleScan">
           确认出库
@@ -231,6 +239,7 @@ const forceTable = ref([])
 const recommendation = ref(null)
 const loadingRecommendation = ref(false)
 const activeLineId = ref(null)
+const qty = ref(undefined)
 
 const forcePickedCount = computed(() => forceTable.value.filter(r => r._picked).length)
 const recommendationLines = computed(() => pendingRecommendationLines(recommendation.value))
@@ -392,6 +401,7 @@ async function handleScan() {
         )
         payload.confirmNonRecommended = true
       }
+      payload.qty = qty.value || undefined
       result = await pickWithOrder(payload)
     }
 
@@ -404,7 +414,7 @@ async function handleScan() {
       time: formatDateTime(result.occurredAt)
     })
     markPicked(result.inventoryTagCode)
-    inventoryTagCode.value = ''; inventoryTagPreview.value = null
+    inventoryTagCode.value = ''; qty.value = undefined; inventoryTagPreview.value = null
     loadForceTable(); loadRecommendation()
   } catch (error) {
     if (error === 'cancel' || error?.message === 'cancel') return
@@ -419,6 +429,7 @@ async function handleScan() {
           { confirmButtonText: '继续出库', cancelButtonText: '取消', type: 'warning' }
         )
         payload.confirmNonFifo = true
+        payload.qty = qty.value || undefined
         scanning.value = true; errorMessage.value = ''
         const retryResult = await pickWithOrder(payload)
         scanHistory.value.unshift({
@@ -429,7 +440,7 @@ async function handleScan() {
           time: formatDateTime(retryResult.occurredAt)
         })
         markPicked(retryResult.inventoryTagCode)
-        inventoryTagCode.value = ''; inventoryTagPreview.value = null
+        inventoryTagCode.value = ''; qty.value = undefined; inventoryTagPreview.value = null
         loadForceTable(); loadRecommendation()
       } catch (retryError) {
         if (retryError === 'cancel' || retryError?.message === 'cancel') return

@@ -422,12 +422,12 @@ async function submitOutbound() {
   errorMessage.value = ''
   result.value = null
 
+  const payload = {
+    inventoryTagCode: code,
+    qty: qty.value || undefined,
+    outboundOrderId: mode.value === 'with-order' ? orderInfo.value.id : undefined
+  }
   try {
-    const payload = {
-      inventoryTagCode: code,
-      qty: qty.value || undefined,
-      outboundOrderId: mode.value === 'with-order' ? orderInfo.value.id : undefined
-    }
     if (mode.value === 'with-order') {
       const lineId = resolveOutboundLineId(code)
       if (!lineId) {

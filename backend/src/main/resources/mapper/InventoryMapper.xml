@@ -266,6 +266,23 @@
         ORDER BY k.received_at ASC, k.id ASC
     </select>
 
+    <select id="selectEarliestFifoTagId" resultType="long">
+        SELECT k.id
+        FROM inventory_tag k
+                 JOIN inbound_order_line iol ON iol.id = k.inbound_order_line_id
+        WHERE k.status = 'RECEIVED'
+          AND (k.board_qty - COALESCE(k.picked_qty, 0)) > 0
+          AND iol.material_id = #{materialId}
+          AND NOT EXISTS (
+              SELECT 1 FROM inventory_hold ih
+              WHERE ih.inventory_tag_id = k.id
+                AND ih.status = 'ACTIVE'
+                AND ih.hold_type IN ('SEALED', 'MANUAL_LOCK')
+          )
+        ORDER BY k.received_at ASC, k.id ASC
+        LIMIT 1
+    </select>
+
     <select id="selectFifoCandidatesForLock" resultType="com.scut.wms.outbound.picking.FifoPickCandidate">
         SELECT kb.id AS inventoryTagId,
                kb.inventory_tag_code AS inventoryTagCode,

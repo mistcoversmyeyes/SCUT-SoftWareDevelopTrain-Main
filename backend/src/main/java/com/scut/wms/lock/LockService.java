@@ -139,20 +139,10 @@ public class LockService {
 
             if (lockedForLine.compareTo(needed) < 0) {
                 Material mat = materialMapper.selectById(line.getMaterialId());
-                ContainerType ct = line.getContainerTypeId() != null ? containerTypeMapper.selectById(line.getContainerTypeId()) : null;
-                int capacity = ct != null && ct.getCapacityQty() != null ? ct.getCapacityQty().intValue() : 0;
                 BigDecimal shortfall = needed.subtract(lockedForLine);
                 String matInfo = mat != null ? mat.getMaterialCode() + " " + mat.getMaterialName() : "行" + line.getLineNo();
-                String ctInfo = ct != null ? ct.getContainerName() : "未知容器";
-                if (capacity > 0 && needed.compareTo(BigDecimal.ZERO) > 0) {
-                    int neededBoxes = needed.intValue() / capacity;
-                    int availableBoxes = lockedForLine.intValue() / capacity;
-                    shortageWarnings.add(matInfo + ": 需要 " + neededBoxes + " 箱 " + ctInfo
-                            + " (" + needed.intValue() + " 件)，只能锁 " + availableBoxes + " 箱 ("
-                            + lockedForLine.intValue() + " 件)");
-                } else {
-                    shortageWarnings.add(matInfo + ": 短少 " + shortfall.intValue() + " 件");
-                }
+                shortageWarnings.add(matInfo + ": 需要 " + needed.intValue() + " 件，只能锁 "
+                        + lockedForLine.intValue() + " 件 (短少 " + shortfall.intValue() + " 件)");
             }
         }
 

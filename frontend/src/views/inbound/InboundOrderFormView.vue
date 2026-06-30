@@ -27,24 +27,25 @@
       </div>
 
       <el-table :data="form.lines" border size="small" class="detail-table">
-        <el-table-column label="物料" width="180">
+        <el-table-column label="供应商" width="170">
           <template #default="{ row, $index }">
-            <el-form-item :rules="lineRules.material" :prop="`lines.${$index}.materialId`">
-              <el-select v-model="row.materialId" placeholder="选择物料" filterable clearable
-                @change="onMaterialChange($index)">
-                <el-option v-for="m in masterData.materials" :key="m.id"
-                  :label="`${m.code} ${m.name}`" :value="m.id" />
+            <el-form-item :rules="lineRules.supplier" :prop="`lines.${$index}.supplierId`">
+              <el-select v-model="row.supplierId" placeholder="选择供应商" filterable clearable
+                @change="onSupplierChange($index)">
+                <el-option v-for="s in masterData.suppliers" :key="s.id"
+                  :label="`${s.code} ${s.name}`" :value="s.id" />
               </el-select>
             </el-form-item>
           </template>
         </el-table-column>
 
-        <el-table-column label="供应商" width="170">
+        <el-table-column label="物料" width="180">
           <template #default="{ row, $index }">
-            <el-form-item :rules="lineRules.supplier" :prop="`lines.${$index}.supplierId`">
-              <el-select v-model="row.supplierId" placeholder="选择供应商" filterable clearable>
-                <el-option v-for="s in masterData.suppliers" :key="s.id"
-                  :label="`${s.code} ${s.name}`" :value="s.id" />
+            <el-form-item :rules="lineRules.material" :prop="`lines.${$index}.materialId`">
+              <el-select v-model="row.materialId" placeholder="选择物料" filterable clearable
+                @change="onMaterialChange($index)">
+                <el-option v-for="m in (row._materialOptions || masterData.materials)" :key="m.id"
+                  :label="`${m.code} ${m.name}`" :value="m.id" />
               </el-select>
             </el-form-item>
           </template>
@@ -137,7 +138,7 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { fetchMaterialContainerTypes } from '../../api/masterData'
+import { fetchMaterialContainerTypes, fetchMaterials } from '../../api/masterData'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -178,7 +179,7 @@ watch(visibleSync, (v) => emit('update:visible', v))
 const emptyLine = () => ({
   materialId: undefined, supplierId: undefined, plannedQty: undefined,
   targetWarehouseId: undefined, targetLocationId: undefined, containerTypeId: undefined,
-  _containerOptions: [], _capacityQty: 0, _boxCount: 1, _remainder: 0
+  _containerOptions: [], _capacityQty: 0, _boxCount: 1, _remainder: 0, _materialOptions: null
 })
 
 function normalizeInitialOrder(order) {
@@ -203,8 +204,13 @@ function initForm() {
   form.remark = norm.remark
   if (norm.lines.length) {
     form.lines = norm.lines.map(l => ({ ...emptyLine(), ...l }))
-    // Edit mode: load container options for each line
+    // Edit mode: load container and material options for each line
     form.lines.forEach((line) => {
+      if (line.supplierId) {
+        fetchMaterials({ supplierId: line.supplierId }).then(list => {
+          line._materialOptions = Array.isArray(list) ? list.map(m => ({ id: m.id, code: m.materialCode, name: m.materialName })) : []
+        }).catch(() => { line._materialOptions = [] })
+      }
       if (line.materialId) {
         fetchMaterialContainerTypes(line.materialId).then(types => {
           const list = Array.isArray(types) ? types : []
@@ -233,6 +239,23 @@ function computedQty(row) {
   const rem = Number(row._remainder) || 0
   if (cap <= 0 || boxes <= 0) return 0
   return boxes * cap + rem
+}
+
+function onSupplierChange(index) {
+  const line = form.lines[index]
+  if (!line) return
+  if (!line.supplierId) {
+    line._materialOptions = null
+    line.materialId = undefined
+    return
+  }
+  line.materialId = undefined
+  line._materialOptions = null
+  fetchMaterials({ supplierId: line.supplierId }).then(list => {
+    line._materialOptions = Array.isArray(list) ? list.map(m => ({ id: m.id, code: m.materialCode, name: m.materialName })) : []
+  }).catch(() => {
+    line._materialOptions = []
+  })
 }
 
 function onBoxCountChange(index) {

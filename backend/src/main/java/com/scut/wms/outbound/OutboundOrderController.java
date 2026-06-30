@@ -56,6 +56,11 @@ public class OutboundOrderController {
         return service.create(request);
     }
 
+    @PostMapping("/batch")
+    public BatchOutboundOrderResponse batchCreate(@Valid @RequestBody BatchOutboundOrderRequest request) {
+        return service.createBatch(request);
+    }
+
     @PutMapping("/{id}")
     public OutboundOrderResponse update(@PathVariable Long id, @Valid @RequestBody OutboundOrderRequest request) {
         return service.update(id, request);

@@ -51,4 +51,6 @@ public interface InventoryTransactionMapper {
             @Param("warehouseIds") List<Long> warehouseIds,
             @Param("containerTypeId") Long containerTypeId
     );
+
+    Long selectEarliestFifoTagId(@Param("materialId") Long materialId);
 }
